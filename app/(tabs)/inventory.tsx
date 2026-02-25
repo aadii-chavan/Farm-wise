@@ -28,6 +28,7 @@ export default function InventoryScreen() {
   const [isOtherCategory, setIsOtherCategory] = useState(false);
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState<InventoryUnit>('kg');
+  const [pricePerUnit, setPricePerUnit] = useState('');
 
   const onSave = async () => {
     const finalCategory = isOtherCategory ? customCategory : category;
@@ -43,6 +44,7 @@ export default function InventoryScreen() {
       category: finalCategory,
       quantity: parseFloat(quantity),
       unit,
+      pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : undefined,
     };
 
     await addInventoryItem(newItem);
@@ -51,6 +53,7 @@ export default function InventoryScreen() {
     setCustomCategory('');
     setIsOtherCategory(false);
     setQuantity('');
+    setPricePerUnit('');
     setUnit('kg');
     setModalVisible(false);
   };
@@ -153,6 +156,16 @@ export default function InventoryScreen() {
                             placeholder="0" 
                             value={quantity}
                             onChangeText={setQuantity}
+                            keyboardType="numeric"
+                        />
+                    </View>
+                    <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
+                        <Text style={styles.label}>Cost per {unit}</Text>
+                        <TextInput 
+                            style={styles.input} 
+                            placeholder="₹ 0" 
+                            value={pricePerUnit}
+                            onChangeText={setPricePerUnit}
                             keyboardType="numeric"
                         />
                     </View>

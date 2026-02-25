@@ -3,7 +3,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { CATEGORY_COLORS, CATEGORY_ICONS } from '../constants/Categories';
 import { Palette } from '../constants/Colors';
-import { InventoryItem } from '../types/farm';
+import { Category, InventoryItem } from '../types/farm';
 import { Text } from './Themed';
 
 interface Props {
@@ -13,8 +13,8 @@ interface Props {
 }
 
 export function InventoryCard({ item, onUpdateQuantity, onDelete }: Props) {
-  const color = CATEGORY_COLORS[item.category];
-  const iconName = CATEGORY_ICONS[item.category] as any;
+  const color = CATEGORY_COLORS[item.category as Category] || Palette.primary;
+  const iconName = (CATEGORY_ICONS[item.category as Category] as any) || 'cube';
 
   return (
     <View style={styles.card}>
@@ -25,6 +25,9 @@ export function InventoryCard({ item, onUpdateQuantity, onDelete }: Props) {
       <View style={styles.details}>
         <Text style={styles.name}>{item.name}</Text>
         <Text style={styles.category}>{item.category}</Text>
+        {item.pricePerUnit && (
+            <Text style={styles.priceText}>₹{item.pricePerUnit.toLocaleString()} / {item.unit}</Text>
+        )}
       </View>
 
       <View style={styles.actionColumn}>
@@ -130,5 +133,11 @@ const styles = StyleSheet.create({
       fontSize: 10,
       color: Palette.danger,
       fontFamily: 'Outfit-Medium',
+  },
+  priceText: {
+      fontSize: 12,
+      color: Palette.primary,
+      fontFamily: 'Outfit-Medium',
+      marginTop: 2,
   }
 });

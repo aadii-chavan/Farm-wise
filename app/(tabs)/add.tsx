@@ -33,7 +33,9 @@ export default function RecordTransaction() {
   const [note, setNote] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const categories = type === 'Expense' ? [...EXPENSE_CATEGORIES, 'Other'] : [...INCOME_CATEGORIES, 'Other'];
+  const categories = type === 'Expense' 
+    ? [...EXPENSE_CATEGORIES, 'Other'] 
+    : [...INCOME_CATEGORIES]; // INCOME_CATEGORIES already includes 'Other'
 
   const onSave = async () => {
     const finalCategory = isOtherCategory ? customCategory : category;
@@ -164,7 +166,7 @@ export default function RecordTransaction() {
                                 onPress={() => setPlotId(plotId === p.id ? null : p.id)}
                                 style={[styles.chip, plotId === p.id && styles.chipActive]}
                             >
-                                <Text style={[styles.chipText, plotId === p.id && styles.chipTextActive]}>{p.name}</Text>
+                                <Text style={[styles.chipText, { color: plotId === p.id ? 'white' : Palette.text }]}>{p.name}</Text>
                             </Pressable>
                         ))}
                     </ScrollView>
