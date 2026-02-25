@@ -1,18 +1,15 @@
-import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
-
-import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { Palette } from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
+  name: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  return <Ionicons size={24} style={{ marginBottom: 0 }} {...props} />;
 }
 
 export default function TabLayout() {
@@ -21,39 +18,94 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
+        tabBarActiveTintColor: Palette.primary,
+        tabBarInactiveTintColor: '#BDBDBD',
+        headerShown: true,
+        tabBarStyle: {
+            height: 70,
+            paddingBottom: 12,
+            paddingTop: 8,
+            borderTopWidth: 0,
+            elevation: 10,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            backgroundColor: 'white',
+        },
+        tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '600',
+            marginTop: 4,
+        },
+        headerStyle: {
+            backgroundColor: Palette.background,
+            elevation: 0,
+            shadowOpacity: 0,
+        },
+        headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 20,
+        },
+        headerTintColor: Palette.text,
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
+          title: 'Farm Wise', // Hidden via headerShown: false in the screen file itself
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center' }}>
+                <TabBarIcon name={focused ? "home" : "home-outline"} color={color} />
+            </View>
           ),
+          tabBarLabel: 'Home',
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="add"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Add Expense',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={styles.fabContainer}>
+                <View style={[styles.fab, { backgroundColor: focused ? Palette.primaryDark : Palette.primary }]}>
+                    <Ionicons name="add" size={32} color="white" />
+                </View>
+            </View>
+          ),
+          tabBarLabel: '', 
+        }}
+      />
+      <Tabs.Screen
+        name="list"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color, focused }) => (
+             <TabBarIcon name={focused ? "receipt" : "receipt-outline"} color={color} />
+          ),
+          tabBarLabel: 'History',
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+    fabContainer: {
+        position: 'absolute',
+        top: -30,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    fab: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: Palette.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+    }
+});
