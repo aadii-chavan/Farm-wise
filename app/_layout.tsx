@@ -15,7 +15,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 
-import { ExpensesProvider } from '@/context/ExpensesContext';
+import { FarmProvider } from '@/context/FarmContext';
 
 export {
     // Catch any errors thrown by the Layout component.
@@ -63,13 +63,13 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   return (
-    <ExpensesProvider>
+    <FarmProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
       </ThemeProvider>
-    </ExpensesProvider>
+    </FarmProvider>
   );
 }

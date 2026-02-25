@@ -1,5 +1,5 @@
 import { CATEGORY_COLORS, CATEGORY_ICONS } from '@/constants/Categories';
-import { Category } from '@/types/expense';
+import { Category } from '@/types/farm';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';

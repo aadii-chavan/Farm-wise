@@ -1,6 +1,6 @@
-import { Category } from '../types/expense';
+import { Category, ExpenseCategory, IncomeCategory } from '../types/farm';
 
-export const CATEGORIES: Category[] = [
+export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   'Seeds',
   'Fertilizer',
   'Pesticide',
@@ -10,23 +10,37 @@ export const CATEGORIES: Category[] = [
   'Misc',
 ];
 
+export const INCOME_CATEGORIES: IncomeCategory[] = [
+  'Crops',
+  'Government Subsidy',
+  'Rent',
+  'Other',
+];
+
 export const CATEGORY_COLORS: Record<Category, string> = {
-  Seeds: '#4CAF50', // Green
-  Fertilizer: '#8BC34A', // Light Green
-  Pesticide: '#FF9800', // Orange (Caution)
-  Equipment: '#795548', // Brown (Earth/Tools)
-  Labor: '#2196F3', // Blue (Work)
-  Transport: '#607D8B', // Blue Grey
-  Misc: '#9E9E9E', // Grey
+  Seeds: '#4CAF50',
+  Fertilizer: '#8BC34A',
+  Pesticide: '#FF9800',
+  Equipment: '#795548',
+  Labor: '#2196F3',
+  Transport: '#607D8B',
+  Misc: '#9E9E9E',
+  Crops: '#006d5b', // Deep Emerald
+  'Government Subsidy': '#f9a825', // Gold
+  Rent: '#673AB7', // Purple
+  Other: '#455A64', // Blue Grey
 };
 
 export const CATEGORY_ICONS: Record<Category, string> = {
   Seeds: 'leaf',
-  Fertilizer: 'flask',
+  Fertilizer: 'beaker',
   Pesticide: 'skull',
-  Equipment: 'hammer',
+  Equipment: 'construct',
   Labor: 'people',
   Transport: 'bus',
-  Misc: 'clipboard',
+  Misc: 'apps',
+  Crops: 'basket',
+  'Government Subsidy': 'card',
+  Rent: 'home',
+  Other: 'ellipsis-horizontal',
 };
-

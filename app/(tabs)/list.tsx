@@ -1,41 +1,48 @@
-import { ExpenseCard } from '@/components/ExpenseCard';
 import { Text } from '@/components/Themed';
+import { TransactionCard } from '@/components/TransactionCard';
 import { Palette } from '@/constants/Colors';
-import { useExpenses } from '@/context/ExpensesContext';
+import { useFarm } from '@/context/FarmContext';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback } from 'react';
 import { Alert, FlatList, StyleSheet, View } from 'react-native';
 
-export default function ExpensesList() {
-  const { expenses, deleteExpense, refreshExpenses } = useExpenses();
+export default function TransactionsList() {
+  const { transactions, plots, deleteTransaction, refreshTransactions } = useFarm();
 
   useFocusEffect(
     useCallback(() => {
-        refreshExpenses();
+        refreshTransactions();
     }, [])
   );
 
   const confirmDelete = (id: string) => {
     Alert.alert(
-      "Delete Expense",
-      "Are you sure you want to delete this expense?",
+      "Delete Transaction",
+      "Are you sure you want to delete this record?",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: () => deleteExpense(id) }
+        { text: "Delete", style: "destructive", onPress: () => deleteTransaction(id) }
       ]
     );
   };
 
-  const sortedExpenses = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <View style={styles.container}>
       <FlatList
-        data={sortedExpenses}
+        data={sortedTransactions}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ExpenseCard expense={item} onDelete={confirmDelete} />
-        )}
+        renderItem={({ item }) => {
+          const plot = plots.find(p => p.id === item.plotId);
+          return (
+            <TransactionCard 
+                transaction={item} 
+                onDelete={confirmDelete} 
+                plotName={plot?.name}
+            />
+          );
+        }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 100 }}
         ListHeaderComponent={() => (
             <View style={{ marginBottom: 16 }}>
@@ -44,7 +51,7 @@ export default function ExpensesList() {
         )}
         ListEmptyComponent={
             <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No expenses found. Add some!</Text>
+                <Text style={styles.emptyText}>No transactions found.</Text>
             </View>
         }
       />
@@ -55,7 +62,7 @@ export default function ExpensesList() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Palette.background, // Updated background
+    backgroundColor: Palette.background,
   },
   title: {
       fontSize: 20,

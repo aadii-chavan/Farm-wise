@@ -1,8 +1,8 @@
 import { Text } from '@/components/Themed';
-import { CATEGORIES, CATEGORY_COLORS, CATEGORY_ICONS } from '@/constants/Categories';
+import { CATEGORY_COLORS, CATEGORY_ICONS, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/constants/Categories';
 import { Palette } from '@/constants/Colors';
-import { useExpenses } from '@/context/ExpensesContext';
-import { Category } from '@/types/expense';
+import { useFarm } from '@/context/FarmContext';
+import { Category, TransactionType } from '@/types/farm';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Stack, useRouter } from 'expo-router';
@@ -16,19 +16,22 @@ import {
     View
 } from 'react-native';
 
-export default function AddExpense() {
+export default function RecordTransaction() {
   const router = useRouter();
-  const { addExpense } = useExpenses();
+  const { addTransaction, plots, inventory } = useFarm();
 
+  const [type, setType] = useState<TransactionType>('Expense');
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category | null>(null);
   const [date, setDate] = useState(new Date());
+  const [plotId, setPlotId] = useState<string | null>(null);
+  const [inventoryItemId, setInventoryItemId] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState('');
   const [note, setNote] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Quick inputs for farmers (optional/future)
-  // const quickAmounts = ['500', '1000', '2000', '5000'];
+  const categories = type === 'Expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
   const onSave = async () => {
     if (!title || !amount || !category) {
@@ -38,29 +41,36 @@ export default function AddExpense() {
 
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid expense amount.');
+      Alert.alert('Invalid Amount', 'Please enter a valid amount.');
       return;
     }
 
-    const newExpense = {
+    const newTransaction = {
       id: Date.now().toString() + Math.random().toString(36).substring(7),
       title,
+      type,
       amount: amountNum,
       category,
       date: date.toISOString(),
+      plotId: plotId || undefined,
+      inventoryItemId: inventoryItemId || undefined,
+      quantity: quantity ? parseFloat(quantity) : undefined,
       note,
     };
 
-    await addExpense(newExpense);
+    await addTransaction(newTransaction as any);
     
     // Reset form
     setTitle('');
     setAmount('');
+    setQuantity('');
     setCategory(null);
     setNote('');
     setDate(new Date());
+    setPlotId(null);
+    setInventoryItemId(null);
 
-    Alert.alert('Expense Saved', 'Your expense has been recorded successfully.', [
+    Alert.alert('Record Saved', 'The transaction has been recorded successfully.', [
         { text: 'View All', onPress: () => router.push('/list') },
         { text: 'Add New', style: 'cancel' }
     ]);
@@ -76,67 +86,95 @@ export default function AddExpense() {
   return (
     <>
       <Stack.Screen options={{ 
-        title: 'Add Expense', 
+        title: `Record ${type}`, 
         headerStyle: { backgroundColor: Palette.background },
         headerShadowVisible: false,
       }} />
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
         
-        {/* Amount Input (Main Focus) */}
+        {/* Type Toggle */}
+        <View style={styles.typeToggle}>
+            <Pressable 
+                onPress={() => { setType('Expense'); setCategory(null); }}
+                style={[styles.typeBtn, type === 'Expense' && styles.typeBtnActiveExpense]}
+            >
+                <Text style={[styles.typeBtnText, type === 'Expense' && styles.typeBtnTextActive]}>Expense</Text>
+            </Pressable>
+            <Pressable 
+                onPress={() => { setType('Income'); setCategory(null); }}
+                style={[styles.typeBtn, type === 'Income' && styles.typeBtnActiveIncome]}
+            >
+                <Text style={[styles.typeBtnText, type === 'Income' && styles.typeBtnTextActive]}>Income</Text>
+            </Pressable>
+        </View>
+
+        {/* Amount Input */}
         <View style={styles.amountContainer}>
             <Text style={styles.currencySymbol}>₹</Text>
             <TextInput
-            style={styles.amountInput}
-            placeholder="0"
-            placeholderTextColor={Palette.textSecondary + '40'}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-            autoFocus
+                style={styles.amountInput}
+                placeholder="0"
+                placeholderTextColor={Palette.textSecondary + '40'}
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="numeric"
             />
         </View>
-        <Text style={styles.helperText}>Enter expense amount</Text>
+        <Text style={styles.helperText}>Enter transaction amount</Text>
 
         <View style={styles.formCard}>
             {/* Title */}
             <View style={styles.inputGroup}>
-                <Text style={styles.label}>Expense Title</Text>
+                <Text style={styles.label}>Title</Text>
                 <View style={styles.inputWrapper}>
                     <Ionicons name="create-outline" size={20} color={Palette.textSecondary} style={styles.inputIcon} />
                     <TextInput
-                    style={styles.input}
-                    placeholder="e.g., Fertilizer, Seeds"
-                    value={title}
-                    onChangeText={setTitle}
+                        style={styles.input}
+                        placeholder="e.g., Sold Wheat, Bought Seeds"
+                        value={title}
+                        onChangeText={setTitle}
                     />
                 </View>
             </View>
+
+            {/* Plot Selection */}
+            {plots.length > 0 && (
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Select Plot</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                        {plots.map(p => (
+                            <Pressable 
+                                key={p.id} 
+                                onPress={() => setPlotId(plotId === p.id ? null : p.id)}
+                                style={[styles.chip, plotId === p.id && styles.chipActive]}
+                            >
+                                <Text style={[styles.chipText, plotId === p.id && styles.chipTextActive]}>{p.name}</Text>
+                            </Pressable>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
 
             {/* Category */}
             <View style={styles.inputGroup}>
                 <Text style={styles.label}>Category</Text>
                 <View style={styles.chipContainer}>
-                {CATEGORIES.map((cat) => (
+                {categories.map((cat) => (
                     <Pressable
-                    key={cat}
-                    style={[
-                        styles.chip,
-                        category === cat && { backgroundColor: CATEGORY_COLORS[cat], borderColor: CATEGORY_COLORS[cat] }
-                    ]}
-                    onPress={() => setCategory(cat)}
+                        key={cat}
+                        style={[
+                            styles.chip,
+                            category === cat && { backgroundColor: CATEGORY_COLORS[cat as Category], borderColor: CATEGORY_COLORS[cat as Category] }
+                        ]}
+                        onPress={() => setCategory(cat as Category)}
                     >
                     <Ionicons
-                        name={CATEGORY_ICONS[cat] as any}
+                        name={CATEGORY_ICONS[cat as Category] as any}
                         size={16}
-                        color={category === cat ? 'white' : CATEGORY_COLORS[cat]}
+                        color={category === cat ? 'white' : CATEGORY_COLORS[cat as Category]}
                         style={{ marginRight: 6 }}
                     />
-                    <Text
-                        style={[
-                        styles.chipText,
-                        { color: category === cat ? 'white' : Palette.text }
-                        ]}
-                    >
+                    <Text style={[styles.chipText, { color: category === cat ? 'white' : Palette.text }]}>
                         {cat}
                     </Text>
                     </Pressable>
@@ -144,12 +182,48 @@ export default function AddExpense() {
                 </View>
             </View>
 
+            {/* Inventory Item (Only for certain expense categories) */}
+            {type === 'Expense' && (category === 'Seeds' || category === 'Fertilizer' || category === 'Pesticide') && inventory.length > 0 && (
+                <View>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Link to Inventory (Optional)</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                            {inventory.filter(i => i.category === category).map(item => (
+                                <Pressable 
+                                    key={item.id} 
+                                    onPress={() => setInventoryItemId(inventoryItemId === item.id ? null : item.id)}
+                                    style={[styles.chip, inventoryItemId === item.id && styles.chipActive]}
+                                >
+                                    <Text style={[styles.chipText, inventoryItemId === item.id && styles.chipTextActive]}>{item.name}</Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    </View>
+                    {inventoryItemId && (
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Quantity {inventory.find(i => i.id === inventoryItemId)?.unit}</Text>
+                            <View style={styles.inputWrapper}>
+                                <Ionicons name="cube-outline" size={20} color={Palette.textSecondary} style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="e.g., 10"
+                                    value={quantity}
+                                    onChangeText={setQuantity}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+                            <Text style={styles.infoText}>This will automatically update your inventory stock.</Text>
+                        </View>
+                    )}
+                </View>
+            )}
+
             {/* Date */}
             <View style={styles.inputGroup}>
                 <Text style={styles.label}>Date</Text>
                 <Pressable onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
-                <Ionicons name="calendar-outline" size={20} color={Palette.primary} style={styles.inputIcon} />
-                <Text style={styles.dateText}>{date.toDateString()}</Text>
+                    <Ionicons name="calendar-outline" size={20} color={Palette.primary} style={styles.inputIcon} />
+                    <Text style={styles.dateText}>{date.toLocaleDateString()}</Text>
                 </Pressable>
                 {showDatePicker && (
                 <DateTimePicker
@@ -180,8 +254,8 @@ export default function AddExpense() {
         </View>
 
         {/* Save Button */}
-        <Pressable onPress={onSave} style={({ pressed }) => [styles.saveButton, pressed && { opacity: 0.9 }]}>
-            <Text style={styles.saveButtonText}>Save Expense</Text>
+        <Pressable onPress={onSave} style={({ pressed }) => [styles.saveButton, pressed && { opacity: 0.9 }, { backgroundColor: type === 'Income' ? Palette.success : Palette.primary }]}>
+            <Text style={styles.saveButtonText}>Record {type}</Text>
         </Pressable>
       </ScrollView>
     </>
@@ -191,14 +265,42 @@ export default function AddExpense() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Palette.background, // Light gray
+    backgroundColor: Palette.background,
+  },
+  typeToggle: {
+      flexDirection: 'row',
+      backgroundColor: 'white',
+      marginHorizontal: 40,
+      marginTop: 20,
+      borderRadius: 12,
+      padding: 4,
+      borderWidth: 1,
+      borderColor: Palette.border,
+  },
+  typeBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderRadius: 10,
+  },
+  typeBtnActiveExpense: {
+      backgroundColor: Palette.primary,
+  },
+  typeBtnActiveIncome: {
+      backgroundColor: Palette.success,
+  },
+  typeBtnText: {
+      fontFamily: 'Outfit-Bold',
+      color: Palette.textSecondary,
+  },
+  typeBtnTextActive: {
+      color: 'white',
   },
   amountContainer: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
       marginTop: 20,
-      marginBottom: 0,
   },
   currencySymbol: {
       fontSize: 32,
@@ -218,6 +320,7 @@ const styles = StyleSheet.create({
       color: Palette.textSecondary,
       marginBottom: 24,
       fontSize: 14,
+      fontFamily: 'Outfit',
   },
   formCard: {
       backgroundColor: 'white',
@@ -230,7 +333,6 @@ const styles = StyleSheet.create({
       shadowOpacity: 0.05,
       shadowRadius: 10,
       elevation: 5,
-      minHeight: 500, // Ensure it fills space nicely
   },
   inputGroup: {
       marginBottom: 24,
@@ -257,7 +359,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     padding: 16,
-    paddingLeft: 4, // Accounting for icon
+    paddingLeft: 4,
     fontSize: 16,
     fontFamily: 'Outfit',
     color: Palette.text,
@@ -271,6 +373,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  chipScroll: {
+      flexDirection: 'row',
+  },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -280,10 +385,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
     backgroundColor: 'white',
+    marginRight: 8,
+  },
+  chipActive: {
+      backgroundColor: Palette.primary,
+      borderColor: Palette.primary,
   },
   chipText: {
     fontSize: 14,
     fontFamily: 'Outfit-Medium',
+  },
+  chipTextActive: {
+      color: 'white',
   },
   dateButton: {
     flexDirection: 'row',
@@ -300,16 +413,15 @@ const styles = StyleSheet.create({
     color: Palette.text,
   },
   saveButton: {
-    backgroundColor: Palette.primary,
     marginHorizontal: 24,
-    marginTop: -20, // Overlap the card slightly or just float
+    marginTop: -20,
     marginBottom: 40,
     padding: 18,
     borderRadius: 16,
     alignItems: 'center',
-    shadowColor: Palette.primary,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 8,
   },
@@ -318,4 +430,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Outfit-Bold',
   },
+  infoText: {
+      fontSize: 11,
+      color: Palette.textSecondary,
+      marginLeft: 4,
+      marginTop: 4,
+      fontFamily: 'Outfit',
+  }
 });

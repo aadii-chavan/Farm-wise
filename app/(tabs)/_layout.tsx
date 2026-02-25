@@ -52,7 +52,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Farm Wise', // Hidden via headerShown: false in the screen file itself
           tabBarIcon: ({ color, focused }) => (
             <View style={{ alignItems: 'center' }}>
                 <TabBarIcon name={focused ? "home" : "home-outline"} color={color} />
@@ -62,9 +61,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="plots"
+        options={{
+          title: 'Plots',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? "map" : "map-outline"} color={color} />
+          ),
+          tabBarLabel: 'Plots',
+        }}
+      />
+      <Tabs.Screen
         name="add"
         options={{
-          title: 'Add Expense',
+          title: 'Record',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.fabContainer}>
                 <View style={[styles.fab, { backgroundColor: focused ? Palette.primaryDark : Palette.primary }]}>
@@ -73,6 +82,16 @@ export default function TabLayout() {
             </View>
           ),
           tabBarLabel: '', 
+        }}
+      />
+      <Tabs.Screen
+        name="inventory"
+        options={{
+          title: 'Inventory',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? "cube" : "cube-outline"} color={color} />
+          ),
+          tabBarLabel: 'Inventory',
         }}
       />
       <Tabs.Screen
@@ -85,6 +104,7 @@ export default function TabLayout() {
           tabBarLabel: 'History',
         }}
       />
+
     </Tabs>
   );
 }

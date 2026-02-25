@@ -4,17 +4,19 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { CATEGORY_COLORS, CATEGORY_ICONS } from '../constants/Categories';
 import { Palette } from '../constants/Colors';
-import { Expense } from '../types/expense';
+import { Transaction } from '../types/farm';
 import { Text } from './Themed';
 
 interface Props {
-  expense: Expense;
+  transaction: Transaction;
   onDelete?: (id: string) => void;
+  plotName?: string;
 }
 
-export function ExpenseCard({ expense, onDelete }: Props) {
-  const color = CATEGORY_COLORS[expense.category];
-  const iconName = CATEGORY_ICONS[expense.category] as any;
+export function TransactionCard({ transaction, onDelete, plotName }: Props) {
+  const isIncome = transaction.type === 'Income';
+  const color = CATEGORY_COLORS[transaction.category];
+  const iconName = CATEGORY_ICONS[transaction.category] as any;
 
   return (
     <View style={styles.card}>
@@ -23,16 +25,21 @@ export function ExpenseCard({ expense, onDelete }: Props) {
       </View>
       
       <View style={styles.details}>
-        <Text style={styles.title} numberOfLines={1}>{expense.title}</Text>
-        <Text style={styles.date}>{format(new Date(expense.date), 'dd MMM, hh:mm a')}</Text>
+        <Text style={styles.title} numberOfLines={1}>{transaction.title}</Text>
+        <View style={styles.subDetailRow}>
+            <Text style={styles.date}>{format(new Date(transaction.date), 'dd MMM')}</Text>
+            {plotName && <Text style={styles.plotBadge}> • {plotName}</Text>}
+        </View>
       </View>
       
       <View style={styles.amountContainer}>
-        <Text style={styles.amount}>-₹{expense.amount.toLocaleString('en-IN')}</Text>
+        <Text style={[styles.amount, { color: isIncome ? Palette.success : Palette.danger }]}>
+            {isIncome ? '+' : '-'}₹{transaction.amount.toLocaleString('en-IN')}
+        </Text>
       </View>
 
       {onDelete && (
-        <Pressable onPress={() => onDelete(expense.id)} style={styles.deleteButton}>
+        <Pressable onPress={() => onDelete(transaction.id)} style={styles.deleteButton}>
            <Ionicons name="trash-bin-outline" size={18} color={Palette.textSecondary} />
         </Pressable>
       )}
@@ -46,12 +53,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 16,
     marginVertical: 6,
-    // marginHorizontal: 16, // Removed as parent handles padding now
     borderRadius: 16,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03, // Much softer shadow
+    shadowOpacity: 0.03,
     shadowRadius: 8,
     elevation: 1,
     borderWidth: 1,
@@ -75,9 +81,19 @@ const styles = StyleSheet.create({
     color: Palette.text,
     marginBottom: 4,
   },
+  subDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   date: {
     fontSize: 12,
     color: Palette.textSecondary,
+    fontFamily: 'Outfit',
+  },
+  plotBadge: {
+    fontSize: 12,
+    color: Palette.primary,
+    fontFamily: 'Outfit-Medium',
   },
   amountContainer: {
     marginRight: 8,
@@ -85,7 +101,6 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 16,
     fontFamily: 'Outfit-Bold',
-    color: Palette.danger, // Red for expense
   },
   deleteButton: {
     padding: 8,

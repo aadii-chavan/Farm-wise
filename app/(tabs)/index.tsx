@@ -1,7 +1,8 @@
 import { Text } from '@/components/Themed';
-import { CATEGORIES, CATEGORY_COLORS } from '@/constants/Categories';
+import { CATEGORY_COLORS, CATEGORY_ICONS } from '@/constants/Categories';
 import { Palette } from '@/constants/Colors';
-import { useExpenses } from '@/context/ExpensesContext';
+import { useFarm } from '@/context/FarmContext';
+import { Category } from '@/types/farm';
 import * as Storage from '@/utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -12,12 +13,12 @@ import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-nativ
 import { PieChart } from 'react-native-chart-kit';
 
 export default function Dashboard() {
-  const { expenses, refreshExpenses } = useExpenses();
+  const { transactions, plots, refreshAll } = useFarm();
   const [seasonStart, setSeasonStart] = useState<Date>(new Date(new Date().getFullYear(), 0, 1));
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const loadData = async () => {
-      await refreshExpenses();
+      await refreshAll();
       const seasonDate = await Storage.getSeasonStartDate();
       setSeasonStart(seasonDate);
   }
@@ -30,24 +31,30 @@ export default function Dashboard() {
 
   const today = new Date();
   
-  const todayExpenses = expenses.filter(e => isSameDay(new Date(e.date), today));
-  const monthExpenses = expenses.filter(e => isSameMonth(new Date(e.date), today));
-  const seasonExpenses = expenses.filter(e => new Date(e.date) >= seasonStart);
+  const seasonTransactions = transactions.filter(t => new Date(t.date) >= seasonStart);
+  const todayTransactions = seasonTransactions.filter(t => isSameDay(new Date(t.date), today));
+  const monthTransactions = seasonTransactions.filter(t => isSameMonth(new Date(t.date), today));
 
-  const totalToday = todayExpenses.reduce((acc, e) => acc + e.amount, 0);
-  const totalMonth = monthExpenses.reduce((acc, e) => acc + e.amount, 0);
-  const totalSeason = seasonExpenses.reduce((acc, e) => acc + e.amount, 0);
+  const getStats = (list: typeof transactions) => {
+    const income = list.filter(t => t.type === 'Income').reduce((acc, t) => acc + t.amount, 0);
+    const expense = list.filter(t => t.type === 'Expense').reduce((acc, t) => acc + t.amount, 0);
+    return { income, expense, profit: income - expense };
+  };
 
-  const categoryData = CATEGORIES.map(cat => {
-    const total = seasonExpenses.filter(e => e.category === cat).reduce((acc, e) => acc + e.amount, 0);
+  const seasonStats = getStats(seasonTransactions);
+  const todayStats = getStats(todayTransactions);
+  const monthStats = getStats(monthTransactions);
+
+  const categoryData = Array.from(new Set(seasonTransactions.map(t => t.category))).map(cat => {
+    const total = seasonTransactions.filter(t => t.category === cat).reduce((acc, t) => acc + t.amount, 0);
     return {
         name: cat,
         population: total,
-        color: CATEGORY_COLORS[cat], // Keep using category colors
+        color: CATEGORY_COLORS[cat as Category] || Palette.primary,
         legendFontColor: Palette.textSecondary,
         legendFontSize: 12
     };
-  }).filter(d => d.population > 0);
+  }).filter(d => d.population > 0).sort((a, b) => b.population - a.population);
 
   const screenWidth = Dimensions.get('window').width;
 
@@ -77,15 +84,15 @@ export default function Dashboard() {
           
           <Pressable style={styles.balanceCard} onPress={() => setShowDatePicker(true)}>
               <View>
-                <Text style={styles.balanceLabel}>Total Spend (Season)</Text>
-                <Text style={styles.balanceAmount}>₹{totalSeason.toLocaleString('en-IN')}</Text>
+                <Text style={styles.balanceLabel}>Net Profit (Season)</Text>
+                <Text style={styles.balanceAmount}>₹{seasonStats.profit.toLocaleString('en-IN')}</Text>
                 <View style={styles.seasonBadge}>
                      <Text style={styles.seasonText}>Since {format(seasonStart, 'dd MMM')}</Text>
                      <Ionicons name="chevron-down" size={12} color="white" style={{marginLeft: 4}} />
                 </View>
               </View>
               <View style={styles.balanceIcon}>
-                  <Ionicons name="wallet-outline" size={32} color={Palette.primary} />
+                  <Ionicons name={seasonStats.profit >= 0 ? "trending-up" : "trending-down"} size={32} color={seasonStats.profit >= 0 ? Palette.success : Palette.danger} />
               </View>
           </Pressable>
         </View>
@@ -100,26 +107,52 @@ export default function Dashboard() {
             />
         )}
 
+        {/* Summary Stats */}
         <View style={styles.statsRow}>
              <View style={styles.statCard}>
-                 <View style={[styles.iconCircle, { backgroundColor: Palette.primaryLight + '40' }]}>
-                     <Ionicons name="today-outline" size={20} color={Palette.primary} />
+                 <View style={[styles.iconCircle, { backgroundColor: Palette.success + '20' }]}>
+                     <Ionicons name="arrow-up-circle" size={20} color={Palette.success} />
                  </View>
-                 <Text style={styles.statLabel}>Today</Text>
-                 <Text style={styles.statValue}>₹{totalToday.toLocaleString('en-IN')}</Text>
+                 <Text style={styles.statLabel}>Total Income</Text>
+                 <Text style={[styles.statValue, { color: Palette.success }]}>₹{seasonStats.income.toLocaleString('en-IN')}</Text>
              </View>
              <View style={styles.statCard}>
-                 <View style={[styles.iconCircle, { backgroundColor: '#E1F5FE' }]}>
-                     <Ionicons name="calendar-outline" size={20} color="#0288D1" />
+                 <View style={[styles.iconCircle, { backgroundColor: Palette.danger + '20' }]}>
+                     <Ionicons name="arrow-down-circle" size={20} color={Palette.danger} />
                  </View>
-                 <Text style={styles.statLabel}>Month</Text>
-                 <Text style={styles.statValue}>₹{totalMonth.toLocaleString('en-IN')}</Text>
+                 <Text style={styles.statLabel}>Total Expense</Text>
+                 <Text style={[styles.statValue, { color: Palette.danger }]}>₹{seasonStats.expense.toLocaleString('en-IN')}</Text>
              </View>
         </View>
 
+        {/* Plots Quick View */}
+        {plots.length > 0 && (
+            <View>
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Plot Performance</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
+                    {plots.map(plot => {
+                        const pStats = getStats(transactions.filter(t => t.plotId === plot.id));
+                        return (
+                            <View key={plot.id} style={styles.plotMiniCard}>
+                                <Text style={styles.plotMiniName}>{plot.name}</Text>
+                                <Text style={styles.plotMiniCrop}>{plot.cropType}</Text>
+                                <View style={styles.plotMiniStats}>
+                                    <Text style={[styles.plotMiniValue, { color: pStats.profit >= 0 ? Palette.primary : Palette.danger }]}>
+                                        ₹{pStats.profit >= 1000 ? (pStats.profit/1000).toFixed(1) + 'k' : pStats.profit}
+                                    </Text>
+                                </View>
+                            </View>
+                        );
+                    })}
+                </ScrollView>
+            </View>
+        )}
+
         {/* Charts Section */}
         <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Expense Analysis</Text>
+            <Text style={styles.sectionTitle}>Financial Analysis</Text>
         </View>
 
         {categoryData.length > 0 ? (
@@ -140,29 +173,35 @@ export default function Dashboard() {
             </View>
         ) : (
             <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No data for charts yet.</Text>
+                <Text style={styles.emptyText}>No transactions yet.</Text>
             </View>
         )}
 
         {/* Recent Transactions Preview */}
         <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-            <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            <Pressable onPress={() => { /* Navigate to list tab logic if needed or just let user tap tab */ }}>
-                <Text style={{ color: Palette.primary, fontWeight: '600' }}>See all</Text>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <Pressable onPress={() => { /* Navigate */ }}>
+                <Text style={{ color: Palette.primary, fontFamily: 'Outfit-SemiBold' }}>See all</Text>
             </Pressable>
         </View>
 
         <View style={{ paddingHorizontal: 20 }}>
-            {expenses.slice(0, 3).map((expense) => (
-                <View key={expense.id} style={styles.miniTransactionCard}>
-                    <View style={[styles.miniIcon, { backgroundColor: CATEGORY_COLORS[expense.category] + '20' }]}>
-                        <Ionicons name={require('@/constants/Categories').CATEGORY_ICONS[expense.category]} size={16} color={CATEGORY_COLORS[expense.category]} />
+            {transactions.slice(0, 5).map((t) => (
+                <View key={t.id} style={styles.miniTransactionCard}>
+                    <View style={[styles.miniIcon, { backgroundColor: (CATEGORY_COLORS[t.category] || Palette.primary) + '20' }]}>
+                        <Ionicons 
+                            name={(CATEGORY_ICONS[t.category] as any) || 'cash'} 
+                            size={16} 
+                            color={CATEGORY_COLORS[t.category] || Palette.primary} 
+                        />
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.miniTitle}>{expense.title}</Text>
-                        <Text style={styles.miniDate}>{format(new Date(expense.date), 'd MMM')}</Text>
+                        <Text style={styles.miniTitle}>{t.title}</Text>
+                        <Text style={styles.miniDate}>{format(new Date(t.date), 'd MMM')}</Text>
                     </View>
-                    <Text style={styles.miniAmount}>-₹{expense.amount.toFixed(0)}</Text>
+                    <Text style={[styles.miniAmount, { color: t.type === 'Income' ? Palette.success : Palette.danger }]}>
+                        {t.type === 'Income' ? '+' : '-'}₹{t.amount.toFixed(0)}
+                    </Text>
                 </View>
             ))}
         </View>
@@ -180,7 +219,7 @@ const styles = StyleSheet.create({
         backgroundColor: Palette.primary,
         paddingTop: 60,
         paddingHorizontal: 20,
-        paddingBottom: 30, // Space for the card to overlap if we wanted, or just clean spacing
+        paddingBottom: 30,
         borderBottomLeftRadius: 30,
         borderBottomRightRadius: 30,
     },
@@ -191,7 +230,7 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     greeting: {
-        fontSize: 22, // Slightly smaller header per design
+        fontSize: 22,
         fontFamily: 'Outfit-Bold',
         color: 'white',
     },
@@ -273,14 +312,14 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     statLabel: {
-        fontSize: 14,
+        fontSize: 12,
         color: Palette.textSecondary,
+        fontFamily: 'Outfit-Medium',
         marginBottom: 4,
     },
     statValue: {
-        fontSize: 20,
+        fontSize: 18,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
     },
     sectionHeader: {
         paddingHorizontal: 20,
@@ -291,6 +330,33 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontFamily: 'Outfit-Bold',
         color: Palette.text,
+    },
+    plotMiniCard: {
+        backgroundColor: 'white',
+        padding: 16,
+        borderRadius: 16,
+        marginRight: 12,
+        width: 140,
+        borderWidth: 1,
+        borderColor: '#f0f0f0',
+    },
+    plotMiniName: {
+        fontSize: 14,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+    },
+    plotMiniCrop: {
+        fontSize: 11,
+        color: Palette.textSecondary,
+        fontFamily: 'Outfit',
+        marginBottom: 8,
+    },
+    plotMiniStats: {
+        marginTop: 4,
+    },
+    plotMiniValue: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
     },
     chartCard: {
         marginHorizontal: 20,
@@ -310,6 +376,7 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         color: Palette.textSecondary,
+        fontFamily: 'Outfit',
     },
     miniTransactionCard: {
         flexDirection: 'row',
@@ -343,6 +410,5 @@ const styles = StyleSheet.create({
     miniAmount: {
         fontSize: 14,
         fontFamily: 'Outfit-Bold',
-        color: Palette.danger,
     }
 });
