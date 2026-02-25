@@ -8,12 +8,12 @@ import { Text } from './Themed';
 interface Props {
   plot: Plot;
   onPress?: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
-  onAddTransaction?: () => void;
   stats?: { income: number, expense: number };
 }
 
-export function PlotCard({ plot, onPress, onDelete, onAddTransaction, stats }: Props) {
+export function PlotCard({ plot, onPress, onDelete, onEdit, stats }: Props) {
   const profit = stats ? stats.income - stats.expense : 0;
 
   return (
@@ -29,10 +29,9 @@ export function PlotCard({ plot, onPress, onDelete, onAddTransaction, stats }: P
             </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {onAddTransaction && (
-                <Pressable onPress={onAddTransaction} style={styles.addEntryBtn}>
-                    <Ionicons name="add-circle" size={18} color={Palette.primary} />
-                    <Text style={styles.addEntryText}>Update</Text>
+            {onEdit && (
+                <Pressable onPress={onEdit} style={styles.editBtn}>
+                    <Ionicons name="pencil-outline" size={18} color={Palette.textSecondary} />
                 </Pressable>
             )}
             {onDelete && (
@@ -111,20 +110,9 @@ const styles = StyleSheet.create({
   deleteBtn: {
       padding: 8,
   },
-  addEntryBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: Palette.primaryLight + '20',
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 12,
-      marginRight: 8,
-  },
-  addEntryText: {
-      fontSize: 12,
-      fontFamily: 'Outfit-Bold',
-      color: Palette.primary,
-      marginLeft: 4,
+  editBtn: {
+      padding: 8,
+      marginRight: 4,
   },
   statsRow: {
     flexDirection: 'row',

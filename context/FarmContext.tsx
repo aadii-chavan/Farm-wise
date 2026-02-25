@@ -15,6 +15,7 @@ interface FarmContextType {
   
   // Plots
   addPlot: (plot: Plot) => Promise<void>;
+  updatePlot: (plot: Plot) => Promise<void>;
   deletePlot: (id: string) => Promise<void>;
   refreshPlots: () => Promise<void>;
   
@@ -67,6 +68,11 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   };
 
+  const updatePlot = async (plot: Plot) => {
+    await Storage.updatePlot(plot);
+    await loadData();
+  };
+
   const deletePlot = async (id: string) => {
     await Storage.deletePlot(id);
     await loadData();
@@ -101,6 +107,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       deleteTransaction, 
       refreshTransactions: refreshAll,
       addPlot,
+      updatePlot,
       deletePlot,
       refreshPlots: refreshAll,
       addInventoryItem,

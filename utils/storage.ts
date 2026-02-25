@@ -82,6 +82,19 @@ export const deletePlot = async (id: string): Promise<void> => {
     }
 };
 
+export const updatePlot = async (plot: Plot): Promise<void> => {
+    try {
+        const plots = await getPlots();
+        const index = plots.findIndex(p => p.id === plot.id);
+        if (index !== -1) {
+            plots[index] = plot;
+            await AsyncStorage.setItem(PLOTS_KEY, JSON.stringify(plots));
+        }
+    } catch (e) {
+        console.error('Failed to update plot', e);
+    }
+};
+
 // Inventory
 export const getInventory = async (): Promise<InventoryItem[]> => {
     try {

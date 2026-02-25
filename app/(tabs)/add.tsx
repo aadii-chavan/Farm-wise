@@ -5,8 +5,8 @@ import { useFarm } from '@/context/FarmContext';
 import { Category, TransactionType } from '@/types/farm';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Stack, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Pressable,
@@ -18,7 +18,14 @@ import {
 
 export default function RecordTransaction() {
   const router = useRouter();
+  const { plotId: paramPlotId } = useLocalSearchParams();
   const { addTransaction, plots, inventory } = useFarm();
+
+  useEffect(() => {
+    if (paramPlotId && typeof paramPlotId === 'string') {
+      setPlotId(paramPlotId);
+    }
+  }, [paramPlotId]);
 
   const [type, setType] = useState<TransactionType>('Expense');
   const [title, setTitle] = useState('');
