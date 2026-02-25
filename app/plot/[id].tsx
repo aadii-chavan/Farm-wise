@@ -5,12 +5,23 @@ import { useFarm } from '@/context/FarmContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 export default function PlotDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { plots, transactions, deleteTransaction } = useFarm();
+
+  const confirmDelete = (txId: string) => {
+    Alert.alert(
+      "Delete Record",
+      "Are you sure you want to delete this activity record? This will also revert any inventory deductions.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => deleteTransaction(txId) }
+      ]
+    );
+  };
 
   const plot = plots.find((p) => p.id === id);
   const plotTransactions = transactions.filter((t) => t.plotId === id);
@@ -38,6 +49,8 @@ export default function PlotDetailScreen() {
           title: plot.name,
           headerShadowVisible: false,
           headerStyle: { backgroundColor: Palette.background },
+          headerTintColor: Palette.text,
+          headerTitleStyle: { fontFamily: 'Outfit-Bold' },
         }} 
       />
       
@@ -79,7 +92,7 @@ export default function PlotDetailScreen() {
             renderItem={({ item }) => (
                 <TransactionCard 
                     transaction={item} 
-                    onDelete={() => deleteTransaction(item.id)}
+                    onDelete={() => confirmDelete(item.id)}
                 />
             )}
             contentContainerStyle={{ paddingBottom: 100 }}
