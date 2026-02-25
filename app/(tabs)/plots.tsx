@@ -30,7 +30,7 @@ export default function PlotsScreen() {
     const newPlot = {
       id: Date.now().toString(),
       name,
-      area,
+      area: parseFloat(area),
       cropType,
     };
 
@@ -102,12 +102,13 @@ export default function PlotsScreen() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Area</Text>
+                    <Text style={styles.label}>Area (Acres)</Text>
                     <TextInput 
                         style={styles.input} 
-                        placeholder="e.g., 5 Acres" 
+                        placeholder="e.g., 5" 
                         value={area}
                         onChangeText={setArea}
+                        keyboardType="numeric"
                     />
                 </View>
 

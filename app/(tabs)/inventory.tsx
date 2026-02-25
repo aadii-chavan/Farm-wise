@@ -3,7 +3,7 @@ import { Text } from '@/components/Themed';
 import { EXPENSE_CATEGORIES } from '@/constants/Categories';
 import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
-import { ExpenseCategory } from '@/types/farm';
+import { InventoryUnit } from '@/types/farm';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
@@ -17,16 +17,22 @@ import {
     View
 } from 'react-native';
 
+const FIXED_UNITS: InventoryUnit[] = ['kg', 'bags', 'L'];
+
 export default function InventoryScreen() {
   const { inventory, addInventoryItem, updateInventoryQuantity, deleteInventoryItem } = useFarm();
   const [modalVisible, setModalVisible] = useState(false);
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<ExpenseCategory>('Seeds');
+  const [category, setCategory] = useState<string>('Seeds');
+  const [customCategory, setCustomCategory] = useState('');
+  const [isOtherCategory, setIsOtherCategory] = useState(false);
   const [quantity, setQuantity] = useState('');
-  const [unit, setUnit] = useState('');
+  const [unit, setUnit] = useState<InventoryUnit>('kg');
 
   const onSave = async () => {
-    if (!name || !quantity || !unit) {
+    const finalCategory = isOtherCategory ? customCategory : category;
+    
+    if (!name || !quantity || !finalCategory) {
       Alert.alert('Missing Fields', 'Please fill in all fields.');
       return;
     }
@@ -34,16 +40,29 @@ export default function InventoryScreen() {
     const newItem = {
       id: Date.now().toString(),
       name,
-      category,
+      category: finalCategory,
       quantity: parseFloat(quantity),
       unit,
     };
 
     await addInventoryItem(newItem);
     setName('');
+    setCategory('Seeds');
+    setCustomCategory('');
+    setIsOtherCategory(false);
     setQuantity('');
-    setUnit('');
+    setUnit('kg');
     setModalVisible(false);
+  };
+
+  const selectCategory = (cat: string) => {
+    if (cat === 'Other') {
+        setIsOtherCategory(true);
+        setCategory('Other');
+    } else {
+        setIsOtherCategory(false);
+        setCategory(cat);
+    }
   };
 
   return (
@@ -102,10 +121,10 @@ export default function InventoryScreen() {
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Category</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                        {EXPENSE_CATEGORIES.map(cat => (
+                        {[...EXPENSE_CATEGORIES, 'Other'].map(cat => (
                             <Pressable 
                                 key={cat} 
-                                onPress={() => setCategory(cat)}
+                                onPress={() => selectCategory(cat)}
                                 style={[styles.catChip, category === cat && styles.catChipActive]}
                             >
                                 <Text style={[styles.catChipText, category === cat && styles.catChipTextActive]}>{cat}</Text>
@@ -113,6 +132,18 @@ export default function InventoryScreen() {
                         ))}
                     </ScrollView>
                 </View>
+
+                {isOtherCategory && (
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Custom Category Name</Text>
+                        <TextInput 
+                            style={styles.input} 
+                            placeholder="e.g., Tools" 
+                            value={customCategory}
+                            onChangeText={setCustomCategory}
+                        />
+                    </View>
+                )}
 
                 <View style={styles.row}>
                     <View style={[styles.inputGroup, { flex: 1 }]}>
@@ -125,14 +156,20 @@ export default function InventoryScreen() {
                             keyboardType="numeric"
                         />
                     </View>
-                    <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-                        <Text style={styles.label}>Unit</Text>
-                        <TextInput 
-                            style={styles.input} 
-                            placeholder="kg / bags / L" 
-                            value={unit}
-                            onChangeText={setUnit}
-                        />
+                </View>
+
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Unit</Text>
+                    <View style={styles.unitToggleContainer}>
+                        {FIXED_UNITS.map(u => (
+                            <Pressable 
+                                key={u} 
+                                onPress={() => setUnit(u)}
+                                style={[styles.unitChip, unit === u && styles.unitChipActive]}
+                            >
+                                <Text style={[styles.unitChipText, unit === u && styles.unitChipTextActive]}>{u}</Text>
+                            </Pressable>
+                        ))}
                     </View>
                 </View>
 
@@ -250,6 +287,36 @@ const styles = StyleSheet.create({
   },
   catChipTextActive: {
       color: 'white',
+  },
+  unitToggleContainer: {
+      flexDirection: 'row',
+      backgroundColor: Palette.background,
+      borderRadius: 12,
+      padding: 4,
+      gap: 4,
+  },
+  unitChip: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderRadius: 10,
+      backgroundColor: 'transparent',
+  },
+  unitChipActive: {
+      backgroundColor: 'white',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+  },
+  unitChipText: {
+      fontSize: 14,
+      fontFamily: 'Outfit-SemiBold',
+      color: Palette.textSecondary,
+  },
+  unitChipTextActive: {
+      color: Palette.primary,
   },
   row: {
       flexDirection: 'row',

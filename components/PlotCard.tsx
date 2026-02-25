@@ -24,7 +24,7 @@ export function PlotCard({ plot, onPress, onDelete, stats }: Props) {
             </View>
             <View>
                 <Text style={styles.name}>{plot.name}</Text>
-                <Text style={styles.details}>{plot.cropType} • {plot.area}</Text>
+                <Text style={styles.details}>{plot.cropType} • {plot.area} Acres</Text>
             </View>
         </View>
         {onDelete && (

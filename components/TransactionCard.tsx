@@ -4,7 +4,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { CATEGORY_COLORS, CATEGORY_ICONS } from '../constants/Categories';
 import { Palette } from '../constants/Colors';
-import { Transaction } from '../types/farm';
+import { Category, Transaction } from '../types/farm';
 import { Text } from './Themed';
 
 interface Props {
@@ -15,8 +15,8 @@ interface Props {
 
 export function TransactionCard({ transaction, onDelete, plotName }: Props) {
   const isIncome = transaction.type === 'Income';
-  const color = CATEGORY_COLORS[transaction.category];
-  const iconName = CATEGORY_ICONS[transaction.category] as any;
+  const color = CATEGORY_COLORS[transaction.category as Category] || Palette.primary;
+  const iconName = (CATEGORY_ICONS[transaction.category as Category] as any) || 'apps';
 
   return (
     <View style={styles.card}>

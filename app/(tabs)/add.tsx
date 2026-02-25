@@ -23,7 +23,9 @@ export default function RecordTransaction() {
   const [type, setType] = useState<TransactionType>('Expense');
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<Category | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
+  const [customCategory, setCustomCategory] = useState('');
+  const [isOtherCategory, setIsOtherCategory] = useState(false);
   const [date, setDate] = useState(new Date());
   const [plotId, setPlotId] = useState<string | null>(null);
   const [inventoryItemId, setInventoryItemId] = useState<string | null>(null);
@@ -31,10 +33,12 @@ export default function RecordTransaction() {
   const [note, setNote] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const categories = type === 'Expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const categories = type === 'Expense' ? [...EXPENSE_CATEGORIES, 'Other'] : [...INCOME_CATEGORIES, 'Other'];
 
   const onSave = async () => {
-    if (!title || !amount || !category) {
+    const finalCategory = isOtherCategory ? customCategory : category;
+
+    if (!title || !amount || !finalCategory) {
       Alert.alert('Missing Fields', 'Please fill in Title, Amount, and Category.');
       return;
     }
@@ -50,7 +54,7 @@ export default function RecordTransaction() {
       title,
       type,
       amount: amountNum,
-      category,
+      category: finalCategory,
       date: date.toISOString(),
       plotId: plotId || undefined,
       inventoryItemId: inventoryItemId || undefined,
@@ -65,6 +69,8 @@ export default function RecordTransaction() {
     setAmount('');
     setQuantity('');
     setCategory(null);
+    setCustomCategory('');
+    setIsOtherCategory(false);
     setNote('');
     setDate(new Date());
     setPlotId(null);
@@ -83,6 +89,16 @@ export default function RecordTransaction() {
     }
   };
 
+  const selectCategory = (cat: string) => {
+    if (cat === 'Other') {
+        setIsOtherCategory(true);
+        setCategory('Other');
+    } else {
+        setIsOtherCategory(false);
+        setCategory(cat);
+    }
+  };
+
   return (
     <>
       <Stack.Screen options={{ 
@@ -95,13 +111,13 @@ export default function RecordTransaction() {
         {/* Type Toggle */}
         <View style={styles.typeToggle}>
             <Pressable 
-                onPress={() => { setType('Expense'); setCategory(null); }}
+                onPress={() => { setType('Expense'); setCategory(null); setIsOtherCategory(false); }}
                 style={[styles.typeBtn, type === 'Expense' && styles.typeBtnActiveExpense]}
             >
                 <Text style={[styles.typeBtnText, type === 'Expense' && styles.typeBtnTextActive]}>Expense</Text>
             </Pressable>
             <Pressable 
-                onPress={() => { setType('Income'); setCategory(null); }}
+                onPress={() => { setType('Income'); setCategory(null); setIsOtherCategory(false); }}
                 style={[styles.typeBtn, type === 'Income' && styles.typeBtnActiveIncome]}
             >
                 <Text style={[styles.typeBtnText, type === 'Income' && styles.typeBtnTextActive]}>Income</Text>
@@ -164,14 +180,14 @@ export default function RecordTransaction() {
                         key={cat}
                         style={[
                             styles.chip,
-                            category === cat && { backgroundColor: CATEGORY_COLORS[cat as Category], borderColor: CATEGORY_COLORS[cat as Category] }
+                            category === cat && { backgroundColor: CATEGORY_COLORS[cat as Category] || Palette.primary, borderColor: CATEGORY_COLORS[cat as Category] || Palette.primary }
                         ]}
-                        onPress={() => setCategory(cat as Category)}
+                        onPress={() => selectCategory(cat)}
                     >
                     <Ionicons
-                        name={CATEGORY_ICONS[cat as Category] as any}
+                        name={(CATEGORY_ICONS[cat as Category] as any) || 'apps'}
                         size={16}
-                        color={category === cat ? 'white' : CATEGORY_COLORS[cat as Category]}
+                        color={category === cat ? 'white' : (CATEGORY_COLORS[cat as Category] || Palette.primary)}
                         style={{ marginRight: 6 }}
                     />
                     <Text style={[styles.chipText, { color: category === cat ? 'white' : Palette.text }]}>
@@ -181,6 +197,21 @@ export default function RecordTransaction() {
                 ))}
                 </View>
             </View>
+
+            {isOtherCategory && (
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Custom Category Name</Text>
+                    <View style={styles.inputWrapper}>
+                        <Ionicons name="pricetag-outline" size={20} color={Palette.textSecondary} style={styles.inputIcon} />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="e.g., Repair, Maintenance"
+                            value={customCategory}
+                            onChangeText={setCustomCategory}
+                        />
+                    </View>
+                </View>
+            )}
 
             {/* Inventory Item (Only for certain expense categories) */}
             {type === 'Expense' && (category === 'Seeds' || category === 'Fertilizer' || category === 'Pesticide') && inventory.length > 0 && (

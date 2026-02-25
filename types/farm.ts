@@ -5,19 +5,21 @@ export type IncomeCategory = 'Crops' | 'Government Subsidy' | 'Rent' | 'Other';
 
 export type Category = ExpenseCategory | IncomeCategory;
 
+export type InventoryUnit = 'kg' | 'bags' | 'L';
+
 export interface Plot {
   id: string;
   name: string;
-  area: string;
+  area: number; // In acres
   cropType: string;
 }
 
 export interface InventoryItem {
   id: string;
   name: string;
-  category: ExpenseCategory;
+  category: string; // Supports custom categories
   quantity: number;
-  unit: string;
+  unit: InventoryUnit;
   pricePerUnit?: number;
 }
 
@@ -25,7 +27,7 @@ export interface Transaction {
   id: string;
   title: string;
   type: TransactionType;
-  category: Category;
+  category: string; // Supports custom categories
   amount: number;
   date: string;
   plotId?: string;
