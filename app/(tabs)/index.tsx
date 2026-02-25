@@ -1,3 +1,4 @@
+import { Text } from '@/components/Themed';
 import { CATEGORIES, CATEGORY_COLORS } from '@/constants/Categories';
 import { Palette } from '@/constants/Colors';
 import { useExpenses } from '@/context/ExpensesContext';
@@ -7,7 +8,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, isSameDay, isSameMonth } from 'date-fns';
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 
 export default function Dashboard() {
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
     },
     greeting: {
         fontSize: 22, // Slightly smaller header per design
-        fontWeight: 'bold',
+        fontFamily: 'Outfit-Bold',
         color: 'white',
     },
     date: {
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     balanceAmount: {
         color: 'white',
         fontSize: 32,
-        fontWeight: 'bold',
+        fontFamily: 'Outfit-Bold',
     },
     balanceIcon: {
         width: 56,
@@ -244,7 +245,7 @@ const styles = StyleSheet.create({
     seasonText: {
         color: 'white',
         fontSize: 12,
-        fontWeight: '500',
+        fontFamily: 'Outfit-Medium',
     },
     statsRow: {
         flexDirection: 'row',
@@ -278,7 +279,7 @@ const styles = StyleSheet.create({
     },
     statValue: {
         fontSize: 20,
-        fontWeight: 'bold',
+        fontFamily: 'Outfit-Bold',
         color: Palette.text,
     },
     sectionHeader: {
@@ -288,7 +289,7 @@ const styles = StyleSheet.create({
     },
     sectionTitle: {
         fontSize: 18,
-        fontWeight: 'bold',
+        fontFamily: 'Outfit-Bold',
         color: Palette.text,
     },
     chartCard: {
@@ -332,7 +333,7 @@ const styles = StyleSheet.create({
     },
     miniTitle: {
         fontSize: 14,
-        fontWeight: '600',
+        fontFamily: 'Outfit-SemiBold',
         color: Palette.text,
     },
     miniDate: {
@@ -341,7 +342,7 @@ const styles = StyleSheet.create({
     },
     miniAmount: {
         fontSize: 14,
-        fontWeight: 'bold',
+        fontFamily: 'Outfit-Bold',
         color: Palette.danger,
     }
 });

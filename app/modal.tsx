@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Outfit-Bold',
   },
   separator: {
     marginVertical: 30,

@@ -35,7 +35,7 @@ export default function TabLayout() {
         },
         tabBarLabelStyle: {
             fontSize: 12,
-            fontWeight: '600',
+            fontFamily: 'Outfit-SemiBold',
             marginTop: 4,
         },
         headerStyle: {
@@ -44,7 +44,7 @@ export default function TabLayout() {
             shadowOpacity: 0,
         },
         headerTitleStyle: {
-            fontWeight: 'bold',
+            fontFamily: 'Outfit-Bold',
             fontSize: 20,
         },
         headerTintColor: Palette.text,

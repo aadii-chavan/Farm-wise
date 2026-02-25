@@ -1,9 +1,10 @@
 import { ExpenseCard } from '@/components/ExpenseCard';
+import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
 import { useExpenses } from '@/context/ExpensesContext';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, View } from 'react-native';
 
 export default function ExpensesList() {
   const { expenses, deleteExpense, refreshExpenses } = useExpenses();
@@ -58,7 +59,7 @@ const styles = StyleSheet.create({
   },
   title: {
       fontSize: 20,
-      fontWeight: 'bold',
+      fontFamily: 'Outfit-Bold',
       color: Palette.text,
   },
   emptyContainer: {
@@ -70,6 +71,6 @@ const styles = StyleSheet.create({
   emptyText: {
       fontSize: 16,
       color: Palette.textSecondary,
-      fontWeight: '500',
+      fontFamily: 'Outfit-Medium',
   }
 });

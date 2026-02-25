@@ -1,3 +1,4 @@
+import { Text } from '@/components/Themed';
 import { CATEGORIES, CATEGORY_COLORS, CATEGORY_ICONS } from '@/constants/Categories';
 import { Palette } from '@/constants/Colors';
 import { useExpenses } from '@/context/ExpensesContext';
@@ -11,7 +12,6 @@ import {
     Pressable,
     ScrollView,
     StyleSheet,
-    Text,
     TextInput,
     View
 } from 'react-native';
@@ -202,13 +202,13 @@ const styles = StyleSheet.create({
   },
   currencySymbol: {
       fontSize: 32,
-      fontWeight: '600',
+      fontFamily: 'Outfit-SemiBold',
       color: Palette.text,
       marginRight: 4,
   },
   amountInput: {
       fontSize: 48,
-      fontWeight: 'bold',
+      fontFamily: 'Outfit-Bold',
       color: Palette.text,
       minWidth: 60,
       textAlign: 'center',
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: 'Outfit-SemiBold',
     color: Palette.text,
     marginBottom: 8,
     marginLeft: 4,
@@ -259,6 +259,7 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingLeft: 4, // Accounting for icon
     fontSize: 16,
+    fontFamily: 'Outfit',
     color: Palette.text,
   },
   textArea: {
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Outfit-Medium',
   },
   dateButton: {
     flexDirection: 'row',
@@ -295,6 +296,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 16,
+    fontFamily: 'Outfit',
     color: Palette.text,
   },
   saveButton: {
@@ -314,6 +316,6 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: 'white',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: 'Outfit-Bold',
   },
 });

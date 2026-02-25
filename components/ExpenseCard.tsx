@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { CATEGORY_COLORS, CATEGORY_ICONS } from '../constants/Categories';
 import { Palette } from '../constants/Colors';
 import { Expense } from '../types/expense';
+import { Text } from './Themed';
 
 interface Props {
   expense: Expense;
@@ -70,7 +71,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'Outfit-SemiBold',
     color: Palette.text,
     marginBottom: 4,
   },
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
   },
   amount: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'Outfit-Bold',
     color: Palette.danger, // Red for expense
   },
   deleteButton: {

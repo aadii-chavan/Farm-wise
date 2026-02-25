@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from './Themed';
 
 interface Props {
   title: string;
@@ -35,10 +36,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#757575',
     marginBottom: 8,
-    fontWeight: '500',
+    fontFamily: 'Outfit-Medium',
   },
   amount: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Outfit-Bold',
   },
 });
