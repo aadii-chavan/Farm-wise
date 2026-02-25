@@ -99,6 +99,38 @@ export default function RecordTransaction() {
         setIsOtherCategory(false);
         setCategory(cat);
     }
+    setInventoryItemId(null);
+    setQuantity('');
+  };
+
+  const handleInventorySelect = (itemId: string) => {
+    const item = inventory.find(i => i.id === itemId);
+    if (!item) return;
+
+    if (inventoryItemId === itemId) {
+        setInventoryItemId(null);
+        setQuantity('');
+    } else {
+        setInventoryItemId(itemId);
+        if (!title || title.startsWith('Applied ')) {
+            setTitle(`Applied ${item.name}`);
+        }
+        if (item.pricePerUnit && quantity) {
+            const qty = parseFloat(quantity);
+            if (!isNaN(qty)) setAmount((qty * item.pricePerUnit).toString());
+        }
+    }
+  };
+
+  const onQuantityChange = (text: string) => {
+    setQuantity(text);
+    const item = inventory.find(i => i.id === inventoryItemId);
+    const qty = parseFloat(text);
+    if (item && item.pricePerUnit && !isNaN(qty)) {
+        setAmount((qty * item.pricePerUnit).toString());
+    } else if (text === '') {
+        setAmount('');
+    }
   };
 
   return (
@@ -224,10 +256,10 @@ export default function RecordTransaction() {
                             {inventory.filter(i => i.category === category).map(item => (
                                 <Pressable 
                                     key={item.id} 
-                                    onPress={() => setInventoryItemId(inventoryItemId === item.id ? null : item.id)}
+                                    onPress={() => handleInventorySelect(item.id)}
                                     style={[styles.chip, inventoryItemId === item.id && styles.chipActive]}
                                 >
-                                    <Text style={[styles.chipText, inventoryItemId === item.id && styles.chipTextActive]}>{item.name}</Text>
+                                    <Text style={[styles.chipText, { color: inventoryItemId === item.id ? 'white' : Palette.text }]}>{item.name}</Text>
                                 </Pressable>
                             ))}
                         </ScrollView>
@@ -241,7 +273,7 @@ export default function RecordTransaction() {
                                     style={styles.input}
                                     placeholder="e.g., 10"
                                     value={quantity}
-                                    onChangeText={setQuantity}
+                                    onChangeText={onQuantityChange}
                                     keyboardType="numeric"
                                 />
                             </View>
@@ -427,6 +459,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 14,
     fontFamily: 'Outfit-Medium',
+    color: Palette.text,
   },
   chipTextActive: {
       color: 'white',

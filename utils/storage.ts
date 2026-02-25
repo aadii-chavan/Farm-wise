@@ -25,10 +25,15 @@ export const saveTransaction = async (transaction: Transaction): Promise<void> =
     
     // Auto-update inventory if linked
     if (transaction.inventoryItemId && transaction.quantity) {
-        // If Expense, we are buying (adding to stock). 
-        // If Income, maybe selling? (But usually seeds/fert are expenses).
-        // Let's assume for seeded categories, negative quantity means usage.
-        const delta = transaction.type === 'Expense' ? transaction.quantity : -transaction.quantity;
+        // If it's a Plot-linked expense, it's USAGE (subtract from stock)
+        // If it's a generic expense (no plot), it's a PURCHASE (add to stock)
+        // If it's an income, it's usually SALES (subtract from stock)
+        let delta = 0;
+        if (transaction.type === 'Expense') {
+            delta = transaction.plotId ? -transaction.quantity : transaction.quantity;
+        } else {
+            delta = -transaction.quantity; // Income/Sale subtracts from stock
+        }
         await updateInventoryQuantity(transaction.inventoryItemId, delta);
     }
   } catch (e) {

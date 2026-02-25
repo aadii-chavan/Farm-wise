@@ -9,10 +9,11 @@ interface Props {
   plot: Plot;
   onPress?: () => void;
   onDelete?: () => void;
+  onAddTransaction?: () => void;
   stats?: { income: number, expense: number };
 }
 
-export function PlotCard({ plot, onPress, onDelete, stats }: Props) {
+export function PlotCard({ plot, onPress, onDelete, onAddTransaction, stats }: Props) {
   const profit = stats ? stats.income - stats.expense : 0;
 
   return (
@@ -27,11 +28,19 @@ export function PlotCard({ plot, onPress, onDelete, stats }: Props) {
                 <Text style={styles.details}>{plot.cropType} • {plot.area} Acres</Text>
             </View>
         </View>
-        {onDelete && (
-            <Pressable onPress={onDelete} style={styles.deleteBtn}>
-                <Ionicons name="trash-outline" size={18} color={Palette.danger} />
-            </Pressable>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {onAddTransaction && (
+                <Pressable onPress={onAddTransaction} style={styles.addEntryBtn}>
+                    <Ionicons name="add-circle" size={18} color={Palette.primary} />
+                    <Text style={styles.addEntryText}>Update</Text>
+                </Pressable>
+            )}
+            {onDelete && (
+                <Pressable onPress={onDelete} style={styles.deleteBtn}>
+                    <Ionicons name="trash-outline" size={18} color={Palette.danger} />
+                </Pressable>
+            )}
+        </View>
       </View>
 
       {stats && (
@@ -101,6 +110,21 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
       padding: 8,
+  },
+  addEntryBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: Palette.primaryLight + '20',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 12,
+      marginRight: 8,
+  },
+  addEntryText: {
+      fontSize: 12,
+      fontFamily: 'Outfit-Bold',
+      color: Palette.primary,
+      marginLeft: 4,
   },
   statsRow: {
     flexDirection: 'row',
