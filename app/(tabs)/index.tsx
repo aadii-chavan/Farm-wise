@@ -151,20 +151,90 @@ export default function Dashboard() {
         </View>
 
         {categoryData.length > 0 ? (
-            <View style={styles.chartCard}>
-                <PieChart
-                    data={categoryData}
-                    width={screenWidth - 48}
-                    height={220}
-                    chartConfig={{
-                        color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                    }}
-                    accessor={"population"}
-                    backgroundColor={"transparent"}
-                    paddingLeft={"0"}
-                    center={[10, 0]}
-                    absolute
-                />
+            <View style={styles.analysisCard}>
+                <View style={styles.analysisHeader}>
+                    <View>
+                        <Text style={styles.analysisTitle}>Spending by category</Text>
+                        <Text style={styles.analysisSubtitle}>Season overview</Text>
+                    </View>
+                    <View style={styles.analysisChip}>
+                        <Ionicons name="pie-chart-outline" size={16} color="white" />
+                        <Text style={styles.analysisChipText}>
+                            ₹{seasonStats.expense.toLocaleString('en-IN')}
+                        </Text>
+                    </View>
+                </View>
+
+                <View style={styles.analysisPillsRow}>
+                    {[
+                        { label: 'Today', value: todayStats.profit },
+                        { label: 'This Month', value: monthStats.profit },
+                        { label: 'Season', value: seasonStats.profit },
+                    ].map((item) => (
+                        <View
+                            key={item.label}
+                            style={[
+                                styles.analysisPill,
+                                item.label === 'Season' && styles.analysisPillPrimary,
+                            ]}
+                        >
+                            <Text
+                                style={[
+                                    styles.analysisPillLabel,
+                                    item.label === 'Season' && styles.analysisPillLabelPrimary,
+                                ]}
+                            >
+                                {item.label}
+                            </Text>
+                            <Text
+                                style={[
+                                    styles.analysisPillValue,
+                                    item.value >= 0
+                                        ? { color: Palette.success }
+                                        : { color: Palette.danger },
+                                ]}
+                            >
+                                {item.value >= 0 ? '₹' : '-₹'}
+                                {Math.abs(item.value).toLocaleString('en-IN')}
+                            </Text>
+                        </View>
+                    ))}
+                </View>
+
+                <View style={styles.analysisChartWrapper}>
+                    <PieChart
+                        data={categoryData}
+                        width={screenWidth - 80}
+                        height={200}
+                        chartConfig={{
+                            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                        }}
+                        accessor={"population"}
+                        backgroundColor={"transparent"}
+                        paddingLeft={"0"}
+                        center={[10, 0]}
+                        absolute
+                    />
+                </View>
+
+                <View style={styles.analysisLegend}>
+                    {categoryData.slice(0, 4).map((item) => (
+                        <View key={item.name} style={styles.legendItem}>
+                            <View style={styles.legendLeft}>
+                                <View
+                                    style={[
+                                        styles.legendDot,
+                                        { backgroundColor: item.color },
+                                    ]}
+                                />
+                                <Text style={styles.legendLabel}>{item.name}</Text>
+                            </View>
+                            <Text style={styles.legendAmount}>
+                                ₹{item.population.toFixed(0)}
+                            </Text>
+                        </View>
+                    ))}
+                </View>
             </View>
         ) : (
             <View style={styles.emptyContainer}>
@@ -353,17 +423,110 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontFamily: 'Outfit-Bold',
     },
-    chartCard: {
+    analysisCard: {
         marginHorizontal: 20,
         backgroundColor: 'white',
         borderRadius: 24,
         padding: 16,
-        alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 10,
         elevation: 2,
+    },
+    analysisHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    analysisTitle: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+    },
+    analysisSubtitle: {
+        fontSize: 12,
+        fontFamily: 'Outfit',
+        color: Palette.textSecondary,
+        marginTop: 2,
+    },
+    analysisChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Palette.primary,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+    },
+    analysisChipText: {
+        marginLeft: 6,
+        color: 'white',
+        fontSize: 13,
+        fontFamily: 'Outfit-SemiBold',
+    },
+    analysisPillsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 8,
+    },
+    analysisPill: {
+        flex: 1,
+        paddingVertical: 8,
+        paddingHorizontal: 10,
+        borderRadius: 14,
+        backgroundColor: Palette.background,
+        marginRight: 8,
+    },
+    analysisPillPrimary: {
+        backgroundColor: Palette.primary + '10',
+        marginRight: 0,
+    },
+    analysisPillLabel: {
+        fontSize: 11,
+        fontFamily: 'Outfit-Medium',
+        color: Palette.textSecondary,
+    },
+    analysisPillLabelPrimary: {
+        color: Palette.primary,
+    },
+    analysisPillValue: {
+        marginTop: 4,
+        fontSize: 14,
+        fontFamily: 'Outfit-Bold',
+    },
+    analysisChartWrapper: {
+        marginTop: 8,
+        alignItems: 'center',
+    },
+    analysisLegend: {
+        marginTop: 8,
+    },
+    legendItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 4,
+    },
+    legendLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    legendDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        marginRight: 8,
+    },
+    legendLabel: {
+        fontSize: 13,
+        fontFamily: 'Outfit',
+        color: Palette.text,
+    },
+    legendAmount: {
+        fontSize: 13,
+        fontFamily: 'Outfit-SemiBold',
+        color: Palette.text,
     },
     emptyContainer: {
         padding: 40,
