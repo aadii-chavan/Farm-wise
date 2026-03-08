@@ -1,4 +1,5 @@
 import CalendarModal from '@/components/CalendarModal';
+import SuccessModal from '@/components/SuccessModal';
 import { Text } from '@/components/Themed';
 import { CATEGORY_COLORS, CATEGORY_ICONS, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/constants/Categories';
 import { Palette } from '@/constants/Colors';
@@ -39,6 +40,7 @@ export default function RecordTransaction() {
   const [quantity, setQuantity] = useState('');
   const [note, setNote] = useState('');
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const categories = type === 'Expense' 
     ? [...EXPENSE_CATEGORIES, 'Other'] 
@@ -72,7 +74,7 @@ export default function RecordTransaction() {
     };
 
     await addTransaction(newTransaction as any);
-    
+
     // Reset form
     setTitle('');
     setAmount('');
@@ -85,14 +87,20 @@ export default function RecordTransaction() {
     setPlotId(null);
     setInventoryItemId(null);
 
-    Alert.alert('Record Saved', 'The transaction has been recorded successfully.', [
-        { text: 'View All', onPress: () => router.push('/list') },
-        { text: 'Add New', style: 'cancel' }
-    ]);
+    setShowSuccess(true);
   };
 
   const onSelectDate = (selectedDate: Date) => {
     setDate(selectedDate);
+  };
+
+  const handleSuccessViewAll = () => {
+    setShowSuccess(false);
+    router.push('/list');
+  };
+
+  const handleSuccessAddNew = () => {
+    setShowSuccess(false);
   };
 
   const selectCategory = (cat: string) => {
@@ -325,6 +333,16 @@ export default function RecordTransaction() {
             <Text style={styles.saveButtonText}>Record {type}</Text>
         </Pressable>
       </ScrollView>
+
+      <SuccessModal
+        visible={showSuccess}
+        title="Record Saved"
+        message="The transaction has been recorded successfully."
+        primaryLabel="View All"
+        secondaryLabel="Add New"
+        onPrimary={handleSuccessViewAll}
+        onSecondary={handleSuccessAddNew}
+      />
     </>
   );
 }
