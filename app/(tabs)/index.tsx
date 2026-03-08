@@ -1,3 +1,4 @@
+import CalendarModal from '@/components/CalendarModal';
 import { Text } from '@/components/Themed';
 import { CATEGORY_COLORS, CATEGORY_ICONS } from '@/constants/Categories';
 import { Palette } from '@/constants/Colors';
@@ -5,7 +6,6 @@ import { useFarm } from '@/context/FarmContext';
 import { Category } from '@/types/farm';
 import * as Storage from '@/utils/storage';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, isSameDay, isSameMonth } from 'date-fns';
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -15,7 +15,7 @@ import { PieChart } from 'react-native-chart-kit';
 export default function Dashboard() {
   const { transactions, plots, refreshAll } = useFarm();
   const [seasonStart, setSeasonStart] = useState<Date>(new Date(new Date().getFullYear(), 0, 1));
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const loadData = async () => {
       await refreshAll();
@@ -58,12 +58,9 @@ export default function Dashboard() {
 
   const screenWidth = Dimensions.get('window').width;
 
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-        setSeasonStart(selectedDate);
-        Storage.setSeasonStartDate(selectedDate);
-    }
+  const onSelectSeasonStart = (selectedDate: Date) => {
+    setSeasonStart(selectedDate);
+    Storage.setSeasonStartDate(selectedDate);
   };
 
   return (
@@ -82,7 +79,7 @@ export default function Dashboard() {
               </Pressable>
           </View>
           
-          <Pressable style={styles.balanceCard} onPress={() => setShowDatePicker(true)}>
+          <Pressable style={styles.balanceCard} onPress={() => setShowCalendar(true)}>
               <View>
                 <Text style={styles.balanceLabel}>Net Profit (Season)</Text>
                 <Text style={styles.balanceAmount}>₹{seasonStats.profit.toLocaleString('en-IN')}</Text>
@@ -97,15 +94,13 @@ export default function Dashboard() {
           </Pressable>
         </View>
 
-        {showDatePicker && (
-            <DateTimePicker
-                value={seasonStart}
-                mode="date"
-                display="default"
-                onChange={onDateChange}
-                maximumDate={new Date()}
-            />
-        )}
+        <CalendarModal
+          visible={showCalendar}
+          initialDate={seasonStart}
+          onClose={() => setShowCalendar(false)}
+          onSelectDate={onSelectSeasonStart}
+          maximumDate={new Date()}
+        />
 
         {/* Summary Stats */}
         <View style={styles.statsRow}>

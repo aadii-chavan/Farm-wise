@@ -1,10 +1,10 @@
+import CalendarModal from '@/components/CalendarModal';
 import { Text } from '@/components/Themed';
 import { CATEGORY_COLORS, CATEGORY_ICONS, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/constants/Categories';
 import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
 import { Category, TransactionType } from '@/types/farm';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -38,7 +38,7 @@ export default function RecordTransaction() {
   const [inventoryItemId, setInventoryItemId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState('');
   const [note, setNote] = useState('');
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const categories = type === 'Expense' 
     ? [...EXPENSE_CATEGORIES, 'Other'] 
@@ -91,11 +91,8 @@ export default function RecordTransaction() {
     ]);
   };
 
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setDate(selectedDate);
-    }
+  const onSelectDate = (selectedDate: Date) => {
+    setDate(selectedDate);
   };
 
   const selectCategory = (cat: string) => {
@@ -293,19 +290,17 @@ export default function RecordTransaction() {
             {/* Date */}
             <View style={styles.inputGroup}>
                 <Text style={styles.label}>Date</Text>
-                <Pressable onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
+                <Pressable onPress={() => setShowCalendar(true)} style={styles.dateButton}>
                     <Ionicons name="calendar-outline" size={20} color={Palette.primary} style={styles.inputIcon} />
                     <Text style={styles.dateText}>{date.toLocaleDateString()}</Text>
                 </Pressable>
-                {showDatePicker && (
-                <DateTimePicker
-                    value={date}
-                    mode="date"
-                    display="default"
-                    onChange={onDateChange}
+                <CalendarModal
+                    visible={showCalendar}
+                    initialDate={date}
+                    onClose={() => setShowCalendar(false)}
+                    onSelectDate={onSelectDate}
                     maximumDate={new Date()}
                 />
-                )}
             </View>
 
             {/* Note */}
