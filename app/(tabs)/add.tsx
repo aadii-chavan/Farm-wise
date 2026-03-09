@@ -42,9 +42,15 @@ export default function RecordTransaction() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const categories = type === 'Expense' 
-    ? [...EXPENSE_CATEGORIES, 'Other'] 
-    : [...INCOME_CATEGORIES]; // INCOME_CATEGORIES already includes 'Other'
+  const categories = React.useMemo(() => {
+    const invCats = inventory.map(i => i.category);
+    if (type === 'Expense') {
+        const set = new Set([...EXPENSE_CATEGORIES, ...invCats, 'Other']);
+        return Array.from(set);
+    }
+    const set = new Set([...INCOME_CATEGORIES, ...invCats]);
+    return Array.from(set);
+  }, [type, inventory]);
 
   const onSave = async () => {
     const finalCategory = isOtherCategory ? customCategory : category;
@@ -231,7 +237,7 @@ export default function RecordTransaction() {
                         onPress={() => selectCategory(cat)}
                     >
                     <Ionicons
-                        name={(CATEGORY_ICONS[cat as Category] as any) || 'apps'}
+                        name={(CATEGORY_ICONS[cat as Category] as any) || 'pricetag-outline'}
                         size={16}
                         color={category === cat ? 'white' : (CATEGORY_COLORS[cat as Category] || Palette.primary)}
                         style={{ marginRight: 6 }}
@@ -259,8 +265,8 @@ export default function RecordTransaction() {
                 </View>
             )}
 
-            {/* Inventory Item (Only for certain expense categories) */}
-            {type === 'Expense' && (category === 'Seeds' || category === 'Fertilizer' || category === 'Pesticide') && inventory.length > 0 && (
+            {/* Inventory Item (Available for any category that exists in inventory) */}
+            {type === 'Expense' && inventory.some(i => i.category === category) && inventory.length > 0 && (
                 <View>
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Link to Inventory (Optional)</Text>

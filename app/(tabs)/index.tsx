@@ -7,7 +7,7 @@ import { Category } from '@/types/farm';
 import * as Storage from '@/utils/storage';
 import { Ionicons } from '@expo/vector-icons';
 import { format, isSameDay, isSameMonth } from 'date-fns';
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 export default function Dashboard() {
   const { transactions, plots, refreshAll } = useFarm();
   const { signOut } = useAuth();
+  const router = useRouter();
 
   const [seasonStart, setSeasonStart] = useState<Date>(new Date(new Date().getFullYear(), 0, 1));
   const [showCalendar, setShowCalendar] = useState(false);
@@ -79,11 +80,8 @@ export default function Dashboard() {
                   <Text style={styles.date}>{format(today, 'EEEE, d MMM yyyy')}</Text>
               </View>
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <Pressable style={styles.profileButton} onPress={() => signOut()}>
-                      <Ionicons name="log-out-outline" size={24} color="white" />
-                  </Pressable>
-                  <Pressable style={styles.profileButton}>
-                      <Ionicons name="notifications-outline" size={24} color="white" />
+                  <Pressable style={styles.profileButton} onPress={() => router.push('/profile')}>
+                      <Ionicons name="person-outline" size={24} color="white" />
                   </Pressable>
               </View>
           </View>

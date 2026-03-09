@@ -1,7 +1,7 @@
 import { Palette } from '@/constants/Colors';
 import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -12,35 +12,43 @@ import {
     ScrollView,
     StyleSheet,
     TextInput,
-    View
+    View,
 } from 'react-native';
 import { Text } from '@/components/Themed';
-import { useAuth } from '@/context/AuthContext';
 
-export default function Login() {
-  const [email, setEmail] = useState('');
+export default function ResetPassword() {
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async () => {
-    if (!email || !password) {
+  const handleResetPassword = async () => {
+    if (!password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    
+    const { error } = await supabase.auth.updateUser({
+      password: password,
     });
 
     if (error) {
       Alert.alert('Error', error.message);
       setLoading(false);
     } else {
-      // Auth state listener in RootLayout will handle redirect
+      Alert.alert(
+        'Success',
+        'Your password has been reset successfully. Please sign in with your new password.',
+        [{ text: 'Sign In', onPress: () => router.replace('/login') }]
+      );
     }
   };
 
@@ -51,40 +59,18 @@ export default function Login() {
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="leaf" size={60} color="white" />
-          </View>
-          <Text style={styles.title}>Farm Wise</Text>
-          <Text style={styles.subtitle}>Empowering your harvest</Text>
+          <Text style={styles.title}>New Password</Text>
+          <Text style={styles.subtitle}>Set a secure password for your account</Text>
         </View>
 
         <View style={styles.formContainer}>
-          <Text style={styles.formTitle}>Welcome Back</Text>
-          <Text style={styles.formSubtitle}>Sign in to continue</Text>
-
           <View style={styles.inputWrapper}>
-            <Text style={styles.label}>Email Address</Text>
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color={Palette.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your email"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholderTextColor={Palette.textSecondary}
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>New Password</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color={Palette.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter your password"
+                placeholder="Enter new password"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -100,32 +86,32 @@ export default function Login() {
             </View>
           </View>
 
-          <Link href="/forgot-password" asChild>
-            <Pressable style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </Pressable>
-          </Link>
+          <View style={styles.inputWrapper}>
+            <Text style={styles.label}>Confirm New Password</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={Palette.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Confirm your new password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showPassword}
+                placeholderTextColor={Palette.textSecondary}
+              />
+            </View>
+          </View>
 
           <Pressable
-            style={[styles.loginButton, loading && styles.buttonDisabled]}
-            onPress={handleLogin}
+            style={[styles.updateButton, loading && styles.buttonDisabled]}
+            onPress={handleResetPassword}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.loginButtonText}>Sign In</Text>
+              <Text style={styles.updateButtonText}>Update Password</Text>
             )}
           </Pressable>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <Link href="/signup" asChild>
-              <Pressable>
-                <Text style={styles.signupText}>Sign Up</Text>
-              </Pressable>
-            </Link>
-          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -139,20 +125,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
   },
   header: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 32,
+    paddingTop: 80,
+    paddingBottom: 40,
   },
   title: {
     fontSize: 32,
@@ -172,18 +149,6 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     paddingBottom: 40,
     flex: 1,
-  },
-  formTitle: {
-    fontSize: 28,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.text,
-    marginBottom: 8,
-  },
-  formSubtitle: {
-    fontSize: 14,
-    color: Palette.textSecondary,
-    marginBottom: 32,
-    fontFamily: 'Outfit',
   },
   inputWrapper: {
     marginBottom: 20,
@@ -213,21 +178,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit',
     color: Palette.text,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 32,
-  },
-  forgotPasswordText: {
-    color: Palette.primary,
-    fontFamily: 'Outfit-Medium',
-    fontSize: 14,
-  },
-  loginButton: {
+  updateButton: {
     backgroundColor: Palette.primary,
     borderRadius: 16,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 20,
     shadowColor: Palette.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -237,24 +194,9 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.7,
   },
-  loginButtonText: {
+  updateButtonText: {
     color: 'white',
     fontSize: 18,
-    fontFamily: 'Outfit-Bold',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 32,
-  },
-  footerText: {
-    fontSize: 14,
-    color: Palette.textSecondary,
-    fontFamily: 'Outfit',
-  },
-  signupText: {
-    fontSize: 14,
-    color: Palette.primary,
     fontFamily: 'Outfit-Bold',
   },
 });

@@ -1,7 +1,7 @@
 import { Palette } from '@/constants/Colors';
 import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -12,35 +12,40 @@ import {
     ScrollView,
     StyleSheet,
     TextInput,
-    View
+    View,
 } from 'react-native';
 import { Text } from '@/components/Themed';
-import { useAuth } from '@/context/AuthContext';
+import * as Linking from 'expo-linking';
 
-export default function Login() {
+export default function ForgotPassword() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+  const handleResetRequest = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email address');
       return;
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    
+    // Generate the redirect URL for depth linking back into the app
+    const redirectTo = Linking.createURL('/reset-password');
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
     });
 
     if (error) {
       Alert.alert('Error', error.message);
       setLoading(false);
     } else {
-      // Auth state listener in RootLayout will handle redirect
+      Alert.alert(
+        'Success',
+        'Password reset link has been sent to your email. Please check your inbox.',
+        [{ text: 'OK', onPress: () => router.replace('/login') }]
+      );
     }
   };
 
@@ -51,24 +56,21 @@ export default function Login() {
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="leaf" size={60} color="white" />
-          </View>
-          <Text style={styles.title}>Farm Wise</Text>
-          <Text style={styles.subtitle}>Empowering your harvest</Text>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </Pressable>
+          <Text style={styles.title}>Reset Password</Text>
+          <Text style={styles.subtitle}>We'll send you a recovery link</Text>
         </View>
 
         <View style={styles.formContainer}>
-          <Text style={styles.formTitle}>Welcome Back</Text>
-          <Text style={styles.formSubtitle}>Sign in to continue</Text>
-
           <View style={styles.inputWrapper}>
             <Text style={styles.label}>Email Address</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color={Palette.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter your email"
+                placeholder="Enter your registered email"
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -78,53 +80,23 @@ export default function Login() {
             </View>
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={Palette.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                placeholderTextColor={Palette.textSecondary}
-              />
-              <Pressable onPress={() => setShowPassword(!showPassword)}>
-                <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
-                  size={20}
-                  color={Palette.textSecondary}
-                />
-              </Pressable>
-            </View>
-          </View>
-
-          <Link href="/forgot-password" asChild>
-            <Pressable style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </Pressable>
-          </Link>
-
           <Pressable
-            style={[styles.loginButton, loading && styles.buttonDisabled]}
-            onPress={handleLogin}
+            style={[styles.resetButton, loading && styles.buttonDisabled]}
+            onPress={handleResetRequest}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.loginButtonText}>Sign In</Text>
+              <Text style={styles.resetButtonText}>Send Reset Link</Text>
             )}
           </Pressable>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <Link href="/signup" asChild>
-              <Pressable>
-                <Text style={styles.signupText}>Sign Up</Text>
-              </Pressable>
-            </Link>
+            <Text style={styles.footerText}>Remember your password? </Text>
+            <Pressable onPress={() => router.replace('/login')}>
+              <Text style={styles.loginText}>Sign In</Text>
+            </Pressable>
           </View>
         </View>
       </ScrollView>
@@ -139,20 +111,20 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
   },
   header: {
-    alignItems: 'center',
-    paddingVertical: 40,
+    paddingHorizontal: 32,
+    paddingTop: 60,
+    paddingBottom: 40,
   },
-  logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   title: {
     fontSize: 32,
@@ -173,20 +145,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     flex: 1,
   },
-  formTitle: {
-    fontSize: 28,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.text,
-    marginBottom: 8,
-  },
-  formSubtitle: {
-    fontSize: 14,
-    color: Palette.textSecondary,
-    marginBottom: 32,
-    fontFamily: 'Outfit',
-  },
   inputWrapper: {
-    marginBottom: 20,
+    marginBottom: 32,
   },
   label: {
     fontSize: 14,
@@ -213,16 +173,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit',
     color: Palette.text,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 32,
-  },
-  forgotPasswordText: {
-    color: Palette.primary,
-    fontFamily: 'Outfit-Medium',
-    fontSize: 14,
-  },
-  loginButton: {
+  resetButton: {
     backgroundColor: Palette.primary,
     borderRadius: 16,
     height: 56,
@@ -237,7 +188,7 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.7,
   },
-  loginButtonText: {
+  resetButtonText: {
     color: 'white',
     fontSize: 18,
     fontFamily: 'Outfit-Bold',
@@ -252,7 +203,7 @@ const styles = StyleSheet.create({
     color: Palette.textSecondary,
     fontFamily: 'Outfit',
   },
-  signupText: {
+  loginText: {
     fontSize: 14,
     color: Palette.primary,
     fontFamily: 'Outfit-Bold',

@@ -1,6 +1,11 @@
 import { InventoryItem, Plot, Transaction } from '@/types/farm';
 import { supabase } from './supabase';
 
+// Helper to check if a string is a valid UUID
+const isUUID = (uuid: string) => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid);
+};
+
 // Helper to get authenticated user ID
 const getUserId = async () => {
   const { data: { user } } = await supabase.auth.getUser();
@@ -15,7 +20,13 @@ export const getTransactions = async (): Promise<Transaction[]> => {
       .select('*')
       .order('date', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+        // If table not found, it might be a cache issue or sync issue
+        if (error.code === 'PGRST205') {
+            console.warn('Supabase Schema Cache error. Please refresh schema in Supabase Dashboard.');
+        }
+        throw error;
+    }
     return data || [];
   } catch (e) {
     console.error('Failed to load transactions', e);
@@ -28,29 +39,36 @@ export const saveTransaction = async (transaction: Transaction): Promise<void> =
     const userId = await getUserId();
     if (!userId) throw new Error('User not authenticated');
 
-    const { error } = await supabase.from('transactions').insert({
-      id: transaction.id || undefined, // Let Supabase gen UUID if empty
+    // Only pass the ID if it's a valid UUID (meaning it's an update)
+    // Otherwise let Supabase generate it
+    const transactionData: any = {
       user_id: userId,
       title: transaction.title,
       type: transaction.type,
       category: transaction.category,
       amount: transaction.amount,
       date: transaction.date,
-      plot_id: transaction.plotId || null,
-      inventory_item_id: transaction.inventoryItemId || null,
+      plot_id: transaction.plotId && isUUID(transaction.plotId) ? transaction.plotId : null,
+      inventory_item_id: transaction.inventoryItemId && isUUID(transaction.inventoryItemId) ? transaction.inventoryItemId : null,
       quantity: transaction.quantity || null,
       note: transaction.note || null,
-    });
+    };
+
+    if (transaction.id && isUUID(transaction.id)) {
+      transactionData.id = transaction.id;
+    }
+
+    const { error } = await supabase.from('transactions').upsert(transactionData);
 
     if (error) throw error;
     
     // Auto-update inventory if linked
-    if (transaction.inventoryItemId && transaction.quantity) {
+    if (transaction.inventoryItemId && transaction.quantity && isUUID(transaction.inventoryItemId)) {
         let delta = 0;
         if (transaction.type === 'Expense') {
             delta = transaction.plotId ? -transaction.quantity : transaction.quantity;
         } else {
-            delta = -transaction.quantity; // Income/Sale subtracts from stock
+            delta = -transaction.quantity; 
         }
         await updateInventoryQuantity(transaction.inventoryItemId, delta);
     }
@@ -61,6 +79,7 @@ export const saveTransaction = async (transaction: Transaction): Promise<void> =
 
 export const deleteTransaction = async (id: string): Promise<void> => {
   try {
+    if (!isUUID(id)) return;
     const { error } = await supabase
       .from('transactions')
       .delete()
@@ -96,12 +115,18 @@ export const savePlot = async (plot: Plot): Promise<void> => {
         const userId = await getUserId();
         if (!userId) throw new Error('User not authenticated');
 
-        const { error } = await supabase.from('plots').insert({
+        const plotData: any = {
             user_id: userId,
             name: plot.name,
             area: plot.area,
             crop_type: plot.cropType
-        });
+        };
+
+        if (plot.id && isUUID(plot.id)) {
+            plotData.id = plot.id;
+        }
+
+        const { error } = await supabase.from('plots').upsert(plotData);
         if (error) throw error;
     } catch (e) {
         console.error('Failed to save plot', e);
@@ -110,6 +135,7 @@ export const savePlot = async (plot: Plot): Promise<void> => {
 
 export const deletePlot = async (id: string): Promise<void> => {
     try {
+        if (!isUUID(id)) return;
         const { error } = await supabase
           .from('plots')
           .delete()
@@ -122,6 +148,7 @@ export const deletePlot = async (id: string): Promise<void> => {
 
 export const updatePlot = async (plot: Plot): Promise<void> => {
     try {
+        if (!plot.id || !isUUID(plot.id)) return;
         const { error } = await supabase
           .from('plots')
           .update({
@@ -163,15 +190,20 @@ export const saveInventoryItem = async (item: InventoryItem): Promise<void> => {
         const userId = await getUserId();
         if (!userId) throw new Error('User not authenticated');
 
-        const { error } = await supabase.from('inventory').upsert({
-            id: item.id.length > 20 ? item.id : undefined, // Check if it's already a UUID or temp ID
+        const itemData: any = {
             user_id: userId,
             name: item.name,
             category: item.category,
             quantity: item.quantity,
             unit: item.unit,
             price_per_unit: item.pricePerUnit
-        });
+        };
+
+        if (item.id && isUUID(item.id)) {
+            itemData.id = item.id;
+        }
+
+        const { error } = await supabase.from('inventory').upsert(itemData);
         if (error) throw error;
     } catch (e) {
         console.error('Failed to save inventory item', e);
@@ -180,6 +212,8 @@ export const saveInventoryItem = async (item: InventoryItem): Promise<void> => {
 
 export const updateInventoryQuantity = async (id: string, delta: number): Promise<void> => {
     try {
+        if (!isUUID(id)) return;
+        
         const { data: item, error: fetchError } = await supabase
             .from('inventory')
             .select('quantity')
@@ -201,6 +235,7 @@ export const updateInventoryQuantity = async (id: string, delta: number): Promis
 
 export const deleteInventoryItem = async (id: string): Promise<void> => {
     try {
+        if (!isUUID(id)) return;
         const { error } = await supabase
           .from('inventory')
           .delete()
@@ -218,7 +253,7 @@ export const getSeasonStartDate = async (): Promise<Date> => {
             .select('season_start_date')
             .single();
         
-        if (error && error.code !== 'PGRST116') throw error; // 116 is 'not found'
+        if (error && error.code !== 'PGRST116') throw error; 
         
         return data?.season_start_date ? new Date(data.season_start_date) : new Date(new Date().getFullYear(), 0, 1);
     } catch (e) {
