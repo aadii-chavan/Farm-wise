@@ -11,9 +11,13 @@ import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
+import { useAuth } from '@/context/AuthContext';
+
 
 export default function Dashboard() {
   const { transactions, plots, refreshAll } = useFarm();
+  const { signOut } = useAuth();
+
   const [seasonStart, setSeasonStart] = useState<Date>(new Date(new Date().getFullYear(), 0, 1));
   const [showCalendar, setShowCalendar] = useState(false);
 
@@ -74,9 +78,14 @@ export default function Dashboard() {
                   <Text style={styles.greeting}>Farm Wise</Text>
                   <Text style={styles.date}>{format(today, 'EEEE, d MMM yyyy')}</Text>
               </View>
-              <Pressable style={styles.profileButton}>
-                  <Ionicons name="notifications-outline" size={24} color="white" />
-              </Pressable>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <Pressable style={styles.profileButton} onPress={() => signOut()}>
+                      <Ionicons name="log-out-outline" size={24} color="white" />
+                  </Pressable>
+                  <Pressable style={styles.profileButton}>
+                      <Ionicons name="notifications-outline" size={24} color="white" />
+                  </Pressable>
+              </View>
           </View>
           
           <Pressable style={styles.balanceCard} onPress={() => setShowCalendar(true)}>
@@ -253,11 +262,11 @@ export default function Dashboard() {
         <View style={{ paddingHorizontal: 20 }}>
             {transactions.slice(0, 5).map((t) => (
                 <View key={t.id} style={styles.miniTransactionCard}>
-                    <View style={[styles.miniIcon, { backgroundColor: (CATEGORY_COLORS[t.category] || Palette.primary) + '20' }]}>
+                    <View style={[styles.miniIcon, { backgroundColor: (CATEGORY_COLORS[t.category as Category] || Palette.primary) + '20' }]}>
                         <Ionicons 
-                            name={(CATEGORY_ICONS[t.category] as any) || 'cash'} 
+                            name={(CATEGORY_ICONS[t.category as Category] as any) || 'cash'} 
                             size={16} 
-                            color={CATEGORY_COLORS[t.category] || Palette.primary} 
+                            color={CATEGORY_COLORS[t.category as Category] || Palette.primary} 
                         />
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>

@@ -1,16 +1,22 @@
 import { InventoryItem, Plot, Transaction } from '@/types/farm';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
-const TRANSACTIONS_KEY = '@farm_wise_transactions_v2';
-const PLOTS_KEY = '@farm_wise_plots_v2';
-const INVENTORY_KEY = '@farm_wise_inventory_v2';
-const SEASON_DATE_KEY = '@farm_wise_season_date_v1';
+// Helper to get authenticated user ID
+const getUserId = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id;
+};
 
 // Transactions
 export const getTransactions = async (): Promise<Transaction[]> => {
   try {
-    const jsonValue = await AsyncStorage.getItem(TRANSACTIONS_KEY);
-    return jsonValue != null ? JSON.parse(jsonValue) : [];
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('date', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
   } catch (e) {
     console.error('Failed to load transactions', e);
     return [];
@@ -19,15 +25,27 @@ export const getTransactions = async (): Promise<Transaction[]> => {
 
 export const saveTransaction = async (transaction: Transaction): Promise<void> => {
   try {
-    const transactions = await getTransactions();
-    const newTransactions = [transaction, ...transactions];
-    await AsyncStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(newTransactions));
+    const userId = await getUserId();
+    if (!userId) throw new Error('User not authenticated');
+
+    const { error } = await supabase.from('transactions').insert({
+      id: transaction.id || undefined, // Let Supabase gen UUID if empty
+      user_id: userId,
+      title: transaction.title,
+      type: transaction.type,
+      category: transaction.category,
+      amount: transaction.amount,
+      date: transaction.date,
+      plot_id: transaction.plotId || null,
+      inventory_item_id: transaction.inventoryItemId || null,
+      quantity: transaction.quantity || null,
+      note: transaction.note || null,
+    });
+
+    if (error) throw error;
     
     // Auto-update inventory if linked
     if (transaction.inventoryItemId && transaction.quantity) {
-        // If it's a Plot-linked expense, it's USAGE (subtract from stock)
-        // If it's a generic expense (no plot), it's a PURCHASE (add to stock)
-        // If it's an income, it's usually SALES (subtract from stock)
         let delta = 0;
         if (transaction.type === 'Expense') {
             delta = transaction.plotId ? -transaction.quantity : transaction.quantity;
@@ -43,9 +61,11 @@ export const saveTransaction = async (transaction: Transaction): Promise<void> =
 
 export const deleteTransaction = async (id: string): Promise<void> => {
   try {
-    const transactions = await getTransactions();
-    const newTransactions = transactions.filter((t) => t.id !== id);
-    await AsyncStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(newTransactions));
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
   } catch (e) {
       console.error('Failed to delete transaction', e);
   }
@@ -54,8 +74,17 @@ export const deleteTransaction = async (id: string): Promise<void> => {
 // Plots
 export const getPlots = async (): Promise<Plot[]> => {
     try {
-        const jsonValue = await AsyncStorage.getItem(PLOTS_KEY);
-        return jsonValue != null ? JSON.parse(jsonValue) : [];
+        const { data, error } = await supabase
+          .from('plots')
+          .select('*')
+          .order('name');
+        if (error) throw error;
+        return data.map(p => ({
+            id: p.id,
+            name: p.name,
+            area: Number(p.area),
+            cropType: p.crop_type
+        }));
     } catch (e) {
         console.error('Failed to load plots', e);
         return [];
@@ -64,9 +93,16 @@ export const getPlots = async (): Promise<Plot[]> => {
 
 export const savePlot = async (plot: Plot): Promise<void> => {
     try {
-        const plots = await getPlots();
-        const newPlots = [plot, ...plots];
-        await AsyncStorage.setItem(PLOTS_KEY, JSON.stringify(newPlots));
+        const userId = await getUserId();
+        if (!userId) throw new Error('User not authenticated');
+
+        const { error } = await supabase.from('plots').insert({
+            user_id: userId,
+            name: plot.name,
+            area: plot.area,
+            crop_type: plot.cropType
+        });
+        if (error) throw error;
     } catch (e) {
         console.error('Failed to save plot', e);
     }
@@ -74,9 +110,11 @@ export const savePlot = async (plot: Plot): Promise<void> => {
 
 export const deletePlot = async (id: string): Promise<void> => {
     try {
-        const plots = await getPlots();
-        const newPlots = plots.filter((p) => p.id !== id);
-        await AsyncStorage.setItem(PLOTS_KEY, JSON.stringify(newPlots));
+        const { error } = await supabase
+          .from('plots')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
     } catch (e) {
         console.error('Failed to delete plot', e);
     }
@@ -84,12 +122,15 @@ export const deletePlot = async (id: string): Promise<void> => {
 
 export const updatePlot = async (plot: Plot): Promise<void> => {
     try {
-        const plots = await getPlots();
-        const index = plots.findIndex(p => p.id === plot.id);
-        if (index !== -1) {
-            plots[index] = plot;
-            await AsyncStorage.setItem(PLOTS_KEY, JSON.stringify(plots));
-        }
+        const { error } = await supabase
+          .from('plots')
+          .update({
+              name: plot.name,
+              area: plot.area,
+              crop_type: plot.cropType
+          })
+          .eq('id', plot.id);
+        if (error) throw error;
     } catch (e) {
         console.error('Failed to update plot', e);
     }
@@ -98,8 +139,19 @@ export const updatePlot = async (plot: Plot): Promise<void> => {
 // Inventory
 export const getInventory = async (): Promise<InventoryItem[]> => {
     try {
-        const jsonValue = await AsyncStorage.getItem(INVENTORY_KEY);
-        return jsonValue != null ? JSON.parse(jsonValue) : [];
+        const { data, error } = await supabase
+          .from('inventory')
+          .select('*')
+          .order('name');
+        if (error) throw error;
+        return data.map(i => ({
+            id: i.id,
+            name: i.name,
+            category: i.category,
+            quantity: Number(i.quantity),
+            unit: i.unit,
+            pricePerUnit: i.price_per_unit
+        }));
     } catch (e) {
         console.error('Failed to load inventory', e);
         return [];
@@ -108,16 +160,19 @@ export const getInventory = async (): Promise<InventoryItem[]> => {
 
 export const saveInventoryItem = async (item: InventoryItem): Promise<void> => {
     try {
-        const inventory = await getInventory();
-        const existingIndex = inventory.findIndex(i => i.id === item.id);
-        let newInventory;
-        if (existingIndex >= 0) {
-            newInventory = [...inventory];
-            newInventory[existingIndex] = item;
-        } else {
-            newInventory = [item, ...inventory];
-        }
-        await AsyncStorage.setItem(INVENTORY_KEY, JSON.stringify(newInventory));
+        const userId = await getUserId();
+        if (!userId) throw new Error('User not authenticated');
+
+        const { error } = await supabase.from('inventory').upsert({
+            id: item.id.length > 20 ? item.id : undefined, // Check if it's already a UUID or temp ID
+            user_id: userId,
+            name: item.name,
+            category: item.category,
+            quantity: item.quantity,
+            unit: item.unit,
+            price_per_unit: item.pricePerUnit
+        });
+        if (error) throw error;
     } catch (e) {
         console.error('Failed to save inventory item', e);
     }
@@ -125,12 +180,20 @@ export const saveInventoryItem = async (item: InventoryItem): Promise<void> => {
 
 export const updateInventoryQuantity = async (id: string, delta: number): Promise<void> => {
     try {
-        const inventory = await getInventory();
-        const item = inventory.find(i => i.id === id);
-        if (item) {
-            item.quantity += delta;
-            await AsyncStorage.setItem(INVENTORY_KEY, JSON.stringify(inventory));
-        }
+        const { data: item, error: fetchError } = await supabase
+            .from('inventory')
+            .select('quantity')
+            .eq('id', id)
+            .single();
+        
+        if (fetchError) throw fetchError;
+
+        const { error } = await supabase
+          .from('inventory')
+          .update({ quantity: Number(item.quantity) + delta })
+          .eq('id', id);
+        
+        if (error) throw error;
     } catch (e) {
         console.error('Failed to update inventory quantity', e);
     }
@@ -138,9 +201,11 @@ export const updateInventoryQuantity = async (id: string, delta: number): Promis
 
 export const deleteInventoryItem = async (id: string): Promise<void> => {
     try {
-        const inventory = await getInventory();
-        const newInventory = inventory.filter((i) => i.id !== id);
-        await AsyncStorage.setItem(INVENTORY_KEY, JSON.stringify(newInventory));
+        const { error } = await supabase
+          .from('inventory')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
     } catch (e) {
         console.error('Failed to delete inventory item', e);
     }
@@ -148,8 +213,14 @@ export const deleteInventoryItem = async (id: string): Promise<void> => {
 
 export const getSeasonStartDate = async (): Promise<Date> => {
     try {
-        const jsonValue = await AsyncStorage.getItem(SEASON_DATE_KEY);
-        return jsonValue != null ? new Date(JSON.parse(jsonValue)) : new Date(new Date().getFullYear(), 0, 1);
+        const { data, error } = await supabase
+            .from('user_settings')
+            .select('season_start_date')
+            .single();
+        
+        if (error && error.code !== 'PGRST116') throw error; // 116 is 'not found'
+        
+        return data?.season_start_date ? new Date(data.season_start_date) : new Date(new Date().getFullYear(), 0, 1);
     } catch (e) {
         console.error('Failed to load season date', e);
         return new Date(new Date().getFullYear(), 0, 1);
@@ -158,9 +229,15 @@ export const getSeasonStartDate = async (): Promise<Date> => {
 
 export const setSeasonStartDate = async (date: Date): Promise<void> => {
     try {
-        await AsyncStorage.setItem(SEASON_DATE_KEY, JSON.stringify(date.toISOString()));
+        const userId = await getUserId();
+        if (!userId) return;
+
+        const { error } = await supabase.from('user_settings').upsert({
+            user_id: userId,
+            season_start_date: date.toISOString()
+        });
+        if (error) throw error;
     } catch (e) {
         console.error('Failed to save season date', e);
     }
 };
-

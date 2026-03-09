@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { InventoryItem, Plot, Transaction } from '../types/farm';
 import * as Storage from '../utils/storage';
+import { useAuth } from './AuthContext';
+
 
 interface FarmContextType {
   transactions: Transaction[];
@@ -30,13 +32,23 @@ interface FarmContextType {
 
 const FarmContext = createContext<FarmContextType | undefined>(undefined);
 
+
 export function FarmProvider({ children }: { children: React.ReactNode }) {
+  const { session, loading: authLoading } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [plots, setPlots] = useState<Plot[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   const loadData = async () => {
+    if (!session) {
+        setTransactions([]);
+        setPlots([]);
+        setInventory([]);
+        setLoading(false);
+        return;
+    }
+
     setLoading(true);
     const [tData, pData, iData] = await Promise.all([
       Storage.getTransactions(),
@@ -50,8 +62,10 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!authLoading) {
+        loadData();
+    }
+  }, [session, authLoading]);
 
   const addTransaction = async (transaction: Transaction) => {
     await Storage.saveTransaction(transaction);

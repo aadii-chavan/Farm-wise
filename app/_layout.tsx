@@ -13,8 +13,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { useRouter, useSegments } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
-
 import { FarmProvider } from '@/context/FarmContext';
 
 export {
@@ -29,6 +30,34 @@ export const unstable_settings = {
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+function RootLayoutRedirect() {
+  const { session, loading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!session && !inAuthGroup) {
+      // Redirect to login if not authenticated and not in auth group
+      router.replace('/login');
+    } else if (session && inAuthGroup) {
+      // Redirect to dashboard if authenticated and in auth group
+      router.replace('/');
+    }
+  }, [session, loading, segments]);
+
+  return (
+    <Stack>
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -56,7 +85,11 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <AuthProvider>
+      <RootLayoutNav />
+    </AuthProvider>
+  );
 }
 
 function RootLayoutNav() {
@@ -65,10 +98,7 @@ function RootLayoutNav() {
   return (
     <FarmProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-        </Stack>
+        <RootLayoutRedirect />
       </ThemeProvider>
     </FarmProvider>
   );
