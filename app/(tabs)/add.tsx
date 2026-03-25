@@ -109,7 +109,7 @@ export default function RecordTransaction() {
 
   const handleSuccessViewAll = () => {
     setShowSuccess(false);
-    router.push('/list');
+    router.push('/history');
   };
 
   const handleSuccessAddNew = () => {

@@ -252,7 +252,7 @@ export default function Dashboard() {
         {/* Recent Transactions Preview */}
         <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <Pressable onPress={() => { /* Navigate */ }}>
+            <Pressable onPress={() => router.push('/history')}>
                 <Text style={{ color: Palette.primary, fontFamily: 'Outfit-SemiBold' }}>See all</Text>
             </Pressable>
         </View>

@@ -16,6 +16,7 @@ import 'react-native-reanimated';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useRouter, useSegments } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
+import { Palette } from '@/constants/Colors';
 import { FarmProvider } from '@/context/FarmContext';
 
 export {
@@ -54,6 +55,16 @@ function RootLayoutRedirect() {
     <Stack>
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen 
+        name="history" 
+        options={{ 
+          title: 'History',
+          headerStyle: { backgroundColor: Palette.background },
+          headerTitleStyle: { fontFamily: 'Outfit-Bold', fontSize: 20 },
+          headerTintColor: Palette.text,
+          headerShadowVisible: false
+        }} 
+      />
       <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
     </Stack>
   );
