@@ -27,7 +27,18 @@ export const getTransactions = async (): Promise<Transaction[]> => {
         }
         throw error;
     }
-    return data || [];
+    return (data || []).map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      type: t.type,
+      category: t.category,
+      amount: Number(t.amount),
+      date: t.date,
+      plotId: t.plot_id,
+      inventoryItemId: t.inventory_item_id,
+      quantity: t.quantity ? Number(t.quantity) : undefined,
+      note: t.note,
+    }));
   } catch (e) {
     console.error('Failed to load transactions', e);
     return [];
