@@ -26,6 +26,7 @@ export default function PlotsScreen() {
   const [name, setName] = useState('');
   const [area, setArea] = useState('');
   const [cropType, setCropType] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
     setName('');
@@ -35,31 +36,37 @@ export default function PlotsScreen() {
   };
 
   const onSavePlot = async () => {
-    if (!name || !area || !cropType) {
-      Alert.alert('Missing Fields', 'Please fill in all fields.');
-      return;
-    }
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (!name || !area || !cropType) {
+        Alert.alert('Missing Fields', 'Please fill in all fields.');
+        return;
+      }
 
-    if (editingPlot) {
-        const updatedPlot = {
-            ...editingPlot,
+      if (editingPlot) {
+          const updatedPlot = {
+              ...editingPlot,
+              name,
+              area: parseFloat(area),
+              cropType,
+          };
+          await updatePlot(updatedPlot);
+      } else {
+          const newPlot = {
+            id: Date.now().toString(),
             name,
             area: parseFloat(area),
             cropType,
-        };
-        await updatePlot(updatedPlot);
-    } else {
-        const newPlot = {
-          id: Date.now().toString(),
-          name,
-          area: parseFloat(area),
-          cropType,
-        };
-        await addPlot(newPlot);
-    }
+          };
+          await addPlot(newPlot);
+      }
 
-    resetForm();
-    setModalVisible(false);
+      resetForm();
+      setModalVisible(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const openEditModal = (plot: Plot) => {
@@ -158,8 +165,8 @@ export default function PlotsScreen() {
                     <Pressable style={[styles.btn, styles.cancelBtn]} onPress={() => setModalVisible(false)}>
                         <Text style={styles.cancelBtnText}>Cancel</Text>
                     </Pressable>
-                    <Pressable style={[styles.btn, styles.saveBtn]} onPress={onSavePlot}>
-                        <Text style={styles.saveBtnText}>{editingPlot ? 'Update Plot' : 'Save Plot'}</Text>
+                    <Pressable style={[styles.btn, styles.saveBtn, isSubmitting && { opacity: 0.7 }]} onPress={onSavePlot} disabled={isSubmitting}>
+                        <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving...' : (editingPlot ? 'Update Plot' : 'Save Plot')}</Text>
                     </Pressable>
                 </View>
             </View>

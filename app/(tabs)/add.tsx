@@ -41,6 +41,7 @@ export default function RecordTransaction() {
   const [note, setNote] = useState('');
   const [showCalendar, setShowCalendar] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const categories = React.useMemo(() => {
     const invCats = inventory.map(i => i.category);
@@ -53,47 +54,53 @@ export default function RecordTransaction() {
   }, [type, inventory]);
 
   const onSave = async () => {
-    const finalCategory = isOtherCategory ? customCategory : category;
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const finalCategory = isOtherCategory ? customCategory : category;
 
-    if (!title || !amount || !finalCategory) {
-      Alert.alert('Missing Fields', 'Please fill in Title, Amount, and Category.');
-      return;
+      if (!title || !amount || !finalCategory) {
+        Alert.alert('Missing Fields', 'Please fill in Title, Amount, and Category.');
+        return;
+      }
+
+      const amountNum = parseFloat(amount);
+      if (isNaN(amountNum) || amountNum <= 0) {
+        Alert.alert('Invalid Amount', 'Please enter a valid amount.');
+        return;
+      }
+
+      const newTransaction = {
+        id: Date.now().toString() + Math.random().toString(36).substring(7),
+        title,
+        type,
+        amount: amountNum,
+        category: finalCategory,
+        date: date.toISOString(),
+        plotId: plotId || undefined,
+        inventoryItemId: inventoryItemId || undefined,
+        quantity: quantity ? parseFloat(quantity) : undefined,
+        note,
+      };
+
+      await addTransaction(newTransaction as any);
+
+      // Reset form
+      setTitle('');
+      setAmount('');
+      setQuantity('');
+      setCategory(null);
+      setCustomCategory('');
+      setIsOtherCategory(false);
+      setNote('');
+      setDate(new Date());
+      setPlotId(null);
+      setInventoryItemId(null);
+
+      setShowSuccess(true);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid amount.');
-      return;
-    }
-
-    const newTransaction = {
-      id: Date.now().toString() + Math.random().toString(36).substring(7),
-      title,
-      type,
-      amount: amountNum,
-      category: finalCategory,
-      date: date.toISOString(),
-      plotId: plotId || undefined,
-      inventoryItemId: inventoryItemId || undefined,
-      quantity: quantity ? parseFloat(quantity) : undefined,
-      note,
-    };
-
-    await addTransaction(newTransaction as any);
-
-    // Reset form
-    setTitle('');
-    setAmount('');
-    setQuantity('');
-    setCategory(null);
-    setCustomCategory('');
-    setIsOtherCategory(false);
-    setNote('');
-    setDate(new Date());
-    setPlotId(null);
-    setInventoryItemId(null);
-
-    setShowSuccess(true);
   };
 
   const onSelectDate = (selectedDate: Date) => {
@@ -335,8 +342,12 @@ export default function RecordTransaction() {
         </View>
 
         {/* Save Button */}
-        <Pressable onPress={onSave} style={({ pressed }) => [styles.saveButton, pressed && { opacity: 0.9 }, { backgroundColor: type === 'Income' ? Palette.success : Palette.primary }]}>
-            <Text style={styles.saveButtonText}>Record {type}</Text>
+        <Pressable 
+            onPress={onSave} 
+            disabled={isSubmitting}
+            style={({ pressed }) => [styles.saveButton, (pressed || isSubmitting) && { opacity: 0.7 }, { backgroundColor: type === 'Income' ? Palette.success : Palette.primary }]}
+        >
+            <Text style={styles.saveButtonText}>{isSubmitting ? 'Recording...' : `Record ${type}`}</Text>
         </Pressable>
       </ScrollView>
 

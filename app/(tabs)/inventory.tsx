@@ -29,33 +29,40 @@ export default function InventoryScreen() {
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState<InventoryUnit>('kg');
   const [pricePerUnit, setPricePerUnit] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSave = async () => {
-    const finalCategory = isOtherCategory ? customCategory : category;
-    
-    if (!name || !quantity || !finalCategory) {
-      Alert.alert('Missing Fields', 'Please fill in all fields.');
-      return;
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const finalCategory = isOtherCategory ? customCategory : category;
+      
+      if (!name || !quantity || !finalCategory) {
+        Alert.alert('Missing Fields', 'Please fill in all fields.');
+        return;
+      }
+
+      const newItem = {
+        id: Date.now().toString(),
+        name,
+        category: finalCategory,
+        quantity: parseFloat(quantity),
+        unit,
+        pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : undefined,
+      };
+
+      await addInventoryItem(newItem);
+      setName('');
+      setCategory('Seeds');
+      setCustomCategory('');
+      setIsOtherCategory(false);
+      setQuantity('');
+      setPricePerUnit('');
+      setUnit('kg');
+      setModalVisible(false);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const newItem = {
-      id: Date.now().toString(),
-      name,
-      category: finalCategory,
-      quantity: parseFloat(quantity),
-      unit,
-      pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : undefined,
-    };
-
-    await addInventoryItem(newItem);
-    setName('');
-    setCategory('Seeds');
-    setCustomCategory('');
-    setIsOtherCategory(false);
-    setQuantity('');
-    setPricePerUnit('');
-    setUnit('kg');
-    setModalVisible(false);
   };
 
   const selectCategory = (cat: string) => {
@@ -190,8 +197,8 @@ export default function InventoryScreen() {
                     <Pressable style={[styles.btn, styles.cancelBtn]} onPress={() => setModalVisible(false)}>
                         <Text style={styles.cancelBtnText}>Cancel</Text>
                     </Pressable>
-                    <Pressable style={[styles.btn, styles.saveBtn]} onPress={onSave}>
-                        <Text style={styles.saveBtnText}>Save Item</Text>
+                    <Pressable style={[styles.btn, styles.saveBtn, isSubmitting && { opacity: 0.7 }]} onPress={onSave} disabled={isSubmitting}>
+                        <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving...' : 'Save Item'}</Text>
                     </Pressable>
                 </View>
             </View>
