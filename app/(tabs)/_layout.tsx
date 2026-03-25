@@ -95,13 +95,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="labor"
+        name="list"
         options={{
-          title: 'Labor',
+          title: 'History',
           tabBarIcon: ({ color, focused }) => (
-             <TabBarIcon name={focused ? "people" : "people-outline"} color={color} />
+             <TabBarIcon name={focused ? "receipt" : "receipt-outline"} color={color} />
           ),
-          tabBarLabel: 'Labor',
+          tabBarLabel: 'History',
         }}
       />
       <Tabs.Screen
