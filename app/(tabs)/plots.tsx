@@ -13,7 +13,10 @@ import {
     Pressable,
     StyleSheet,
     TextInput,
-    View
+    View,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView
 } from 'react-native';
 
 export default function PlotsScreen() {
@@ -126,9 +129,13 @@ export default function PlotsScreen() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>{editingPlot ? 'Edit Plot' : 'Add New Plot'}</Text>
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+        >
+            <View style={[styles.modalContent, { maxHeight: '90%' }]}>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 10 }}>
+                    <Text style={styles.modalTitle}>{editingPlot ? 'Edit Plot' : 'Add New Plot'}</Text>
                 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Plot Name</Text>
@@ -169,8 +176,9 @@ export default function PlotsScreen() {
                         <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving...' : (editingPlot ? 'Update Plot' : 'Save Plot')}</Text>
                     </Pressable>
                 </View>
+                </ScrollView>
             </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

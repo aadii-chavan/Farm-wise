@@ -14,7 +14,9 @@ import {
     ScrollView,
     StyleSheet,
     TextInput,
-    View
+    View,
+    KeyboardAvoidingView,
+    Platform
 } from 'react-native';
 
 const FIXED_UNITS: InventoryUnit[] = ['kg', 'bags', 'L'];
@@ -114,9 +116,13 @@ export default function InventoryScreen() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Add Supply</Text>
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalOverlay}
+        >
+            <View style={[styles.modalContent, { maxHeight: '90%' }]}>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 10 }}>
+                    <Text style={styles.modalTitle}>Add Supply</Text>
                 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Item Name</Text>
@@ -201,8 +207,9 @@ export default function InventoryScreen() {
                         <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving...' : 'Save Item'}</Text>
                     </Pressable>
                 </View>
+                </ScrollView>
             </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
