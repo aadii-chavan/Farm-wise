@@ -10,7 +10,7 @@ import { format, isSameDay, isSameMonth } from 'date-fns';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { PieChart } from 'react-native-chart-kit';
+
 import { useAuth } from '@/context/AuthContext';
 
 
@@ -50,14 +50,14 @@ export default function Dashboard() {
   const todayStats = getStats(todayTransactions);
   const monthStats = getStats(monthTransactions);
 
-  const categoryData = Array.from(new Set(seasonTransactions.map(t => t.category))).map(cat => {
-    const total = seasonTransactions.filter(t => t.category === cat).reduce((acc, t) => acc + t.amount, 0);
+  const expenseTransactions = seasonTransactions.filter(t => t.type === 'Expense');
+  const categoryData = Array.from(new Set(expenseTransactions.map(t => t.category))).map(cat => {
+    const total = expenseTransactions.filter(t => t.category === cat).reduce((acc, t) => acc + t.amount, 0);
     return {
         name: cat,
         population: total,
+        percentage: seasonStats.expense > 0 ? (total / seasonStats.expense) * 100 : 0,
         color: CATEGORY_COLORS[cat as Category] || Palette.primary,
-        legendFontColor: Palette.textSecondary,
-        legendFontSize: 12
     };
   }).filter(d => d.population > 0).sort((a, b) => b.population - a.population);
 
@@ -208,37 +208,37 @@ export default function Dashboard() {
                     ))}
                 </View>
 
-                <View style={styles.analysisChartWrapper}>
-                    <PieChart
-                        data={categoryData}
-                        width={screenWidth - 80}
-                        height={200}
-                        chartConfig={{
-                            color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                        }}
-                        accessor={"population"}
-                        backgroundColor={"transparent"}
-                        paddingLeft={"0"}
-                        center={[10, 0]}
-                        absolute
-                    />
-                </View>
-
-                <View style={styles.analysisLegend}>
-                    {categoryData.slice(0, 4).map((item) => (
-                        <View key={item.name} style={styles.legendItem}>
-                            <View style={styles.legendLeft}>
-                                <View
-                                    style={[
-                                        styles.legendDot,
-                                        { backgroundColor: item.color },
-                                    ]}
-                                />
-                                <Text style={styles.legendLabel}>{item.name}</Text>
+                <View style={styles.breakdownContainer}>
+                    {categoryData.map((item) => (
+                        <View key={item.name} style={styles.breakdownItem}>
+                            <View style={styles.breakdownHeader}>
+                                <View style={styles.breakdownLeft}>
+                                    <View style={[styles.breakdownIconBadge, { backgroundColor: item.color + '20' }]}>
+                                        <Ionicons 
+                                            name={(CATEGORY_ICONS[item.name as Category] as any) || 'cash'} 
+                                            size={14} 
+                                            color={item.color} 
+                                        />
+                                    </View>
+                                    <Text style={styles.breakdownLabel}>{item.name}</Text>
+                                </View>
+                                <View style={styles.breakdownRight}>
+                                    <Text style={styles.breakdownAmount}>
+                                        ₹{item.population.toLocaleString('en-IN')}
+                                    </Text>
+                                    <Text style={styles.breakdownPercent}>
+                                        {item.percentage.toFixed(1)}%
+                                    </Text>
+                                </View>
                             </View>
-                            <Text style={styles.legendAmount}>
-                                ₹{item.population.toFixed(0)}
-                            </Text>
+                            <View style={styles.progressBarBg}>
+                                <View 
+                                    style={[
+                                        styles.progressBarFill, 
+                                        { width: `${item.percentage}%`, backgroundColor: item.color }
+                                    ]} 
+                                />
+                            </View>
                         </View>
                     ))}
                 </View>
@@ -252,7 +252,7 @@ export default function Dashboard() {
         {/* Recent Transactions Preview */}
         <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <Pressable onPress={() => { /* Navigate */ }}>
+            <Pressable onPress={() => { router.push('/list') }}>
                 <Text style={{ color: Palette.primary, fontFamily: 'Outfit-SemiBold' }}>See all</Text>
             </Pressable>
         </View>
@@ -502,38 +502,59 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontFamily: 'Outfit-Bold',
     },
-    analysisChartWrapper: {
-        marginTop: 8,
-        alignItems: 'center',
+    breakdownContainer: {
+        marginTop: 16,
+        gap: 16,
     },
-    analysisLegend: {
-        marginTop: 8,
+    breakdownItem: {
+        width: '100%',
     },
-    legendItem: {
+    breakdownHeader: {
         flexDirection: 'row',
-        alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 4,
+        alignItems: 'center',
+        marginBottom: 8,
     },
-    legendLeft: {
+    breakdownLeft: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-    legendDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        marginRight: 8,
+    breakdownIconBadge: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 10,
     },
-    legendLabel: {
-        fontSize: 13,
+    breakdownLabel: {
+        fontSize: 14,
+        fontFamily: 'Outfit-Medium',
+        color: Palette.text,
+    },
+    breakdownRight: {
+        alignItems: 'flex-end',
+    },
+    breakdownAmount: {
+        fontSize: 14,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+    },
+    breakdownPercent: {
+        fontSize: 11,
         fontFamily: 'Outfit',
-        color: Palette.text,
+        color: Palette.textSecondary,
+        marginTop: 2,
     },
-    legendAmount: {
-        fontSize: 13,
-        fontFamily: 'Outfit-SemiBold',
-        color: Palette.text,
+    progressBarBg: {
+        height: 6,
+        backgroundColor: Palette.background,
+        borderRadius: 3,
+        overflow: 'hidden',
+    },
+    progressBarFill: {
+        height: '100%',
+        borderRadius: 3,
     },
     emptyContainer: {
         padding: 40,

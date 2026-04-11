@@ -95,13 +95,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="schedule"
+        options={{
+          title: 'Schedule',
+          tabBarIcon: ({ color, focused }) => (
+             <TabBarIcon name={focused ? "calendar" : "calendar-outline"} color={color} />
+          ),
+          tabBarLabel: 'Schedule',
+        }}
+      />
+      <Tabs.Screen
         name="list"
         options={{
+          href: null,
           title: 'History',
-          tabBarIcon: ({ color, focused }) => (
-             <TabBarIcon name={focused ? "receipt" : "receipt-outline"} color={color} />
-          ),
-          tabBarLabel: 'History',
         }}
       />
       <Tabs.Screen

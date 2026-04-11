@@ -18,17 +18,17 @@ export const INCOME_CATEGORIES: IncomeCategory[] = [
 ];
 
 export const CATEGORY_COLORS: Record<Category, string> = {
-  Seeds: '#4CAF50',
-  Fertilizer: '#8BC34A',
-  Pesticide: '#FF9800',
-  Equipment: '#795548',
-  Labor: '#2196F3',
-  Transport: '#607D8B',
-  Misc: '#9E9E9E',
-  Crops: '#006d5b', // Deep Emerald
-  'Government Subsidy': '#f9a825', // Gold
-  Rent: '#673AB7', // Purple
-  Other: '#455A64', // Blue Grey
+  Seeds: '#10B981',       // Emerald green
+  Fertilizer: '#0EA5E9',  // Sky blue
+  Pesticide: '#F43F5E',   // Rose red
+  Equipment: '#F59E0B',   // Amber
+  Labor: '#8B5CF6',       // Violet
+  Transport: '#EC4899',   // Pink
+  Misc: '#94A3B8',        // Slate
+  Crops: '#34D399',       // Mint
+  'Government Subsidy': '#FACC15', // Yellow
+  Rent: '#A855F7',        // Purple
+  Other: '#3B82F6',       // Blue
 };
 
 export const CATEGORY_ICONS: Record<Category, string> = {
