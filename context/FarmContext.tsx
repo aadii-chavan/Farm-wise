@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { InventoryItem, Plot, Transaction } from '../types/farm';
+import { InventoryItem, Plot, Transaction, Task } from '../types/farm';
 import * as Storage from '../utils/storage';
 import { useAuth } from './AuthContext';
 
@@ -8,6 +8,7 @@ interface FarmContextType {
   transactions: Transaction[];
   plots: Plot[];
   inventory: InventoryItem[];
+  tasks: Task[];
   loading: boolean;
   
   // Transactions
@@ -27,6 +28,12 @@ interface FarmContextType {
   deleteInventoryItem: (id: string) => Promise<void>;
   refreshInventory: () => Promise<void>;
 
+  // Tasks
+  addTask: (task: Task) => Promise<void>;
+  updateTask: (task: Task) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  refreshTasks: () => Promise<void>;
+
   refreshAll: () => Promise<void>;
 }
 
@@ -38,6 +45,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [plots, setPlots] = useState<Plot[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   const loadData = async () => {
@@ -45,19 +53,22 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
         setTransactions([]);
         setPlots([]);
         setInventory([]);
+        setTasks([]);
         setLoading(false);
         return;
     }
 
     setLoading(true);
-    const [tData, pData, iData] = await Promise.all([
+    const [tData, pData, iData, tsData] = await Promise.all([
       Storage.getTransactions(),
       Storage.getPlots(),
-      Storage.getInventory()
+      Storage.getInventory(),
+      Storage.getTasks()
     ]);
     setTransactions(tData);
     setPlots(pData);
     setInventory(iData);
+    setTasks(tsData);
     setLoading(false);
   };
 
@@ -107,6 +118,21 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   };
 
+  const addTask = async (task: Task) => {
+    await Storage.saveTask(task);
+    await loadData();
+  };
+
+  const updateTask = async (task: Task) => {
+    await Storage.updateTask(task);
+    await loadData();
+  };
+
+  const deleteTask = async (id: string) => {
+    await Storage.deleteTask(id);
+    await loadData();
+  };
+
   const refreshAll = async () => {
     await loadData();
   };
@@ -116,6 +142,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       transactions, 
       plots, 
       inventory, 
+      tasks,
       loading, 
       addTransaction, 
       deleteTransaction, 
@@ -128,6 +155,10 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       updateInventoryQuantity,
       deleteInventoryItem,
       refreshInventory: refreshAll,
+      addTask,
+      updateTask,
+      deleteTask,
+      refreshTasks: refreshAll,
       refreshAll
     }}>
       {children}

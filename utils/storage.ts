@@ -287,3 +287,86 @@ export const setSeasonStartDate = async (date: Date): Promise<void> => {
         console.error('Failed to save season date', e);
     }
 };
+
+// Tasks
+export const getTasks = async (): Promise<any[]> => {
+    try {
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('*')
+          .order('time');
+        
+        if (error) {
+            if (error.code === 'PGRST205') console.warn('Supabase Schema Cache error.');
+            throw error;
+        }
+        return (data || []).map((t: any) => ({
+            id: t.id,
+            title: t.title,
+            time: t.time,
+            date: t.date,
+            category: t.category,
+            plot: t.plot,
+            completed: t.completed,
+        }));
+    } catch (e) {
+        console.error('Failed to load tasks', e);
+        return [];
+    }
+};
+
+export const saveTask = async (task: any): Promise<void> => {
+    try {
+        const userId = await getUserId();
+        if (!userId) throw new Error('User not authenticated');
+
+        const taskData: any = {
+            user_id: userId,
+            title: task.title,
+            time: task.time,
+            date: task.date,
+            category: task.category,
+            plot: task.plot || null,
+            completed: task.completed,
+        };
+
+        if (task.id && isUUID(task.id)) {
+            taskData.id = task.id;
+        }
+
+        const { error } = await supabase.from('tasks').upsert(taskData);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to save task', e);
+    }
+};
+
+export const updateTask = async (task: any): Promise<void> => {
+    try {
+        if (!task.id || !isUUID(task.id)) return;
+        const { error } = await supabase
+            .from('tasks')
+            .update({
+                title: task.title,
+                time: task.time,
+                date: task.date,
+                category: task.category,
+                plot: task.plot || null,
+                completed: task.completed,
+            })
+            .eq('id', task.id);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to update task', e);
+    }
+};
+
+export const deleteTask = async (id: string): Promise<void> => {
+    try {
+        if (!isUUID(id)) return;
+        const { error } = await supabase.from('tasks').delete().eq('id', id);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to delete task', e);
+    }
+};

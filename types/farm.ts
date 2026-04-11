@@ -35,3 +35,14 @@ export interface Transaction {
   quantity?: number;
   note?: string;
 }
+
+export interface Task {
+  id: string;
+  title: string;
+  time: string;
+  date: string;
+  category: string;
+  plot?: string | null;
+  completed: boolean;
+}
+
