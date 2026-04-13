@@ -34,7 +34,8 @@ export default function RecordTransaction() {
   const [type, setType] = useState<TransactionType>('Expense');
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [categoryAmounts, setCategoryAmounts] = useState<Record<string, string>>({});
   const [customCategory, setCustomCategory] = useState('');
   const [isOtherCategory, setIsOtherCategory] = useState(false);
   const [date, setDate] = useState(new Date());
@@ -45,6 +46,7 @@ export default function RecordTransaction() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [autoSum, setAutoSum] = useState('');
 
   const categories = React.useMemo(() => {
     const invCats = inventory.map(i => i.category);
@@ -64,7 +66,9 @@ export default function RecordTransaction() {
       setTitle('');
       setAmount('');
       setQuantity('');
-      setCategory(null);
+      setSelectedCategories([]);
+      setCategoryAmounts({});
+      setAutoSum('');
       setCustomCategory('');
       setIsOtherCategory(false);
       setNote('');
@@ -95,10 +99,12 @@ export default function RecordTransaction() {
             // Reconstruct category
             const isKnown = ['Other', ...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES, ...inventory.map(i=>i.category)].includes(tx.category);
             if (isKnown) {
-                setCategory(tx.category);
+                setSelectedCategories([tx.category]);
+                setCategoryAmounts({ [tx.category]: tx.amount.toString() });
                 setIsOtherCategory(false);
             } else {
-                setCategory('Other');
+                setSelectedCategories(['Other']);
+                setCategoryAmounts({ 'Other': tx.amount.toString() });
                 setIsOtherCategory(true);
                 setCustomCategory(tx.category);
             }
@@ -112,14 +118,29 @@ export default function RecordTransaction() {
     }
   }, [editId, transactions]);
 
+  useEffect(() => {
+    if (selectedCategories.length > 1) {
+        let sum = 0;
+        for (const cat of selectedCategories) {
+            const val = parseFloat(categoryAmounts[cat]);
+            if (!isNaN(val)) {
+                sum += val;
+            }
+        }
+        const newSumStr = sum > 0 ? sum.toString() : '';
+        if (amount === '' || amount === autoSum) {
+            setAmount(newSumStr);
+            setAutoSum(newSumStr);
+        }
+    }
+  }, [categoryAmounts, selectedCategories, amount, autoSum]);
+
   const onSave = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const finalCategory = isOtherCategory ? customCategory : category;
-
-      if (!title || !amount || !finalCategory) {
-        Alert.alert('Missing Fields', 'Please fill in Title, Amount, and Category.');
+      if (!title || !amount || selectedCategories.length === 0) {
+        Alert.alert('Missing Fields', 'Please fill in Title, Amount, and select at least one Category.');
         return;
       }
 
@@ -129,23 +150,67 @@ export default function RecordTransaction() {
         return;
       }
 
-      const newTransaction = {
-        id: isEditing && editingId ? editingId : Date.now().toString() + Math.random().toString(36).substring(7),
-        title,
-        type,
-        amount: amountNum,
-        category: finalCategory,
-        date: date.toISOString(),
-        plotId: plotId || undefined,
-        inventoryItemId: inventoryItemId || undefined,
-        quantity: quantity ? parseFloat(quantity) : undefined,
-        note,
-      };
+      const txsToSave = [];
 
-      if (isEditing) {
-          await updateTransaction(newTransaction as any);
+      if (selectedCategories.length === 1) {
+          let c = selectedCategories[0];
+          let finalCat = c === 'Other' && isOtherCategory ? customCategory || 'Other' : c;
+          txsToSave.push({
+            title,
+            type,
+            amount: amountNum,
+            category: finalCat,
+            date: date.toISOString(),
+            plotId: plotId || undefined,
+            inventoryItemId: inventoryItemId || undefined,
+            quantity: quantity ? parseFloat(quantity) : undefined,
+            note,
+          });
       } else {
-          await addTransaction(newTransaction as any);
+          let sumBreakdown = 0;
+          for (let c of selectedCategories) {
+              const catAmt = parseFloat(categoryAmounts[c]) || 0;
+              sumBreakdown += catAmt;
+          }
+          if (Math.abs(sumBreakdown - amountNum) > 0.01) {
+              Alert.alert('Amount Mismatch', `The sum of category breakdowns (₹${sumBreakdown}) must equal the total amount (₹${amountNum}).`);
+              return;
+          }
+          
+          for (let c of selectedCategories) {
+              let finalCat = c === 'Other' && isOtherCategory ? customCategory || 'Other' : c;
+              const catAmt = parseFloat(categoryAmounts[c]) || 0;
+              if (catAmt <= 0) continue;
+              
+              const itemIsLinked = inventoryItemId && inventory.find(i => i.id === inventoryItemId)?.category === c;
+              
+              txsToSave.push({
+                title,
+                type,
+                amount: catAmt,
+                category: finalCat,
+                date: date.toISOString(),
+                plotId: plotId || undefined,
+                inventoryItemId: itemIsLinked ? inventoryItemId : undefined,
+                quantity: itemIsLinked && quantity ? parseFloat(quantity) : undefined,
+                note,
+              });
+          }
+      }
+
+      if (isEditing && editingId) {
+          if (txsToSave.length > 1) {
+              Alert.alert('Edit Error', 'Cannot split an existing transaction. Delete it and record new multiple ones.');
+              return;
+          }
+          await updateTransaction({ id: editingId, ...txsToSave[0] } as any);
+      } else {
+          for (let tx of txsToSave) {
+              await addTransaction({
+                  id: Date.now().toString() + Math.random().toString(36).substring(7),
+                  ...tx
+              } as any);
+          }
       }
 
       resetForm();
@@ -173,16 +238,29 @@ export default function RecordTransaction() {
     setShowSuccess(false);
   };
 
-  const selectCategory = (cat: string) => {
+  const toggleCategory = (cat: string) => {
     if (cat === 'Other') {
-        setIsOtherCategory(true);
-        setCategory('Other');
-    } else {
-        setIsOtherCategory(false);
-        setCategory(cat);
+        setIsOtherCategory(prev => !selectedCategories.includes('Other') ? true : false);
     }
-    setInventoryItemId(null);
-    setQuantity('');
+
+    setSelectedCategories(prev => {
+        if (prev.includes(cat)) {
+            const next = prev.filter(c => c !== cat);
+            if (next.length === 0) {
+                setInventoryItemId(null);
+                setQuantity('');
+            } else if (inventoryItemId) {
+                const linkedItem = inventory.find(i => i.id === inventoryItemId);
+                if (linkedItem && linkedItem.category === cat) {
+                    setInventoryItemId(null);
+                    setQuantity('');
+                }
+            }
+            return next;
+        } else {
+            return [...prev, cat];
+        }
+    });
   };
 
   const handleInventorySelect = (itemId: string) => {
@@ -199,7 +277,14 @@ export default function RecordTransaction() {
         }
         if (item.pricePerUnit && quantity) {
             const qty = parseFloat(quantity);
-            if (!isNaN(qty)) setAmount((qty * item.pricePerUnit).toString());
+            if (!isNaN(qty)) {
+                const cost = qty * item.pricePerUnit;
+                if (selectedCategories.length <= 1) {
+                    setAmount(cost.toString());
+                } else {
+                    setCategoryAmounts(prev => ({ ...prev, [item.category]: cost.toString() }));
+                }
+            }
         }
     }
   };
@@ -209,9 +294,18 @@ export default function RecordTransaction() {
     const item = inventory.find(i => i.id === inventoryItemId);
     const qty = parseFloat(text);
     if (item && item.pricePerUnit && !isNaN(qty)) {
-        setAmount((qty * item.pricePerUnit).toString());
+        const cost = qty * item.pricePerUnit;
+        if (selectedCategories.length <= 1) {
+            setAmount(cost.toString());
+        } else {
+            setCategoryAmounts(prev => ({ ...prev, [item.category]: cost.toString() }));
+        }
     } else if (text === '') {
-        setAmount('');
+        if (selectedCategories.length <= 1) {
+            setAmount('');
+        } else if (item) {
+            setCategoryAmounts(prev => ({ ...prev, [item.category]: '' }));
+        }
     }
   };
 
@@ -232,13 +326,13 @@ export default function RecordTransaction() {
         {/* Type Toggle */}
         <View style={styles.typeToggle}>
             <Pressable 
-                onPress={() => { setType('Expense'); setCategory(null); setIsOtherCategory(false); }}
+                onPress={() => { setType('Expense'); setSelectedCategories([]); setCategoryAmounts({}); setIsOtherCategory(false); }}
                 style={[styles.typeBtn, type === 'Expense' && styles.typeBtnActiveExpense]}
             >
                 <Text style={[styles.typeBtnText, type === 'Expense' && styles.typeBtnTextActive]}>Expense</Text>
             </Pressable>
             <Pressable 
-                onPress={() => { setType('Income'); setCategory(null); setIsOtherCategory(false); }}
+                onPress={() => { setType('Income'); setSelectedCategories([]); setCategoryAmounts({}); setIsOtherCategory(false); }}
                 style={[styles.typeBtn, type === 'Income' && styles.typeBtnActiveIncome]}
             >
                 <Text style={[styles.typeBtnText, type === 'Income' && styles.typeBtnTextActive]}>Income</Text>
@@ -301,17 +395,17 @@ export default function RecordTransaction() {
                         key={cat}
                         style={[
                             styles.chip,
-                            category === cat && { backgroundColor: CATEGORY_COLORS[cat as Category] || Palette.primary, borderColor: CATEGORY_COLORS[cat as Category] || Palette.primary }
+                            selectedCategories.includes(cat) && { backgroundColor: CATEGORY_COLORS[cat as Category] || Palette.primary, borderColor: CATEGORY_COLORS[cat as Category] || Palette.primary }
                         ]}
-                        onPress={() => selectCategory(cat)}
+                        onPress={() => toggleCategory(cat)}
                     >
                     <Ionicons
                         name={(CATEGORY_ICONS[cat as Category] as any) || 'pricetag-outline'}
                         size={16}
-                        color={category === cat ? 'white' : (CATEGORY_COLORS[cat as Category] || Palette.primary)}
+                        color={selectedCategories.includes(cat) ? 'white' : (CATEGORY_COLORS[cat as Category] || Palette.primary)}
                         style={{ marginRight: 6 }}
                     />
-                    <Text style={[styles.chipText, { color: category === cat ? 'white' : Palette.text }]}>
+                    <Text style={[styles.chipText, { color: selectedCategories.includes(cat) ? 'white' : Palette.text }]}>
                         {cat}
                     </Text>
                     </Pressable>
@@ -335,12 +429,12 @@ export default function RecordTransaction() {
             )}
 
             {/* Inventory Item (Available for any category that exists in inventory) */}
-            {type === 'Expense' && inventory.some(i => i.category === category) && inventory.length > 0 && (
+            {type === 'Expense' && inventory.some(i => selectedCategories.includes(i.category)) && inventory.length > 0 && (
                 <View>
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Link to Inventory (Optional)</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                            {inventory.filter(i => i.category === category).map(item => (
+                            {inventory.filter(i => selectedCategories.includes(i.category)).map(item => (
                                 <Pressable 
                                     key={item.id} 
                                     onPress={() => handleInventorySelect(item.id)}
@@ -369,6 +463,28 @@ export default function RecordTransaction() {
                             <Text style={styles.infoText}>This will automatically update your inventory stock.</Text>
                         </View>
                     )}
+                </View>
+            )}
+
+            {/* Category Breakdown (Multiple Categories) */}
+            {selectedCategories.length > 1 && (
+                <View style={[styles.inputGroup, { backgroundColor: '#f9f9f9', padding: 16, borderRadius: 16 }]}>
+                    <Text style={styles.label}>Category Breakdown (Must equal ₹{amount || '0'})</Text>
+                    {selectedCategories.map(cat => (
+                        <View key={cat} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                            <Text style={{ width: 100, fontFamily: 'Outfit-Medium', color: Palette.text }}>{cat === 'Other' && isOtherCategory && customCategory ? customCategory : cat}</Text>
+                            <View style={[styles.inputWrapper, { flex: 1, backgroundColor: 'white' }]}>
+                                <Text style={{ paddingLeft: 16, color: Palette.textSecondary }}>₹</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder={`Amount for ${cat}`}
+                                    value={categoryAmounts[cat] || ''}
+                                    onChangeText={(val) => setCategoryAmounts(prev => ({ ...prev, [cat]: val }))}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+                        </View>
+                    ))}
                 </View>
             )}
 

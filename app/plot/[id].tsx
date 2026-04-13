@@ -27,13 +27,7 @@ export default function PlotDetailScreen() {
   const plot = plots.find((p) => p.id === id);
   const plotTransactions = transactions.filter((t) => t.plotId === id);
 
-  if (!plot) {
-    return (
-      <View style={styles.container}>
-        <Text>Plot not found</Text>
-      </View>
-    );
-  }
+
 
   const [filterState, setFilterState] = useState<FilterState>({
       type: 'Both',
@@ -105,6 +99,14 @@ export default function PlotDetailScreen() {
             data: grouped[date]
         }));
   }, [filteredTransactions]);
+
+  if (!plot) {
+    return (
+      <View style={styles.container}>
+        <Text>Plot not found</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

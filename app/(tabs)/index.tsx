@@ -1,5 +1,6 @@
 import CalendarModal from '@/components/CalendarModal';
 import { Text } from '@/components/Themed';
+import { TransactionCard } from '@/components/TransactionCard';
 import { CATEGORY_COLORS, CATEGORY_ICONS } from '@/constants/Categories';
 import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
@@ -265,24 +266,10 @@ export default function Dashboard() {
         </View>
 
         <View style={{ paddingHorizontal: 20 }}>
-            {transactions.slice(0, 5).map((t) => (
-                <View key={t.id} style={styles.miniTransactionCard}>
-                    <View style={[styles.miniIcon, { backgroundColor: (CATEGORY_COLORS[t.category as Category] || Palette.primary) + '20' }]}>
-                        <Ionicons 
-                            name={(CATEGORY_ICONS[t.category as Category] as any) || 'cash'} 
-                            size={16} 
-                            color={CATEGORY_COLORS[t.category as Category] || Palette.primary} 
-                        />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.miniTitle}>{t.title}</Text>
-                        <Text style={styles.miniDate}>{format(new Date(t.date), 'd MMM')}</Text>
-                    </View>
-                    <Text style={[styles.miniAmount, { color: t.type === 'Income' ? Palette.success : Palette.danger }]}>
-                        {t.type === 'Income' ? '+' : '-'}₹{t.amount.toFixed(0)}
-                    </Text>
-                </View>
-            ))}
+            {transactions.slice(0, 5).map((t) => {
+                const plotName = t.plotId ? plots.find(p => p.id === t.plotId)?.name : undefined;
+                return <TransactionCard key={t.id} transaction={t} plotName={plotName} />;
+            })}
         </View>
       </ScrollView>
     </>
@@ -570,38 +557,5 @@ const styles = StyleSheet.create({
     emptyText: {
         color: Palette.textSecondary,
         fontFamily: 'Outfit',
-    },
-    miniTransactionCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'white',
-        borderRadius: 16,
-        padding: 12,
-        marginBottom: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
-        elevation: 1,
-    },
-    miniIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    miniTitle: {
-        fontSize: 14,
-        fontFamily: 'Outfit-SemiBold',
-        color: Palette.text,
-    },
-    miniDate: {
-        fontSize: 12,
-        color: Palette.textSecondary,
-    },
-    miniAmount: {
-        fontSize: 14,
-        fontFamily: 'Outfit-Bold',
     }
 });
