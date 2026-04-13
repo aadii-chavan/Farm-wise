@@ -325,7 +325,7 @@ export default function InventoryScreen() {
                     />
                     {totalCost ? (
                         <Text style={styles.helperText}>
-                            Saves as ₹ { (((parseFloat(totalCost) || 0) / ((inputType === 'Bulk' ? parseFloat(quantity) : (parseFloat(numPackages) * parseFloat(sizePerPackage))) || 1))).toFixed(2) } per {unit}
+                            Saves as ₹ { (((parseFloat(totalCost) || 0) / ((parseFloat(numPackages) * parseFloat(sizePerPackage)) || 1))).toFixed(2) } per {unit}
                         </Text>
                     ) : null}
                 </View>
