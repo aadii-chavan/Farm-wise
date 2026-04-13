@@ -6,8 +6,8 @@ import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
 import { Category, TransactionType } from '@/types/farm';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     Alert,
     Pressable,
@@ -19,8 +19,11 @@ import {
 
 export default function RecordTransaction() {
   const router = useRouter();
-  const { plotId: paramPlotId } = useLocalSearchParams();
-  const { addTransaction, plots, inventory } = useFarm();
+  const { plotId: paramPlotId, editId } = useLocalSearchParams();
+  const { addTransaction, updateTransaction, plots, inventory, transactions } = useFarm();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (paramPlotId && typeof paramPlotId === 'string') {
@@ -45,13 +48,69 @@ export default function RecordTransaction() {
 
   const categories = React.useMemo(() => {
     const invCats = inventory.map(i => i.category);
+    const pastCats = transactions.filter(t => t.type === type).map(t => t.category);
+    
     if (type === 'Expense') {
-        const set = new Set([...EXPENSE_CATEGORIES, ...invCats, 'Other']);
+        const set = new Set([...EXPENSE_CATEGORIES, ...invCats, ...pastCats, 'Other']);
         return Array.from(set);
     }
-    const set = new Set([...INCOME_CATEGORIES, ...invCats]);
+    const set = new Set([...INCOME_CATEGORIES, ...invCats, ...pastCats, 'Other']);
     return Array.from(set);
-  }, [type, inventory]);
+  }, [type, inventory, transactions]);
+
+  const resetForm = useCallback(() => {
+      setIsEditing(false);
+      setEditingId(null);
+      setTitle('');
+      setAmount('');
+      setQuantity('');
+      setCategory(null);
+      setCustomCategory('');
+      setIsOtherCategory(false);
+      setNote('');
+      setDate(new Date());
+      setPlotId(paramPlotId && typeof paramPlotId === 'string' ? paramPlotId : null);
+      setInventoryItemId(null);
+  }, [paramPlotId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // If the screen comes into focus without an editId but was editing previously, reset it.
+      if (!editId && isEditing) {
+          resetForm();
+      }
+    }, [editId, isEditing, resetForm])
+  );
+
+  useEffect(() => {
+    if (editId && typeof editId === 'string') {
+        const tx = transactions.find(t => t.id === editId);
+        if (tx && !isEditing) {
+            setIsEditing(true);
+            setEditingId(tx.id);
+            setTitle(tx.title);
+            setType(tx.type);
+            setAmount(tx.amount.toString());
+            
+            // Reconstruct category
+            const isKnown = ['Other', ...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES, ...inventory.map(i=>i.category)].includes(tx.category);
+            if (isKnown) {
+                setCategory(tx.category);
+                setIsOtherCategory(false);
+            } else {
+                setCategory('Other');
+                setIsOtherCategory(true);
+                setCustomCategory(tx.category);
+            }
+
+            setDate(new Date(tx.date));
+            setPlotId(tx.plotId || null);
+            setInventoryItemId(tx.inventoryItemId || null);
+            setQuantity(tx.quantity ? tx.quantity.toString() : '');
+            setNote(tx.note || '');
+        }
+    }
+  }, [editId, transactions]);
 
   const onSave = async () => {
     if (isSubmitting) return;
@@ -71,7 +130,7 @@ export default function RecordTransaction() {
       }
 
       const newTransaction = {
-        id: Date.now().toString() + Math.random().toString(36).substring(7),
+        id: isEditing && editingId ? editingId : Date.now().toString() + Math.random().toString(36).substring(7),
         title,
         type,
         amount: amountNum,
@@ -83,21 +142,19 @@ export default function RecordTransaction() {
         note,
       };
 
-      await addTransaction(newTransaction as any);
+      if (isEditing) {
+          await updateTransaction(newTransaction as any);
+      } else {
+          await addTransaction(newTransaction as any);
+      }
 
-      // Reset form
-      setTitle('');
-      setAmount('');
-      setQuantity('');
-      setCategory(null);
-      setCustomCategory('');
-      setIsOtherCategory(false);
-      setNote('');
-      setDate(new Date());
-      setPlotId(null);
-      setInventoryItemId(null);
-
+      resetForm();
       setShowSuccess(true);
+      if (isEditing) {
+          setTimeout(() => {
+              router.back();
+          }, 1000);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -161,11 +218,16 @@ export default function RecordTransaction() {
   return (
     <>
       <Stack.Screen options={{ 
-        title: `Record ${type}`, 
+        title: isEditing ? `Edit ${type}` : `Record ${type}`, 
         headerStyle: { backgroundColor: Palette.background },
         headerShadowVisible: false,
+        headerRight: () => (
+            <Pressable onPress={resetForm} hitSlop={10}>
+                <Text style={{ fontFamily: 'Outfit-Medium', color: Palette.primary, fontSize: 16 }}>Reset</Text>
+            </Pressable>
+        )
       }} />
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         
         {/* Type Toggle */}
         <View style={styles.typeToggle}>
@@ -347,19 +409,21 @@ export default function RecordTransaction() {
             disabled={isSubmitting}
             style={({ pressed }) => [styles.saveButton, (pressed || isSubmitting) && { opacity: 0.7 }, { backgroundColor: type === 'Income' ? Palette.success : Palette.primary }]}
         >
-            <Text style={styles.saveButtonText}>{isSubmitting ? 'Recording...' : `Record ${type}`}</Text>
+            <Text style={styles.saveButtonText}>{isSubmitting ? 'Saving...' : (isEditing ? `Update ${type}` : `Record ${type}`)}</Text>
         </Pressable>
       </ScrollView>
 
-      <SuccessModal
-        visible={showSuccess}
-        title="Record Saved"
-        message="The transaction has been recorded successfully."
-        primaryLabel="View All"
-        secondaryLabel="Add New"
-        onPrimary={handleSuccessViewAll}
-        onSecondary={handleSuccessAddNew}
-      />
+      {!isEditing && (
+        <SuccessModal
+          visible={showSuccess}
+          title="Record Saved"
+          message="The transaction has been recorded successfully."
+          primaryLabel="View All"
+          secondaryLabel="Add New"
+          onPrimary={handleSuccessViewAll}
+          onSecondary={handleSuccessAddNew}
+        />
+      )}
     </>
   );
 }

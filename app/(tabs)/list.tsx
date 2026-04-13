@@ -2,11 +2,12 @@ import { Text } from '@/components/Themed';
 import { TransactionCard } from '@/components/TransactionCard';
 import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback } from 'react';
 import { Alert, FlatList, StyleSheet, View } from 'react-native';
 
 export default function TransactionsList() {
+  const router = useRouter();
   const { transactions, plots, deleteTransaction, refreshTransactions } = useFarm();
 
   useFocusEffect(
@@ -38,7 +39,8 @@ export default function TransactionsList() {
           return (
             <TransactionCard 
                 transaction={item} 
-                onDelete={confirmDelete} 
+                onDelete={() => confirmDelete(item.id)} 
+                onEdit={() => router.push({ pathname: '/add', params: { editId: item.id } })}
                 plotName={plot?.name}
             />
           );

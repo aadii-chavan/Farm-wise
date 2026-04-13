@@ -10,10 +10,11 @@ import { Text } from './Themed';
 interface Props {
   transaction: Transaction;
   onDelete?: (id: string) => void;
+  onEdit?: (transaction: Transaction) => void;
   plotName?: string;
 }
 
-export function TransactionCard({ transaction, onDelete, plotName }: Props) {
+export function TransactionCard({ transaction, onDelete, onEdit, plotName }: Props) {
   const isIncome = transaction.type === 'Income';
   const color = CATEGORY_COLORS[transaction.category as Category] || Palette.primary;
   const iconName = (CATEGORY_ICONS[transaction.category as Category] as any) || 'apps';
@@ -38,11 +39,18 @@ export function TransactionCard({ transaction, onDelete, plotName }: Props) {
         </Text>
       </View>
 
-      {onDelete && (
-        <Pressable onPress={() => onDelete(transaction.id)} style={styles.deleteButton}>
-           <Ionicons name="trash-bin-outline" size={18} color={Palette.textSecondary} />
-        </Pressable>
-      )}
+      <View style={styles.actions}>
+        {onEdit && (
+          <Pressable onPress={() => onEdit(transaction)} style={styles.actionButton}>
+             <Ionicons name="pencil-outline" size={18} color={Palette.textSecondary} />
+          </Pressable>
+        )}
+        {onDelete && (
+          <Pressable onPress={() => onDelete(transaction.id)} style={[styles.actionButton, styles.deleteButton]}>
+             <Ionicons name="trash-bin-outline" size={18} color={Palette.danger} />
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
@@ -102,8 +110,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Outfit-Bold',
   },
-  deleteButton: {
-    padding: 8,
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginLeft: 4,
+  },
+  actionButton: {
+    padding: 8,
+  },
+  deleteButton: {
+    marginLeft: -4,
   },
 });

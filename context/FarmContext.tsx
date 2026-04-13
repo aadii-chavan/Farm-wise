@@ -13,6 +13,7 @@ interface FarmContextType {
   
   // Transactions
   addTransaction: (transaction: Transaction) => Promise<void>;
+  updateTransaction: (transaction: Transaction) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   refreshTransactions: () => Promise<void>;
   
@@ -83,6 +84,11 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   };
 
+  const updateTransaction = async (transaction: Transaction) => {
+    await Storage.saveTransaction(transaction);
+    await loadData();
+  };
+
   const deleteTransaction = async (id: string) => {
     await Storage.deleteTransaction(id);
     await loadData();
@@ -145,6 +151,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       tasks,
       loading, 
       addTransaction, 
+      updateTransaction,
       deleteTransaction, 
       refreshTransactions: refreshAll,
       addPlot,

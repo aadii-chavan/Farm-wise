@@ -1,11 +1,12 @@
 import { Text } from '@/components/Themed';
 import { TransactionCard } from '@/components/TransactionCard';
+import { FilterModal, FilterState } from '@/components/FilterModal';
 import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import React from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, ScrollView, Pressable, StyleSheet, View } from 'react-native';
 
 export default function PlotDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -34,13 +35,76 @@ export default function PlotDetailScreen() {
     );
   }
 
-  const income = plotTransactions
+  const [filterState, setFilterState] = useState<FilterState>({
+      type: 'Both',
+      categories: [],
+      dateFilter: 'All Time',
+      customDate: null,
+  });
+  const [showFilterModal, setShowFilterModal] = useState(false);
+
+  const allCategories = useMemo(() => {
+    return Array.from(new Set(plotTransactions.map(t => t.category)));
+  }, [plotTransactions]);
+
+  const filteredTransactions = useMemo(() => {
+    return plotTransactions.filter((t) => {
+        const d = new Date(t.date);
+        const today = new Date();
+        
+        // Type filter
+        if (filterState.type !== 'Both' && t.type !== filterState.type) return false;
+
+        // Date Match
+        let dateMatch = true;
+        if (filterState.dateFilter === 'This Week') {
+            // Simplified this week logic (last 7 days could also work, but "This Week" strictly is since sunday/monday)
+            const sun = new Date(today);
+            sun.setDate(today.getDate() - today.getDay());
+            sun.setHours(0,0,0,0);
+            dateMatch = d >= sun;
+        } else if (filterState.dateFilter === 'This Month') {
+            dateMatch = d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+        } else if (filterState.dateFilter === 'Last Month') {
+            const lm = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            dateMatch = d.getMonth() === lm.getMonth() && d.getFullYear() === lm.getFullYear();
+        } else if (filterState.dateFilter === 'Custom Date' && filterState.customDate) {
+            dateMatch = d.toDateString() === filterState.customDate.toDateString();
+        }
+        if (!dateMatch) return false;
+
+        let catMatch = true;
+        if (filterState.categories.length > 0) {
+            catMatch = filterState.categories.includes(t.category);
+        }
+
+        return catMatch;
+    });
+  }, [plotTransactions, filterState]);
+
+  const income = filteredTransactions
     .filter((t) => t.type === 'Income')
     .reduce((acc, t) => acc + t.amount, 0);
-  const expense = plotTransactions
+  const expense = filteredTransactions
     .filter((t) => t.type === 'Expense')
     .reduce((acc, t) => acc + t.amount, 0);
   const profit = income - expense;
+
+  const groupedTransactions = useMemo(() => {
+      const grouped = filteredTransactions.reduce((acc: any, t) => {
+          const dateStr = new Date(t.date).toDateString();
+          if (!acc[dateStr]) acc[dateStr] = [];
+          acc[dateStr].push(t);
+          return acc;
+      }, {});
+
+      return Object.keys(grouped)
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+        .map(date => ({
+            date,
+            data: grouped[date]
+        }));
+  }, [filteredTransactions]);
 
   return (
     <View style={styles.container}>
@@ -81,28 +145,56 @@ export default function PlotDetailScreen() {
               </View>
           </View>
 
-          <View style={styles.historyHeader}>
-              <Text style={styles.historyTitle}>Plot History</Text>
-              <Text style={styles.historyCount}>{plotTransactions.length} entries</Text>
+          <View style={styles.filtersContainer}>
+             <Pressable style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
+                 <Ionicons name="options" size={20} color={Palette.primary} style={{ marginRight: 8 }} />
+                 <Text style={styles.filterButtonText}>Filter Options</Text>
+                 {((filterState.type !== 'Both' ? 1 : 0) + (filterState.dateFilter !== 'All Time' ? 1 : 0) + (filterState.categories.length > 0 ? 1 : 0)) > 0 && (
+                 <View style={styles.filterBadge}>
+                    <Text style={styles.filterBadgeText}>
+                        {(filterState.type !== 'Both' ? 1 : 0) + (filterState.dateFilter !== 'All Time' ? 1 : 0) + (filterState.categories.length > 0 ? 1 : 0)}
+                    </Text>
+                 </View>
+                 )}
+                 <Ionicons name="chevron-down" size={16} color={Palette.textSecondary} style={{ marginLeft: 'auto' }} />
+             </Pressable>
           </View>
 
-          <FlatList
-            data={plotTransactions}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-                <TransactionCard 
-                    transaction={item} 
-                    onDelete={() => confirmDelete(item.id)}
-                />
-            )}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                    <Ionicons name="receipt-outline" size={48} color={Palette.textSecondary + '40'} />
-                    <Text style={styles.emptyText}>No transactions for this plot yet.</Text>
-                </View>
-            }
-          />
+          <View style={styles.historyHeader}>
+              <Text style={styles.historyTitle}>Filtered History</Text>
+              <Text style={styles.historyCount}>{filteredTransactions.length} entries</Text>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+              {groupedTransactions.length === 0 ? (
+                  <View style={styles.emptyContainer}>
+                      <Ionicons name="receipt-outline" size={48} color={Palette.textSecondary + '40'} />
+                      <Text style={styles.emptyText}>No transactions for this plot yet.</Text>
+                  </View>
+              ) : (
+                  groupedTransactions.map((group, index) => (
+                      <View key={group.date} style={styles.timelineGroup}>
+                          <View style={styles.timelineDateContainer}>
+                              <View style={styles.timelineDot} />
+                              <Text style={styles.timelineDateText}>
+                                {new Date(group.date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                              </Text>
+                          </View>
+                          <View style={styles.timelineContent}>
+                              {group.data.map((item: any, idx: number) => (
+                                  <View key={item.id} style={styles.timelineItemWrapper}>
+                                      <TransactionCard 
+                                          transaction={item} 
+                                          onDelete={() => confirmDelete(item.id)}
+                                          onEdit={() => router.push({ pathname: '/add', params: { editId: item.id } })}
+                                      />
+                                  </View>
+                              ))}
+                          </View>
+                      </View>
+                  ))
+              )}
+          </ScrollView>
       </View>
 
       <Pressable 
@@ -111,6 +203,14 @@ export default function PlotDetailScreen() {
       >
         <Ionicons name="add" size={32} color="white" />
       </Pressable>
+
+      <FilterModal
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApply={setFilterState}
+        initialFilters={filterState}
+        availableCategories={allCategories}
+      />
     </View>
   );
 }
@@ -126,9 +226,9 @@ const styles = StyleSheet.create({
   },
   statsCard: {
       backgroundColor: 'white',
-      borderRadius: 24,
-      padding: 20,
-      marginBottom: 24,
+      borderRadius: 20,
+      padding: 16,
+      marginBottom: 16,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.05,
@@ -139,15 +239,15 @@ const styles = StyleSheet.create({
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 20,
+      marginBottom: 12,
   },
   statsTitle: {
-      fontSize: 24,
+      fontSize: 20,
       fontFamily: 'Outfit-Bold',
       color: Palette.text,
   },
   statsSubtitle: {
-      fontSize: 14,
+      fontSize: 12,
       color: Palette.textSecondary,
       fontFamily: 'Outfit',
   },
@@ -165,7 +265,7 @@ const styles = StyleSheet.create({
       alignItems: 'center',
       borderTopWidth: 1,
       borderTopColor: '#f5f5f5',
-      paddingTop: 20,
+      paddingTop: 12,
   },
   statItem: {
       flex: 1,
@@ -178,12 +278,12 @@ const styles = StyleSheet.create({
       marginBottom: 4,
   },
   statValue: {
-      fontSize: 18,
+      fontSize: 16,
       fontFamily: 'Outfit-Bold',
   },
   divider: {
       width: 1,
-      height: 30,
+      height: 20,
       backgroundColor: '#f0f0f0',
   },
   historyHeader: {
@@ -213,6 +313,77 @@ const styles = StyleSheet.create({
       color: Palette.textSecondary,
       fontFamily: 'Outfit',
       marginTop: 12,
+  },
+  filtersContainer: {
+      marginBottom: 20,
+  },
+  filterButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'white',
+      padding: 16,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: '#f0f0f0',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.02,
+      shadowRadius: 5,
+      elevation: 2,
+  },
+  filterButtonText: {
+      fontFamily: 'Outfit-Medium',
+      fontSize: 16,
+      color: Palette.text,
+  },
+  filterBadge: {
+      backgroundColor: Palette.primary,
+      borderRadius: 12,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      marginLeft: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
+  },
+  filterBadgeText: {
+      color: 'white',
+      fontSize: 12,
+      fontFamily: 'Outfit-Bold',
+  },
+  timelineGroup: {
+      marginBottom: 16,
+  },
+  timelineDateContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+  },
+  timelineDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: Palette.primary,
+      marginRight: 10,
+      shadowColor: Palette.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.4,
+      shadowRadius: 4,
+      elevation: 2,
+  },
+  timelineDateText: {
+      fontSize: 15,
+      fontFamily: 'Outfit-Bold',
+      color: Palette.text,
+  },
+  timelineContent: {
+      borderLeftWidth: 2,
+      borderLeftColor: Palette.border,
+      marginLeft: 4,
+      paddingLeft: 16,
+      paddingBottom: 8,
+  },
+  timelineItemWrapper: {
+      marginBottom: 4,
   },
   fab: {
     position: 'absolute',
