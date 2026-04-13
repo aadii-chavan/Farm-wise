@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, Pressable, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, Pressable, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
@@ -35,26 +35,33 @@ export default function SchedulePage() {
     const [newTaskCategory, setNewTaskCategory] = useState('Water');
     const [isAddingCategory, setIsAddingCategory] = useState(false);
     const [newCategoryText, setNewCategoryText] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleAddTask = async () => {
-        if (!newTaskTitle.trim()) return;
-        const formattedTime = format(pickedTime, 'hh:mm a');
-        const formattedDate = format(pickedDate, 'yyyy-MM-dd');
+        if (!newTaskTitle.trim() || isSubmitting) return;
+        setIsSubmitting(true);
         
-        const task = {
-            id: Math.random().toString(),
-            title: newTaskTitle,
-            time: formattedTime,
-            date: formattedDate,
-            category: newTaskCategory,
-            plot: null,
-            completed: false,
-        };
-        await addTask(task);
-        setShowModal(false);
-        setNewTaskTitle('');
-        setPickedTime(new Date());
-        setNewTaskCategory('Water');
+        try {
+            const formattedTime = format(pickedTime, 'hh:mm a');
+            const formattedDate = format(pickedDate, 'yyyy-MM-dd');
+            
+            const task = {
+                id: Math.random().toString(),
+                title: newTaskTitle,
+                time: formattedTime,
+                date: formattedDate,
+                category: newTaskCategory,
+                plot: null,
+                completed: false,
+            };
+            await addTask(task);
+            setShowModal(false);
+            setNewTaskTitle('');
+            setPickedTime(new Date());
+            setNewTaskCategory('Water');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Generate a week of dates centered around SELECTED DATE
@@ -330,8 +337,16 @@ export default function SchedulePage() {
                             )}
                         </View>
 
-                        <Pressable style={styles.saveButton} onPress={handleAddTask}>
-                            <Text style={styles.saveButtonText}>Schedule Task</Text>
+                        <Pressable 
+                            style={[styles.saveButton, isSubmitting && { opacity: 0.7 }]} 
+                            onPress={handleAddTask}
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Text style={styles.saveButtonText}>Schedule Task</Text>
+                            )}
                         </Pressable>
                     </View>
                 </KeyboardAvoidingView>
