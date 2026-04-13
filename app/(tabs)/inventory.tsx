@@ -1,11 +1,10 @@
 import { InventoryCard } from '@/components/InventoryCard';
 import { Text } from '@/components/Themed';
-import { EXPENSE_CATEGORIES } from '@/constants/Categories';
 import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
 import { InventoryUnit } from '@/types/farm';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Alert,
     FlatList,
@@ -19,7 +18,8 @@ import {
     Platform
 } from 'react-native';
 
-const FIXED_UNITS: InventoryUnit[] = ['kg', 'bags', 'L'];
+const FIXED_UNITS: InventoryUnit[] = ['kg', 'L', 'bags'];
+const INVENTORY_CATEGORIES = ['Seeds', 'Fertilizer', 'Pesticide', 'Fuel', 'Other'];
 
 export default function InventoryScreen() {
   const { inventory, addInventoryItem, updateInventoryQuantity, deleteInventoryItem } = useFarm();
@@ -28,9 +28,18 @@ export default function InventoryScreen() {
   const [category, setCategory] = useState<string>('Seeds');
   const [customCategory, setCustomCategory] = useState('');
   const [isOtherCategory, setIsOtherCategory] = useState(false);
+  
+  const [inputType, setInputType] = useState<'Bulk' | 'Packaged'>('Bulk');
+  // Bulk states
   const [quantity, setQuantity] = useState('');
+  
+  // Packaged states
+  const [numPackages, setNumPackages] = useState('');
+  const [sizePerPackage, setSizePerPackage] = useState('');
+  
+  // Shared states
   const [unit, setUnit] = useState<InventoryUnit>('kg');
-  const [pricePerUnit, setPricePerUnit] = useState('');
+  const [totalCost, setTotalCost] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSave = async () => {
@@ -39,18 +48,36 @@ export default function InventoryScreen() {
     try {
       const finalCategory = isOtherCategory ? customCategory : category;
       
-      if (!name || !quantity || !finalCategory) {
-        Alert.alert('Missing Fields', 'Please fill in all fields.');
+      let finalQuantity = 0;
+      if (inputType === 'Bulk') {
+        if (!quantity) {
+          Alert.alert('Missing Fields', 'Please fill in the total quantity.');
+          return;
+        }
+        finalQuantity = parseFloat(quantity);
+      } else {
+        if (!numPackages || !sizePerPackage) {
+          Alert.alert('Missing Fields', 'Please fill in both number of bags/bottles and size per item.');
+          return;
+        }
+        finalQuantity = parseFloat(numPackages) * parseFloat(sizePerPackage);
+      }
+
+      if (!name || !finalCategory || isNaN(finalQuantity) || finalQuantity <= 0) {
+        Alert.alert('Missing Fields', 'Please make sure Name and valid quantity sizes are filled.');
         return;
       }
+      
+      const tc = totalCost ? parseFloat(totalCost) : 0;
+      const calcPricePerUnit = tc > 0 ? (tc / finalQuantity) : undefined;
 
       const newItem = {
         id: Date.now().toString(),
         name,
         category: finalCategory,
-        quantity: parseFloat(quantity),
+        quantity: finalQuantity,
         unit,
-        pricePerUnit: pricePerUnit ? parseFloat(pricePerUnit) : undefined,
+        pricePerUnit: calcPricePerUnit,
       };
 
       await addInventoryItem(newItem);
@@ -59,7 +86,9 @@ export default function InventoryScreen() {
       setCustomCategory('');
       setIsOtherCategory(false);
       setQuantity('');
-      setPricePerUnit('');
+      setNumPackages('');
+      setSizePerPackage('');
+      setTotalCost('');
       setUnit('kg');
       setModalVisible(false);
     } finally {
@@ -136,8 +165,8 @@ export default function InventoryScreen() {
 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Category</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-                        {[...EXPENSE_CATEGORIES, 'Other'].map(cat => (
+                    <View style={styles.chipContainer}>
+                        {INVENTORY_CATEGORIES.map(cat => (
                             <Pressable 
                                 key={cat} 
                                 onPress={() => selectCategory(cat)}
@@ -146,7 +175,7 @@ export default function InventoryScreen() {
                                 <Text style={[styles.catChipText, category === cat && styles.catChipTextActive]}>{cat}</Text>
                             </Pressable>
                         ))}
-                    </ScrollView>
+                    </View>
                 </View>
 
                 {isOtherCategory && (
@@ -161,28 +190,57 @@ export default function InventoryScreen() {
                     </View>
                 )}
 
-                <View style={styles.row}>
-                    <View style={[styles.inputGroup, { flex: 1 }]}>
-                        <Text style={styles.label}>Initial Qty</Text>
+                {/* Input Toggle */}
+                <View style={styles.typeToggle}>
+                    <Pressable 
+                        onPress={() => setInputType('Bulk')}
+                        style={[styles.typeBtn, inputType === 'Bulk' && styles.typeBtnActive]}
+                    >
+                        <Text style={[styles.typeBtnText, inputType === 'Bulk' && styles.typeBtnTextActive]}>Total Quantity</Text>
+                    </Pressable>
+                    <Pressable 
+                        onPress={() => setInputType('Packaged')}
+                        style={[styles.typeBtn, inputType === 'Packaged' && styles.typeBtnActive]}
+                    >
+                        <Text style={[styles.typeBtnText, inputType === 'Packaged' && styles.typeBtnTextActive]}>Bags / Bottles</Text>
+                    </Pressable>
+                </View>
+
+                {inputType === 'Bulk' ? (
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Total Quantity</Text>
                         <TextInput 
                             style={styles.input} 
-                            placeholder="0" 
+                            placeholder="e.g., 50" 
                             value={quantity}
                             onChangeText={setQuantity}
                             keyboardType="numeric"
                         />
                     </View>
-                    <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-                        <Text style={styles.label}>Cost per {unit}</Text>
-                        <TextInput 
-                            style={styles.input} 
-                            placeholder="₹ 0" 
-                            value={pricePerUnit}
-                            onChangeText={setPricePerUnit}
-                            keyboardType="numeric"
-                        />
+                ) : (
+                    <View style={styles.row}>
+                        <View style={[styles.inputGroup, { flex: 1 }]}>
+                            <Text style={styles.label}>No. items (Bags/Bot.)</Text>
+                            <TextInput 
+                                style={styles.input} 
+                                placeholder="e.g., 5" 
+                                value={numPackages}
+                                onChangeText={setNumPackages}
+                                keyboardType="numeric"
+                            />
+                        </View>
+                        <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
+                            <Text style={styles.label}>Size per item</Text>
+                            <TextInput 
+                                style={styles.input} 
+                                placeholder={`e.g., 20`} 
+                                value={sizePerPackage}
+                                onChangeText={setSizePerPackage}
+                                keyboardType="numeric"
+                            />
+                        </View>
                     </View>
-                </View>
+                )}
 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Unit</Text>
@@ -197,6 +255,25 @@ export default function InventoryScreen() {
                             </Pressable>
                         ))}
                     </View>
+                    {inputType === 'Packaged' && (
+                        <Text style={styles.helperText}>Calculated Total: {numPackages && sizePerPackage ? (parseFloat(numPackages) * parseFloat(sizePerPackage)) : 0} {unit}</Text>
+                    )}
+                </View>
+
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Total Cost (₹) <Text style={styles.optionalText}>(Optional)</Text></Text>
+                    <TextInput 
+                        style={styles.input} 
+                        placeholder="Cost of the entire amount" 
+                        value={totalCost}
+                        onChangeText={setTotalCost}
+                        keyboardType="numeric"
+                    />
+                    {totalCost ? (
+                        <Text style={styles.helperText}>
+                            Saves as ₹ { (((parseFloat(totalCost) || 0) / ((inputType === 'Bulk' ? parseFloat(quantity) : (parseFloat(numPackages) * parseFloat(sizePerPackage))) || 1))).toFixed(2) } per {unit}
+                        </Text>
+                    ) : null}
                 </View>
 
                 <View style={styles.modalButtons}>
@@ -290,16 +367,16 @@ const styles = StyleSheet.create({
       borderWidth: 1,
       borderColor: Palette.border,
   },
-  categoryScroll: {
+  chipContainer: {
       flexDirection: 'row',
-      marginHorizontal: -4,
+      flexWrap: 'wrap',
+      gap: 8,
   },
   catChip: {
       paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-      backgroundColor: Palette.background,
-      marginHorizontal: 4,
+      paddingVertical: 10,
+      borderRadius: 12,
+      backgroundColor: 'white',
       borderWidth: 1,
       borderColor: Palette.border,
   },
@@ -372,5 +449,47 @@ const styles = StyleSheet.create({
   saveBtnText: {
       color: 'white',
       fontFamily: 'Outfit-Bold',
+  },
+  typeToggle: {
+      flexDirection: 'row',
+      backgroundColor: Palette.background,
+      borderRadius: 12,
+      padding: 4,
+      marginBottom: 20,
+  },
+  typeBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderRadius: 10,
+  },
+  typeBtnActive: {
+      backgroundColor: 'white',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+  },
+  typeBtnText: {
+      fontFamily: 'Outfit-SemiBold',
+      color: Palette.textSecondary,
+      fontSize: 14,
+  },
+  typeBtnTextActive: {
+      color: Palette.primary,
+  },
+  helperText: {
+      fontSize: 12,
+      color: Palette.textSecondary,
+      fontFamily: 'Outfit',
+      marginTop: 6,
+      marginLeft: 4,
+  },
+  optionalText: {
+      fontSize: 12,
+      color: Palette.textSecondary,
+      fontFamily: 'Outfit',
+      fontWeight: 'normal',
   }
 });
