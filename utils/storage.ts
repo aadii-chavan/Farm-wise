@@ -188,7 +188,13 @@ export const getInventory = async (): Promise<InventoryItem[]> => {
             category: i.category,
             quantity: Number(i.quantity),
             unit: i.unit,
-            pricePerUnit: i.price_per_unit
+            pricePerUnit: i.price_per_unit,
+            shopName: i.shop_name,
+            companyName: i.company_name,
+            batchNo: i.batch_no,
+            paymentMode: i.payment_mode,
+            interestRate: i.interest_rate ? Number(i.interest_rate) : undefined,
+            interestPeriod: i.interest_period
         }));
     } catch (e) {
         console.error('Failed to load inventory', e);
@@ -207,7 +213,13 @@ export const saveInventoryItem = async (item: InventoryItem): Promise<void> => {
             category: item.category,
             quantity: item.quantity,
             unit: item.unit,
-            price_per_unit: item.pricePerUnit
+            price_per_unit: item.pricePerUnit,
+            shop_name: item.shopName,
+            company_name: item.companyName,
+            batch_no: item.batchNo,
+            payment_mode: item.paymentMode,
+            interest_rate: item.interestRate,
+            interest_period: item.interestPeriod
         };
 
         if (item.id && isUUID(item.id)) {

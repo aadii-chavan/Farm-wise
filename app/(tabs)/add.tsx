@@ -346,7 +346,9 @@ export default function RecordTransaction() {
                                     onPress={() => handleInventorySelect(item.id)}
                                     style={[styles.chip, inventoryItemId === item.id && styles.chipActive]}
                                 >
-                                    <Text style={[styles.chipText, { color: inventoryItemId === item.id ? 'white' : Palette.text }]}>{item.name}</Text>
+                                    <Text style={[styles.chipText, { color: inventoryItemId === item.id ? 'white' : Palette.text }]}>
+                                        {item.name} ({item.quantity} {item.unit})
+                                    </Text>
                                 </Pressable>
                             ))}
                         </ScrollView>

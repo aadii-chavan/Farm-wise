@@ -5,7 +5,7 @@ export type IncomeCategory = 'Crops' | 'Government Subsidy' | 'Rent' | 'Other';
 
 export type Category = ExpenseCategory | IncomeCategory;
 
-export type InventoryUnit = 'kg' | 'bags' | 'L';
+export type InventoryUnit = 'kg' | 'bags' | 'L' | 'mL' | 'gm';
 
 export interface Plot {
   id: string;
@@ -21,6 +21,12 @@ export interface InventoryItem {
   quantity: number;
   unit: InventoryUnit;
   pricePerUnit?: number;
+  shopName?: string;
+  companyName?: string;
+  batchNo?: string;
+  paymentMode?: 'Paid' | 'Udari';
+  interestRate?: number;
+  interestPeriod?: 'per day' | 'per week' | 'per month' | 'per year';
 }
 
 export interface Transaction {

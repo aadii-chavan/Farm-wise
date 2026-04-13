@@ -68,6 +68,12 @@ create table if not exists public.inventory (
   quantity decimal not null default 0,
   unit text not null,
   price_per_unit decimal,
+  shop_name text,
+  company_name text,
+  batch_no text,
+  payment_mode text check (payment_mode in ('Paid', 'Udari')),
+  interest_rate decimal,
+  interest_period text,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 

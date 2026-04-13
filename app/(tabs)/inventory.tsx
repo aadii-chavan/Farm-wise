@@ -18,7 +18,7 @@ import {
     Platform
 } from 'react-native';
 
-const FIXED_UNITS: InventoryUnit[] = ['kg', 'L', 'bags'];
+const FIXED_UNITS: InventoryUnit[] = ['kg', 'gm', 'L', 'mL', 'bags'];
 const INVENTORY_CATEGORIES = ['Seeds', 'Fertilizer', 'Pesticide', 'Fuel', 'Other'];
 
 export default function InventoryScreen() {
@@ -40,6 +40,15 @@ export default function InventoryScreen() {
   // Shared states
   const [unit, setUnit] = useState<InventoryUnit>('kg');
   const [totalCost, setTotalCost] = useState('');
+  
+  // Extra Tracking Details
+  const [shopName, setShopName] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [batchNo, setBatchNo] = useState('');
+  const [paymentMode, setPaymentMode] = useState<'Paid' | 'Udari'>('Paid');
+  const [interestRate, setInterestRate] = useState('');
+  const [interestPeriod, setInterestPeriod] = useState<'per day' | 'per week' | 'per month' | 'per year'>('per month');
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSave = async () => {
@@ -78,6 +87,12 @@ export default function InventoryScreen() {
         quantity: finalQuantity,
         unit,
         pricePerUnit: calcPricePerUnit,
+        shopName: shopName || undefined,
+        companyName: companyName || undefined,
+        batchNo: batchNo || undefined,
+        paymentMode,
+        interestRate: paymentMode === 'Udari' && interestRate ? parseFloat(interestRate) : undefined,
+        interestPeriod: paymentMode === 'Udari' ? interestPeriod : undefined,
       };
 
       await addInventoryItem(newItem);
@@ -90,6 +105,14 @@ export default function InventoryScreen() {
       setSizePerPackage('');
       setTotalCost('');
       setUnit('kg');
+      
+      setShopName('');
+      setCompanyName('');
+      setBatchNo('');
+      setPaymentMode('Paid');
+      setInterestRate('');
+      setInterestPeriod('per month');
+      
       setModalVisible(false);
     } finally {
       setIsSubmitting(false);
@@ -275,6 +298,88 @@ export default function InventoryScreen() {
                         </Text>
                     ) : null}
                 </View>
+
+                <View style={styles.inputGroup}>
+                    <Text style={styles.sectionTitle}>Additional Tracking (Optional)</Text>
+                </View>
+                
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Shop Name</Text>
+                    <TextInput 
+                        style={styles.input} 
+                        placeholder="Where did you buy this?" 
+                        value={shopName}
+                        onChangeText={setShopName}
+                    />
+                </View>
+                
+                <View style={styles.row}>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                        <Text style={styles.label}>Company Brand</Text>
+                        <TextInput 
+                            style={styles.input} 
+                            placeholder="e.g. Bayer" 
+                            value={companyName}
+                            onChangeText={setCompanyName}
+                        />
+                    </View>
+                    <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
+                        <Text style={styles.label}>Batch No.</Text>
+                        <TextInput 
+                            style={styles.input} 
+                            placeholder="e.g. B-1234" 
+                            value={batchNo}
+                            onChangeText={setBatchNo}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Payment Mode</Text>
+                    <View style={styles.typeToggle}>
+                        <Pressable 
+                            onPress={() => setPaymentMode('Paid')}
+                            style={[styles.typeBtn, paymentMode === 'Paid' && styles.typeBtnActive]}
+                        >
+                            <Text style={[styles.typeBtnText, paymentMode === 'Paid' && styles.typeBtnTextActive]}>Paid Full</Text>
+                        </Pressable>
+                        <Pressable 
+                            onPress={() => setPaymentMode('Udari')}
+                            style={[styles.typeBtn, paymentMode === 'Udari' && styles.typeBtnActive]}
+                        >
+                            <Text style={[styles.typeBtnText, paymentMode === 'Udari' && styles.typeBtnTextActive]}>Udari (Credit)</Text>
+                        </Pressable>
+                    </View>
+                </View>
+
+                {paymentMode === 'Udari' && (
+                    <View style={styles.row}>
+                        <View style={[styles.inputGroup, { flex: 1 }]}>
+                            <Text style={styles.label}>Interest Rate (%)</Text>
+                            <TextInput 
+                                style={styles.input} 
+                                placeholder="e.g. 2" 
+                                value={interestRate}
+                                onChangeText={setInterestRate}
+                                keyboardType="numeric"
+                            />
+                        </View>
+                        <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
+                            <Text style={styles.label}>Interest Period</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+                                {['per day', 'per week', 'per month', 'per year'].map(period => (
+                                    <Pressable 
+                                        key={period} 
+                                        onPress={() => setInterestPeriod(period as any)}
+                                        style={[styles.catChip, interestPeriod === period && styles.catChipActive, { marginRight: 8 }]}
+                                    >
+                                        <Text style={[styles.catChipText, interestPeriod === period && styles.catChipTextActive]}>{period.replace('per ', '')}</Text>
+                                    </Pressable>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    </View>
+                )}
 
                 <View style={styles.modalButtons}>
                     <Pressable style={[styles.btn, styles.cancelBtn]} onPress={() => setModalVisible(false)}>
@@ -491,5 +596,15 @@ const styles = StyleSheet.create({
       color: Palette.textSecondary,
       fontFamily: 'Outfit',
       fontWeight: 'normal',
+  },
+  sectionTitle: {
+      fontSize: 16,
+      fontFamily: 'Outfit-Bold',
+      color: Palette.text,
+      marginTop: 8,
+      marginBottom: 0,
+      borderTopWidth: 1,
+      borderTopColor: Palette.border,
+      paddingTop: 16,
   }
 });
