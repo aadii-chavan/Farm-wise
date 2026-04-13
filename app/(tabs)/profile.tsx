@@ -1,4 +1,4 @@
-import { Text, View } from '@/components/Themed';
+import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import {
     ScrollView,
     StyleSheet,
     TextInput,
+    View,
 } from 'react-native';
 
 import { supabase } from '@/utils/supabase';

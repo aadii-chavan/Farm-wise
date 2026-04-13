@@ -1,9 +1,11 @@
 import { InventoryCard } from '@/components/InventoryCard';
+import CalendarModal from '@/components/CalendarModal';
 import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
-import { InventoryUnit } from '@/types/farm';
+import { InventoryUnit, InventoryItem } from '@/types/farm';
 import { Ionicons } from '@expo/vector-icons';
+import { format } from 'date-fns';
 import React, { useState, useMemo } from 'react';
 import {
     Alert,
@@ -24,6 +26,7 @@ const INVENTORY_CATEGORIES = ['Seeds', 'Fertilizer', 'Pesticide', 'Fuel', 'Other
 export default function InventoryScreen() {
   const { inventory, addInventoryItem, updateInventoryQuantity, deleteInventoryItem } = useFarm();
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [category, setCategory] = useState<string>('Seeds');
   const [customCategory, setCustomCategory] = useState('');
@@ -48,8 +51,61 @@ export default function InventoryScreen() {
   const [paymentMode, setPaymentMode] = useState<'Paid' | 'Udari'>('Paid');
   const [interestRate, setInterestRate] = useState('');
   const [interestPeriod, setInterestPeriod] = useState<'per day' | 'per week' | 'per month' | 'per year'>('per month');
+  const [purchaseDate, setPurchaseDate] = useState<Date>(new Date());
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [invoiceNo, setInvoiceNo] = useState('');
+  const [note, setNote] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const dynamicCategories = useMemo(() => {
+     const existingCustom = inventory
+        .map(i => i.category)
+        .filter(c => !INVENTORY_CATEGORIES.includes(c));
+     const uniqueCustom = Array.from(new Set(existingCustom));
+     
+     // Remove any manually added 'Other' if it mistakenly persists, and only append unique custom categories.
+     // INVENTORY_CATEGORIES already contains 'Other' at the end.
+     return [...INVENTORY_CATEGORIES.filter(c => c !== 'Other'), ...uniqueCustom, 'Other'];
+  }, [inventory]);
+
+  const handleEdit = (item: InventoryItem) => {
+      setEditingId(item.id);
+      setName(item.name);
+      
+      const isKnown = dynamicCategories.includes(item.category);
+      if (isKnown && item.category !== 'Other') {
+          setCategory(item.category);
+          setIsOtherCategory(false);
+          setCustomCategory('');
+      } else {
+          setCategory('Other');
+          setIsOtherCategory(true);
+          setCustomCategory(item.category);
+      }
+      
+      setInputType('Bulk');
+      setQuantity(item.quantity.toString());
+      setUnit(item.unit);
+      setTotalCost(item.pricePerUnit ? (item.pricePerUnit * item.quantity).toString() : '');
+      
+      setShopName(item.shopName || '');
+      setCompanyName(item.companyName || '');
+      setBatchNo(item.batchNo || '');
+      setPaymentMode(item.paymentMode || 'Paid');
+      setInterestRate(item.interestRate ? item.interestRate.toString() : '');
+      setInterestPeriod(item.interestPeriod || 'per month');
+      setInvoiceNo(item.invoiceNo || '');
+      setNote(item.note || '');
+      setPurchaseDate(item.purchaseDate ? new Date(item.purchaseDate) : new Date());
+      
+      setModalVisible(true);
+  };
+
+  const closeModal = () => {
+      setModalVisible(false);
+      setEditingId(null);
+  };
 
   const onSave = async () => {
     if (isSubmitting) return;
@@ -81,7 +137,7 @@ export default function InventoryScreen() {
       const calcPricePerUnit = tc > 0 ? (tc / finalQuantity) : undefined;
 
       const newItem = {
-        id: Date.now().toString(),
+        id: editingId ? editingId : Date.now().toString(),
         name,
         category: finalCategory,
         quantity: finalQuantity,
@@ -93,6 +149,9 @@ export default function InventoryScreen() {
         paymentMode,
         interestRate: paymentMode === 'Udari' && interestRate ? parseFloat(interestRate) : undefined,
         interestPeriod: paymentMode === 'Udari' ? interestPeriod : undefined,
+        invoiceNo: invoiceNo || undefined,
+        note: note || undefined,
+        purchaseDate: purchaseDate.toISOString(),
       };
 
       await addInventoryItem(newItem);
@@ -112,8 +171,11 @@ export default function InventoryScreen() {
       setPaymentMode('Paid');
       setInterestRate('');
       setInterestPeriod('per month');
+      setInvoiceNo('');
+      setNote('');
+      setPurchaseDate(new Date());
       
-      setModalVisible(false);
+      closeModal();
     } finally {
       setIsSubmitting(false);
     }
@@ -138,6 +200,7 @@ export default function InventoryScreen() {
           <InventoryCard 
             item={item} 
             onUpdateQuantity={(delta) => updateInventoryQuantity(item.id, delta)}
+            onEdit={() => handleEdit(item)}
             onDelete={() => {
                 Alert.alert("Delete Item", `Remove ${item.name} from inventory?`, [
                     { text: "Cancel", style: "cancel" },
@@ -166,7 +229,7 @@ export default function InventoryScreen() {
         animationType="slide"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={closeModal}
       >
         <KeyboardAvoidingView 
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -174,7 +237,7 @@ export default function InventoryScreen() {
         >
             <View style={[styles.modalContent, { maxHeight: '90%' }]}>
                 <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 10 }}>
-                    <Text style={styles.modalTitle}>Add Supply</Text>
+                    <Text style={styles.modalTitle}>{editingId ? 'Edit Supply' : 'Add Supply'}</Text>
                 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Item Name</Text>
@@ -189,7 +252,7 @@ export default function InventoryScreen() {
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Category</Text>
                     <View style={styles.chipContainer}>
-                        {INVENTORY_CATEGORIES.map(cat => (
+                        {dynamicCategories.map(cat => (
                             <Pressable 
                                 key={cat} 
                                 onPress={() => selectCategory(cat)}
@@ -303,6 +366,24 @@ export default function InventoryScreen() {
                     <Text style={styles.sectionTitle}>Additional Tracking (Optional)</Text>
                 </View>
                 
+                <View style={styles.row}>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                         <Text style={styles.label}>Purchase Date</Text>
+                         <Pressable style={[styles.input, { justifyContent: 'center' }]} onPress={() => setShowCalendar(true)}>
+                             <Text style={{ fontFamily: 'Outfit', color: Palette.text }}>{format(purchaseDate, 'dd MMM yyyy')}</Text>
+                         </Pressable>
+                    </View>
+                    <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
+                        <Text style={styles.label}>Invoice No.</Text>
+                        <TextInput 
+                            style={styles.input} 
+                            placeholder="e.g. INV-001" 
+                            value={invoiceNo}
+                            onChangeText={setInvoiceNo}
+                        />
+                    </View>
+                </View>
+                
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Shop Name</Text>
                     <TextInput 
@@ -381,8 +462,19 @@ export default function InventoryScreen() {
                     </View>
                 )}
 
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Note</Text>
+                    <TextInput 
+                        style={[styles.input, { height: 80, textAlignVertical: 'top' }]} 
+                        placeholder="Any additional details..." 
+                        value={note}
+                        onChangeText={setNote}
+                        multiline
+                    />
+                </View>
+
                 <View style={styles.modalButtons}>
-                    <Pressable style={[styles.btn, styles.cancelBtn]} onPress={() => setModalVisible(false)}>
+                    <Pressable style={[styles.btn, styles.cancelBtn]} onPress={closeModal}>
                         <Text style={styles.cancelBtnText}>Cancel</Text>
                     </Pressable>
                     <Pressable style={[styles.btn, styles.saveBtn, isSubmitting && { opacity: 0.7 }]} onPress={onSave} disabled={isSubmitting}>
@@ -393,6 +485,17 @@ export default function InventoryScreen() {
             </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <CalendarModal
+        visible={showCalendar}
+        initialDate={purchaseDate}
+        onClose={() => setShowCalendar(false)}
+        onSelectDate={(date) => {
+            setPurchaseDate(date);
+            setShowCalendar(false);
+        }}
+        maximumDate={new Date()}
+      />
     </View>
   );
 }

@@ -74,6 +74,9 @@ create table if not exists public.inventory (
   payment_mode text check (payment_mode in ('Paid', 'Udari')),
   interest_rate decimal,
   interest_period text,
+  invoice_no text,
+  note text,
+  purchase_date timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 

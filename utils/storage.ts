@@ -194,7 +194,10 @@ export const getInventory = async (): Promise<InventoryItem[]> => {
             batchNo: i.batch_no,
             paymentMode: i.payment_mode,
             interestRate: i.interest_rate ? Number(i.interest_rate) : undefined,
-            interestPeriod: i.interest_period
+            interestPeriod: i.interest_period,
+            invoiceNo: i.invoice_no,
+            note: i.note,
+            purchaseDate: i.purchase_date
         }));
     } catch (e) {
         console.error('Failed to load inventory', e);
@@ -219,7 +222,10 @@ export const saveInventoryItem = async (item: InventoryItem): Promise<void> => {
             batch_no: item.batchNo,
             payment_mode: item.paymentMode,
             interest_rate: item.interestRate,
-            interest_period: item.interestPeriod
+            interest_period: item.interestPeriod,
+            invoice_no: item.invoiceNo,
+            note: item.note,
+            purchase_date: item.purchaseDate
         };
 
         if (item.id && isUUID(item.id)) {

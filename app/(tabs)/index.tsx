@@ -137,7 +137,11 @@ export default function Dashboard() {
                     {plots.map(plot => {
                         const pStats = getStats(transactions.filter(t => t.plotId === plot.id));
                         return (
-                            <View key={plot.id} style={styles.plotMiniCard}>
+                            <Pressable 
+                                key={plot.id} 
+                                style={styles.plotMiniCard}
+                                onPress={() => router.push(`/plot/${plot.id}`)}
+                            >
                                 <Text style={styles.plotMiniName}>{plot.name}</Text>
                                 <Text style={styles.plotMiniCrop}>{plot.cropType}</Text>
                                 <View style={styles.plotMiniStats}>
@@ -145,7 +149,7 @@ export default function Dashboard() {
                                         ₹{pStats.profit >= 1000 ? (pStats.profit/1000).toFixed(1) + 'k' : pStats.profit}
                                     </Text>
                                 </View>
-                            </View>
+                            </Pressable>
                         );
                     })}
                 </ScrollView>

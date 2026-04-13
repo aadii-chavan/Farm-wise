@@ -27,6 +27,9 @@ export interface InventoryItem {
   paymentMode?: 'Paid' | 'Udari';
   interestRate?: number;
   interestPeriod?: 'per day' | 'per week' | 'per month' | 'per year';
+  invoiceNo?: string;
+  note?: string;
+  purchaseDate?: string;
 }
 
 export interface Transaction {
