@@ -160,9 +160,6 @@ export default function Dashboard() {
         {/* Charts Section */}
         <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
             <Text style={styles.sectionTitle}>Financial Analysis</Text>
-            <Pressable onPress={() => { router.push('/finance') }}>
-                <Text style={{ color: Palette.primary, fontFamily: 'Outfit-SemiBold' }}>See all</Text>
-            </Pressable>
         </View>
 
         {categoryData.length > 0 ? (

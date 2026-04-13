@@ -61,6 +61,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="analysis"
+        options={{
+          title: 'Analysis',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? "analytics" : "analytics-outline"} color={color} />
+          ),
+          tabBarLabel: 'Analysis',
+        }}
+      />
+      <Tabs.Screen
         name="plots"
         options={{
           title: 'Plots',
@@ -95,6 +105,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="shops"
+        options={{
+          title: 'Shops',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? "storefront" : "storefront-outline"} color={color} />
+          ),
+          tabBarLabel: 'Shops',
+        }}
+      />
+      <Tabs.Screen
         name="schedule"
         options={{
           title: 'Schedule',
@@ -109,13 +129,6 @@ export default function TabLayout() {
         options={{
           href: null,
           title: 'History',
-        }}
-      />
-      <Tabs.Screen
-        name="finance"
-        options={{
-          href: null,
-          title: 'Finance',
         }}
       />
       <Tabs.Screen

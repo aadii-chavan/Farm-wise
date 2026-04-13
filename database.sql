@@ -134,3 +134,27 @@ do $$ begin
       using ( auth.uid() = user_id );
   end if;
 end $$;
+
+-- 7. Tasks Table
+create table if not exists public.tasks (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  title text not null,
+  time text not null,
+  date text not null,
+  category text not null,
+  plot text,
+  completed boolean default false,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- Enable RLS for Tasks
+alter table public.tasks enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own tasks') then
+    create policy "Users can manage their own tasks" 
+      on public.tasks for all 
+      using ( auth.uid() = user_id );
+  end if;
+end $$;

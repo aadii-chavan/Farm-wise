@@ -9,7 +9,7 @@ import CalendarModal from '@/components/CalendarModal';
 import { useFarm } from '@/context/FarmContext';
 
 export default function SchedulePage() {
-    const { tasks: allTasks, addTask, updateTask } = useFarm();
+    const { tasks: allTasks, plots, addTask, updateTask } = useFarm();
     const today = new Date();
     const [selectedDate, setSelectedDate] = useState(today);
     const [showMainCalendar, setShowMainCalendar] = useState(false);
@@ -35,6 +35,7 @@ export default function SchedulePage() {
     const [newTaskCategory, setNewTaskCategory] = useState('Water');
     const [isAddingCategory, setIsAddingCategory] = useState(false);
     const [newCategoryText, setNewCategoryText] = useState('');
+    const [newTaskPlot, setNewTaskPlot] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleAddTask = async () => {
@@ -51,7 +52,7 @@ export default function SchedulePage() {
                 time: formattedTime,
                 date: formattedDate,
                 category: newTaskCategory,
-                plot: null,
+                plot: newTaskPlot,
                 completed: false,
             };
             await addTask(task);
@@ -59,6 +60,7 @@ export default function SchedulePage() {
             setNewTaskTitle('');
             setPickedTime(new Date());
             setNewTaskCategory('Water');
+            setNewTaskPlot(null);
         } finally {
             setIsSubmitting(false);
         }
@@ -213,6 +215,38 @@ export default function SchedulePage() {
                             onChangeText={setNewTaskTitle}
                             placeholderTextColor="#999"
                         />
+
+                        {/* Plot Selector */}
+                        <Text style={styles.inputLabel}>Plot (Optional)</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 8, marginBottom: 4 }}>
+                            <Pressable 
+                                style={[
+                                    styles.categoryPill, 
+                                    newTaskPlot === null && { backgroundColor: Palette.primary, borderColor: Palette.primary }
+                                ]}
+                                onPress={() => setNewTaskPlot(null)}
+                            >
+                                <Text style={[
+                                    styles.categoryPillText, 
+                                    newTaskPlot === null && styles.categoryPillTextActive
+                                ]}>None</Text>
+                            </Pressable>
+                            {plots.map((p) => (
+                                <Pressable 
+                                    key={p.id} 
+                                    style={[
+                                        styles.categoryPill, 
+                                        newTaskPlot === p.name && { backgroundColor: Palette.primary, borderColor: Palette.primary }
+                                    ]}
+                                    onPress={() => setNewTaskPlot(p.name)}
+                                >
+                                    <Text style={[
+                                        styles.categoryPillText, 
+                                        newTaskPlot === p.name && styles.categoryPillTextActive
+                                    ]}>{p.name}</Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
 
                         <View style={{ flexDirection: 'row', gap: 16 }}>
                             <View style={{ flex: 1 }}>

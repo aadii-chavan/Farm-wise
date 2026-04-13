@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 
 const FIXED_UNITS: InventoryUnit[] = ['kg', 'gm', 'L', 'mL', 'bags'];
-const INVENTORY_CATEGORIES = ['Seeds', 'Fertilizer', 'Pesticide', 'Fuel', 'Other'];
+const INVENTORY_CATEGORIES = ['Seeds', 'Fertilizer', 'Pesticide', 'Fuel'];
 
 export default function InventoryScreen() {
   const { inventory, addInventoryItem, updateInventoryQuantity, deleteInventoryItem } = useFarm();
@@ -31,10 +31,6 @@ export default function InventoryScreen() {
   const [category, setCategory] = useState<string>('Seeds');
   const [customCategory, setCustomCategory] = useState('');
   const [isOtherCategory, setIsOtherCategory] = useState(false);
-  
-  const [inputType, setInputType] = useState<'Bulk' | 'Packaged'>('Bulk');
-  // Bulk states
-  const [quantity, setQuantity] = useState('');
   
   // Packaged states
   const [numPackages, setNumPackages] = useState('');
@@ -46,11 +42,9 @@ export default function InventoryScreen() {
   
   // Extra Tracking Details
   const [shopName, setShopName] = useState('');
+  const [isOtherShop, setIsOtherShop] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [batchNo, setBatchNo] = useState('');
-  const [paymentMode, setPaymentMode] = useState<'Paid' | 'Udari'>('Paid');
-  const [interestRate, setInterestRate] = useState('');
-  const [interestPeriod, setInterestPeriod] = useState<'per day' | 'per week' | 'per month' | 'per year'>('per month');
   const [purchaseDate, setPurchaseDate] = useState<Date>(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [invoiceNo, setInvoiceNo] = useState('');
@@ -68,6 +62,14 @@ export default function InventoryScreen() {
      // INVENTORY_CATEGORIES already contains 'Other' at the end.
      return [...INVENTORY_CATEGORIES.filter(c => c !== 'Other'), ...uniqueCustom, 'Other'];
   }, [inventory]);
+  
+  const dynamicShops = useMemo(() => {
+    const existing = inventory
+      .map(i => i.shopName)
+      .filter((s): s is string => !!s);
+    const unique = Array.from(new Set(existing));
+    return unique;
+  }, [inventory]);
 
   const handleEdit = (item: InventoryItem) => {
       setEditingId(item.id);
@@ -84,17 +86,15 @@ export default function InventoryScreen() {
           setCustomCategory(item.category);
       }
       
-      setInputType('Bulk');
-      setQuantity(item.quantity.toString());
+      setNumPackages(item.numPackages ? item.numPackages.toString() : '');
+      setSizePerPackage(item.sizePerPackage ? item.sizePerPackage.toString() : '');
       setUnit(item.unit);
       setTotalCost(item.pricePerUnit ? (item.pricePerUnit * item.quantity).toString() : '');
       
       setShopName(item.shopName || '');
+      setIsOtherShop(item.shopName ? !dynamicShops.includes(item.shopName) : false);
       setCompanyName(item.companyName || '');
       setBatchNo(item.batchNo || '');
-      setPaymentMode(item.paymentMode || 'Paid');
-      setInterestRate(item.interestRate ? item.interestRate.toString() : '');
-      setInterestPeriod(item.interestPeriod || 'per month');
       setInvoiceNo(item.invoiceNo || '');
       setNote(item.note || '');
       setPurchaseDate(item.purchaseDate ? new Date(item.purchaseDate) : new Date());
@@ -113,20 +113,11 @@ export default function InventoryScreen() {
     try {
       const finalCategory = isOtherCategory ? customCategory : category;
       
-      let finalQuantity = 0;
-      if (inputType === 'Bulk') {
-        if (!quantity) {
-          Alert.alert('Missing Fields', 'Please fill in the total quantity.');
-          return;
-        }
-        finalQuantity = parseFloat(quantity);
-      } else {
-        if (!numPackages || !sizePerPackage) {
-          Alert.alert('Missing Fields', 'Please fill in both number of bags/bottles and size per item.');
-          return;
-        }
-        finalQuantity = parseFloat(numPackages) * parseFloat(sizePerPackage);
+      if (!numPackages || !sizePerPackage) {
+        Alert.alert('Missing Fields', 'Please fill in both number of Bags / Bottles and Size per item.');
+        return;
       }
+      const finalQuantity = parseFloat(numPackages) * parseFloat(sizePerPackage);
 
       if (!name || !finalCategory || isNaN(finalQuantity) || finalQuantity <= 0) {
         Alert.alert('Missing Fields', 'Please make sure Name and valid quantity sizes are filled.');
@@ -141,14 +132,14 @@ export default function InventoryScreen() {
         name,
         category: finalCategory,
         quantity: finalQuantity,
+        numPackages: parseFloat(numPackages),
+        sizePerPackage: parseFloat(sizePerPackage),
         unit,
         pricePerUnit: calcPricePerUnit,
         shopName: shopName || undefined,
         companyName: companyName || undefined,
         batchNo: batchNo || undefined,
-        paymentMode,
-        interestRate: paymentMode === 'Udari' && interestRate ? parseFloat(interestRate) : undefined,
-        interestPeriod: paymentMode === 'Udari' ? interestPeriod : undefined,
+        paymentMode: 'Udari' as any,
         invoiceNo: invoiceNo || undefined,
         note: note || undefined,
         purchaseDate: purchaseDate.toISOString(),
@@ -159,18 +150,15 @@ export default function InventoryScreen() {
       setCategory('Seeds');
       setCustomCategory('');
       setIsOtherCategory(false);
-      setQuantity('');
       setNumPackages('');
       setSizePerPackage('');
       setTotalCost('');
       setUnit('kg');
       
       setShopName('');
+      setIsOtherShop(false);
       setCompanyName('');
       setBatchNo('');
-      setPaymentMode('Paid');
-      setInterestRate('');
-      setInterestPeriod('per month');
       setInvoiceNo('');
       setNote('');
       setPurchaseDate(new Date());
@@ -182,13 +170,8 @@ export default function InventoryScreen() {
   };
 
   const selectCategory = (cat: string) => {
-    if (cat === 'Other') {
-        setIsOtherCategory(true);
-        setCategory('Other');
-    } else {
-        setIsOtherCategory(false);
-        setCategory(cat);
-    }
+    setIsOtherCategory(false);
+    setCategory(cat);
   };
 
   return (
@@ -256,77 +239,64 @@ export default function InventoryScreen() {
                             <Pressable 
                                 key={cat} 
                                 onPress={() => selectCategory(cat)}
-                                style={[styles.catChip, category === cat && styles.catChipActive]}
+                                style={[styles.catChip, (category === cat && !isOtherCategory) && styles.catChipActive]}
                             >
-                                <Text style={[styles.catChipText, category === cat && styles.catChipTextActive]}>{cat}</Text>
+                                <Text style={[styles.catChipText, (category === cat && !isOtherCategory) && styles.catChipTextActive]}>{cat}</Text>
                             </Pressable>
                         ))}
+
+                        {isOtherCategory ? (
+                            <TextInput 
+                                style={[styles.catChip, { minWidth: 100, color: Palette.text, fontFamily: 'Outfit' }]}
+                                autoFocus
+                                placeholder="New Cat..."
+                                placeholderTextColor="#999"
+                                value={customCategory}
+                                onChangeText={setCustomCategory}
+                                onBlur={() => {
+                                    if (!customCategory.trim()) setIsOtherCategory(false);
+                                }}
+                            />
+                        ) : (
+                            <Pressable 
+                                onPress={() => {
+                                    setIsOtherCategory(true);
+                                    setCustomCategory('');
+                                    setCategory('Other');
+                                }}
+                                style={[styles.catChip, { borderStyle: 'dashed' }]}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Ionicons name="add" size={16} color={Palette.textSecondary} />
+                                    <Text style={[styles.catChipText, { marginLeft: 2 }]}>New</Text>
+                                </View>
+                            </Pressable>
+                        )}
                     </View>
                 </View>
 
-                {isOtherCategory && (
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Custom Category Name</Text>
+                <View style={styles.row}>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                        <Text style={styles.label}>No. of Bags / Bottles</Text>
                         <TextInput 
                             style={styles.input} 
-                            placeholder="e.g., Tools" 
-                            value={customCategory}
-                            onChangeText={setCustomCategory}
-                        />
-                    </View>
-                )}
-
-                {/* Input Toggle */}
-                <View style={styles.typeToggle}>
-                    <Pressable 
-                        onPress={() => setInputType('Bulk')}
-                        style={[styles.typeBtn, inputType === 'Bulk' && styles.typeBtnActive]}
-                    >
-                        <Text style={[styles.typeBtnText, inputType === 'Bulk' && styles.typeBtnTextActive]}>Total Quantity</Text>
-                    </Pressable>
-                    <Pressable 
-                        onPress={() => setInputType('Packaged')}
-                        style={[styles.typeBtn, inputType === 'Packaged' && styles.typeBtnActive]}
-                    >
-                        <Text style={[styles.typeBtnText, inputType === 'Packaged' && styles.typeBtnTextActive]}>Bags / Bottles</Text>
-                    </Pressable>
-                </View>
-
-                {inputType === 'Bulk' ? (
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Total Quantity</Text>
-                        <TextInput 
-                            style={styles.input} 
-                            placeholder="e.g., 50" 
-                            value={quantity}
-                            onChangeText={setQuantity}
+                            placeholder="e.g., 5" 
+                            value={numPackages}
+                            onChangeText={setNumPackages}
                             keyboardType="numeric"
                         />
                     </View>
-                ) : (
-                    <View style={styles.row}>
-                        <View style={[styles.inputGroup, { flex: 1 }]}>
-                            <Text style={styles.label}>No. items (Bags/Bot.)</Text>
-                            <TextInput 
-                                style={styles.input} 
-                                placeholder="e.g., 5" 
-                                value={numPackages}
-                                onChangeText={setNumPackages}
-                                keyboardType="numeric"
-                            />
-                        </View>
-                        <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-                            <Text style={styles.label}>Size per item</Text>
-                            <TextInput 
-                                style={styles.input} 
-                                placeholder={`e.g., 20`} 
-                                value={sizePerPackage}
-                                onChangeText={setSizePerPackage}
-                                keyboardType="numeric"
-                            />
-                        </View>
+                    <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
+                        <Text style={styles.label}>Size per Item</Text>
+                        <TextInput 
+                            style={styles.input} 
+                            placeholder={`e.g., 20`} 
+                            value={sizePerPackage}
+                            onChangeText={setSizePerPackage}
+                            keyboardType="numeric"
+                        />
                     </View>
-                )}
+                </View>
 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Unit</Text>
@@ -341,9 +311,7 @@ export default function InventoryScreen() {
                             </Pressable>
                         ))}
                     </View>
-                    {inputType === 'Packaged' && (
-                        <Text style={styles.helperText}>Calculated Total: {numPackages && sizePerPackage ? (parseFloat(numPackages) * parseFloat(sizePerPackage)) : 0} {unit}</Text>
-                    )}
+                    <Text style={styles.helperText}>Calculated Total: {numPackages && sizePerPackage ? (parseFloat(numPackages) * parseFloat(sizePerPackage)) : 0} {unit}</Text>
                 </View>
 
                 <View style={styles.inputGroup}>
@@ -386,12 +354,47 @@ export default function InventoryScreen() {
                 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Shop Name</Text>
-                    <TextInput 
-                        style={styles.input} 
-                        placeholder="Where did you buy this?" 
-                        value={shopName}
-                        onChangeText={setShopName}
-                    />
+                    <View style={styles.chipContainer}>
+                        {dynamicShops.map(s => (
+                            <Pressable 
+                                key={s} 
+                                onPress={() => {
+                                    setIsOtherShop(false);
+                                    setShopName(s);
+                                }}
+                                style={[styles.catChip, (shopName === s && !isOtherShop) && styles.catChipActive]}
+                            >
+                                <Text style={[styles.catChipText, (shopName === s && !isOtherShop) && styles.catChipTextActive]}>{s}</Text>
+                            </Pressable>
+                        ))}
+
+                        {isOtherShop ? (
+                            <TextInput 
+                                style={[styles.catChip, { minWidth: 100, color: Palette.text, fontFamily: 'Outfit' }]}
+                                autoFocus
+                                placeholder="New Shop..."
+                                placeholderTextColor="#999"
+                                value={shopName}
+                                onChangeText={setShopName}
+                                onBlur={() => {
+                                    if (!shopName.trim()) setIsOtherShop(false);
+                                }}
+                            />
+                        ) : (
+                            <Pressable 
+                                onPress={() => {
+                                    setIsOtherShop(true);
+                                    setShopName('');
+                                }}
+                                style={[styles.catChip, { borderStyle: 'dashed' }]}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Ionicons name="add" size={16} color={Palette.textSecondary} />
+                                    <Text style={[styles.catChipText, { marginLeft: 2 }]}>New</Text>
+                                </View>
+                            </Pressable>
+                        )}
+                    </View>
                 </View>
                 
                 <View style={styles.row}>
@@ -414,53 +417,6 @@ export default function InventoryScreen() {
                         />
                     </View>
                 </View>
-
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Payment Mode</Text>
-                    <View style={styles.typeToggle}>
-                        <Pressable 
-                            onPress={() => setPaymentMode('Paid')}
-                            style={[styles.typeBtn, paymentMode === 'Paid' && styles.typeBtnActive]}
-                        >
-                            <Text style={[styles.typeBtnText, paymentMode === 'Paid' && styles.typeBtnTextActive]}>Paid Full</Text>
-                        </Pressable>
-                        <Pressable 
-                            onPress={() => setPaymentMode('Udari')}
-                            style={[styles.typeBtn, paymentMode === 'Udari' && styles.typeBtnActive]}
-                        >
-                            <Text style={[styles.typeBtnText, paymentMode === 'Udari' && styles.typeBtnTextActive]}>Udari (Credit)</Text>
-                        </Pressable>
-                    </View>
-                </View>
-
-                {paymentMode === 'Udari' && (
-                    <View style={styles.row}>
-                        <View style={[styles.inputGroup, { flex: 1 }]}>
-                            <Text style={styles.label}>Interest Rate (%)</Text>
-                            <TextInput 
-                                style={styles.input} 
-                                placeholder="e.g. 2" 
-                                value={interestRate}
-                                onChangeText={setInterestRate}
-                                keyboardType="numeric"
-                            />
-                        </View>
-                        <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-                            <Text style={styles.label}>Interest Period</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
-                                {['per day', 'per week', 'per month', 'per year'].map(period => (
-                                    <Pressable 
-                                        key={period} 
-                                        onPress={() => setInterestPeriod(period as any)}
-                                        style={[styles.catChip, interestPeriod === period && styles.catChipActive, { marginRight: 8 }]}
-                                    >
-                                        <Text style={[styles.catChipText, interestPeriod === period && styles.catChipTextActive]}>{period.replace('per ', '')}</Text>
-                                    </Pressable>
-                                ))}
-                            </ScrollView>
-                        </View>
-                    </View>
-                )}
 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Note</Text>

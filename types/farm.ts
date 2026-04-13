@@ -18,6 +18,8 @@ export interface InventoryItem {
   id: string;
   name: string;
   category: string; // Supports custom categories
+  numPackages?: number;
+  sizePerPackage?: number;
   quantity: number;
   unit: InventoryUnit;
   pricePerUnit?: number;
@@ -25,8 +27,6 @@ export interface InventoryItem {
   companyName?: string;
   batchNo?: string;
   paymentMode?: 'Paid' | 'Udari';
-  interestRate?: number;
-  interestPeriod?: 'per day' | 'per week' | 'per month' | 'per year';
   invoiceNo?: string;
   note?: string;
   purchaseDate?: string;

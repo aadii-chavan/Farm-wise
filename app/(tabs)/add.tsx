@@ -53,10 +53,10 @@ export default function RecordTransaction() {
     const pastCats = transactions.filter(t => t.type === type).map(t => t.category);
     
     if (type === 'Expense') {
-        const set = new Set([...EXPENSE_CATEGORIES, ...invCats, ...pastCats, 'Other']);
+        const set = new Set([...EXPENSE_CATEGORIES, ...invCats, ...pastCats]);
         return Array.from(set);
     }
-    const set = new Set([...INCOME_CATEGORIES, ...invCats, ...pastCats, 'Other']);
+    const set = new Set([...INCOME_CATEGORIES, ...invCats, ...pastCats]);
     return Array.from(set);
   }, [type, inventory, transactions]);
 
@@ -97,7 +97,7 @@ export default function RecordTransaction() {
             setAmount(tx.amount.toString());
             
             // Reconstruct category
-            const isKnown = ['Other', ...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES, ...inventory.map(i=>i.category)].includes(tx.category);
+            const isKnown = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES, ...inventory.map(i=>i.category)].includes(tx.category);
             if (isKnown) {
                 setSelectedCategories([tx.category]);
                 setCategoryAmounts({ [tx.category]: tx.amount.toString() });
@@ -410,23 +410,37 @@ export default function RecordTransaction() {
                     </Text>
                     </Pressable>
                 ))}
+
+                {isOtherCategory ? (
+                    <TextInput 
+                        style={[styles.chip, { minWidth: 100, color: Palette.text, fontFamily: 'Outfit' }]}
+                        autoFocus
+                        placeholder="New..."
+                        placeholderTextColor={Palette.textSecondary + '80'}
+                        value={customCategory}
+                        onChangeText={setCustomCategory}
+                        onSubmitEditing={() => {
+                            if (customCategory.trim() && !selectedCategories.includes('Other')) {
+                                toggleCategory('Other');
+                            }
+                        }}
+                    />
+                ) : (
+                    <Pressable 
+                        onPress={() => {
+                           setIsOtherCategory(true);
+                           if (!selectedCategories.includes('Other')) {
+                               toggleCategory('Other');
+                           }
+                        }}
+                        style={[styles.chip, { borderStyle: 'dashed' }]}
+                    >
+                        <Ionicons name="add" size={16} color={Palette.primary} style={{ marginRight: 6 }} />
+                        <Text style={styles.chipText}>New</Text>
+                    </Pressable>
+                )}
                 </View>
             </View>
-
-            {isOtherCategory && (
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Custom Category Name</Text>
-                    <View style={styles.inputWrapper}>
-                        <Ionicons name="pricetag-outline" size={20} color={Palette.textSecondary} style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="e.g., Repair, Maintenance"
-                            value={customCategory}
-                            onChangeText={setCustomCategory}
-                        />
-                    </View>
-                </View>
-            )}
 
             {/* Inventory Item (Available for any category that exists in inventory) */}
             {type === 'Expense' && inventory.some(i => selectedCategories.includes(i.category)) && inventory.length > 0 && (
