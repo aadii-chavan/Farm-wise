@@ -412,11 +412,20 @@ export default function SchedulePage() {
                             <View style={{ height: 40 }} />
                         </ScrollView>
 
-                        {showDatePicker && <DateTimePicker mode="date" value={taskDate} onChange={(e, d) => { setShowDatePicker(false); if (d) setTaskDate(d); }} />}
                         {showTimePicker && <DateTimePicker mode="time" value={taskTime} onChange={(e, d) => { setShowTimePicker(false); if (d) setTaskTime(d); }} />}
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
+
+            <CalendarModal 
+                visible={showDatePicker} 
+                initialDate={taskDate} 
+                onClose={() => setShowDatePicker(false)} 
+                onSelectDate={(date) => {
+                    setTaskDate(date);
+                    setShowDatePicker(false);
+                }} 
+            />
         </View>
     );
 }

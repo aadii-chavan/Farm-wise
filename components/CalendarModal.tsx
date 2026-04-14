@@ -13,9 +13,11 @@ import {
     startOfMonth,
     startOfToday,
     startOfWeek,
+    setYear,
+    getYear,
 } from 'date-fns';
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
 
 type CalendarModalProps = {
   visible: boolean;
@@ -43,6 +45,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
   const today = startOfToday();
   const [currentMonth, setCurrentMonth] = useState<Date>(startOfMonth(initialDate));
   const [selectedDate, setSelectedDate] = useState<Date>(initialDate);
+  const [viewMode, setViewMode] = useState<'calendar' | 'year'>('calendar');
 
   const weeks = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -65,6 +68,17 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
     return days;
   }, [currentMonth]);
 
+  const years = useMemo(() => {
+    const currentYear = getYear(new Date());
+    const startYear = currentYear - 100;
+    const endYear = currentYear + 10;
+    const list = [];
+    for (let i = endYear; i >= startYear; i--) {
+        list.push(i);
+    }
+    return list;
+  }, []);
+
   const isDisabled = (date: Date) => {
     if (minimumDate && isBefore(date, minimumDate)) return true;
     if (maximumDate && isAfter(date, maximumDate)) return true;
@@ -76,6 +90,14 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
     setSelectedDate(date);
     onSelectDate(date);
     onClose();
+    // Reset view mode for next open
+    setTimeout(() => setViewMode('calendar'), 300);
+  };
+
+  const handleYearSelect = (year: number) => {
+    const newMonth = setYear(currentMonth, year);
+    setCurrentMonth(newMonth);
+    setViewMode('calendar');
   };
 
   const goToPrevMonth = () => {
@@ -94,69 +116,90 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
             <Pressable onPress={goToPrevMonth} style={styles.navButton}>
               <Ionicons name="chevron-back" size={20} color="white" />
             </Pressable>
-            <View style={styles.headerCenter}>
-              <Text style={styles.monthText}>{format(currentMonth, 'MMMM yyyy')}</Text>
-              <Text style={styles.subText}>Select a date</Text>
-            </View>
+            <Pressable onPress={() => setViewMode(viewMode === 'calendar' ? 'year' : 'calendar')} style={styles.headerCenter}>
+              <View style={styles.monthSelector}>
+                <Text style={styles.monthText}>{format(currentMonth, 'MMMM yyyy')}</Text>
+                <Ionicons name={viewMode === 'year' ? "chevron-up" : "chevron-down"} size={14} color="white" style={{marginLeft: 4}} />
+              </View>
+              <Text style={styles.subText}>{viewMode === 'year' ? 'Select a year' : 'Select a date'}</Text>
+            </Pressable>
             <Pressable onPress={goToNextMonth} style={styles.navButton}>
               <Ionicons name="chevron-forward" size={20} color="white" />
             </Pressable>
           </View>
 
-          <View style={styles.weekHeaderRow}>
-            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, index) => (
-              <Text key={`${d}-${index}`} style={styles.weekdayText}>
-                {d}
-              </Text>
-            ))}
-          </View>
-
-          {weeks.map((week, wi) => (
-            <View key={wi} style={styles.weekRow}>
-              {week.map((day) => {
-                const inMonth = isSameMonth(day, currentMonth);
-                const selected = isSameDay(day, selectedDate);
-                const isToday = isSameDay(day, today);
-                const disabled = isDisabled(day) || !inMonth;
-
-                let backgroundColor = 'transparent';
-                let borderColor = 'transparent';
-                let textColor = Palette.textSecondary;
-
-                if (selected) {
-                  backgroundColor = Palette.primary;
-                  textColor = 'white';
-                } else if (isToday && inMonth && !disabled) {
-                  borderColor = Palette.primary;
-                  textColor = Palette.primary;
-                } else if (inMonth && !disabled) {
-                  backgroundColor = Palette.card;
-                  textColor = Palette.text;
-                }
-
-                if (disabled) {
-                  textColor = Palette.textSecondary + '66';
-                }
-
-                return (
-                  <Pressable
-                    key={day.toISOString()}
-                    style={({ pressed }) => [
-                      styles.dayCell,
-                      { backgroundColor, borderColor },
-                      pressed && !disabled && !selected && { opacity: 0.85 },
-                    ]}
-                    disabled={disabled}
-                    onPress={() => handleSelect(day)}
-                  >
-                    <Text style={[styles.dayText, { color: textColor }]}>
-                      {format(day, 'd')}
+          {viewMode === 'calendar' ? (
+              <View style={styles.calendarContainer}>
+                <View style={styles.weekHeaderRow}>
+                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, index) => (
+                    <Text key={`${d}-${index}`} style={styles.weekdayText}>
+                        {d}
                     </Text>
-                  </Pressable>
-                );
-              })}
+                    ))}
+                </View>
+
+                {weeks.map((week, wi) => (
+                    <View key={wi} style={styles.weekRow}>
+                    {week.map((day) => {
+                        const inMonth = isSameMonth(day, currentMonth);
+                        const selected = isSameDay(day, selectedDate);
+                        const isToday = isSameDay(day, today);
+                        const disabled = isDisabled(day) || !inMonth;
+
+                        let backgroundColor = 'transparent';
+                        let borderColor = 'transparent';
+                        let textColor = Palette.textSecondary;
+
+                        if (selected) {
+                        backgroundColor = Palette.primary;
+                        textColor = 'white';
+                        } else if (isToday && inMonth && !disabled) {
+                        borderColor = Palette.primary;
+                        textColor = Palette.primary;
+                        } else if (inMonth && !disabled) {
+                        backgroundColor = Palette.card;
+                        textColor = Palette.text;
+                        }
+
+                        if (disabled) {
+                        textColor = Palette.textSecondary + '66';
+                        }
+
+                        return (
+                        <Pressable
+                            key={day.toISOString()}
+                            style={({ pressed }) => [
+                            styles.dayCell,
+                            { backgroundColor, borderColor },
+                            pressed && !disabled && !selected && { opacity: 0.85 },
+                            ]}
+                            disabled={disabled}
+                            onPress={() => handleSelect(day)}
+                        >
+                            <Text style={[styles.dayText, { color: textColor }]}>
+                            {format(day, 'd')}
+                            </Text>
+                        </Pressable>
+                        );
+                    })}
+                    </View>
+                ))}
             </View>
-          ))}
+          ) : (
+            <ScrollView style={styles.yearGrid} contentContainerStyle={styles.yearGridContent}>
+                {years.map(year => (
+                    <Pressable 
+                        key={year} 
+                        style={[styles.yearItem, getYear(currentMonth) === year && styles.yearItemActive]}
+                        onPress={() => handleYearSelect(year)}
+                    >
+                        <Text style={[styles.yearText, getYear(currentMonth) === year && styles.yearTextActive]}>
+                            {year}
+                        </Text>
+                    </Pressable>
+                ))}
+            </ScrollView>
+          )}
 
           <View style={styles.footer}>
             <Pressable onPress={onClose} style={styles.footerButtonSecondary}>
@@ -172,7 +215,7 @@ export const CalendarModal: React.FC<CalendarModalProps> = ({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -182,6 +225,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: Palette.card,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 10,
   },
   header: {
     flexDirection: 'row',
@@ -194,6 +242,10 @@ const styles = StyleSheet.create({
   headerCenter: {
     alignItems: 'center',
   },
+  monthSelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+  },
   monthText: {
     color: 'white',
     fontSize: 18,
@@ -204,6 +256,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
     fontFamily: 'Outfit',
+    opacity: 0.8,
   },
   navButton: {
     width: 32,
@@ -212,6 +265,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  calendarContainer: {
+      paddingBottom: 8,
   },
   weekHeaderRow: {
     flexDirection: 'row',
@@ -245,6 +301,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Outfit-Medium',
   },
+  yearGrid: {
+      height: 300,
+  },
+  yearGridContent: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      padding: 16,
+      justifyContent: 'space-between',
+  },
+  yearItem: {
+      width: '30%',
+      paddingVertical: 12,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: '#F1F5F9',
+  },
+  yearItemActive: {
+      backgroundColor: Palette.primary,
+      borderColor: Palette.primary,
+  },
+  yearText: {
+      fontSize: 16,
+      fontFamily: 'Outfit-SemiBold',
+      color: Palette.text,
+  },
+  yearTextActive: {
+      color: 'white',
+  },
   footer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -269,4 +355,3 @@ const styles = StyleSheet.create({
 });
 
 export default CalendarModal;
-
