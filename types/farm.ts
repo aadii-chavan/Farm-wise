@@ -26,7 +26,10 @@ export interface InventoryItem {
   shopName?: string;
   companyName?: string;
   batchNo?: string;
-  paymentMode?: 'Paid' | 'Udari';
+  paymentMode?: 'Cash' | 'Credit';
+  interestRate?: number;
+  interestPeriod?: 'day' | 'week' | 'month' | 'year';
+  batchId?: string;
   invoiceNo?: string;
   note?: string;
   purchaseDate?: string;

@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Palette } from '@/constants/Colors';
-import { Stack, useRouter } from 'expo-router';
 import { useFarm } from '@/context/FarmContext';
 import { Ionicons } from '@expo/vector-icons';
+import { Stack, useRouter } from 'expo-router';
+import React, { useMemo } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function ShopsPage() {
     const { inventory, transactions } = useFarm();
@@ -25,23 +25,23 @@ export default function ShopsPage() {
             // Total spent = qty * pricePerUnit for ALL items bought here
             const totalSpent = items.reduce((acc, it) => acc + (it.quantity * (it.pricePerUnit || 0)), 0);
             
-            // Total Udhaari items
-            const udariItems = items.filter(i => i.paymentMode === 'Udari');
+            // Total Credit items
+            const creditItems = items.filter(i => i.paymentMode === 'Credit');
             
-            // Calculate base rough udhaari (for list preview - deeper interest on inner page)
-            const principalUdari = udariItems.reduce((acc, it) => acc + (it.quantity * (it.pricePerUnit || 0)), 0);
+            // Calculate base rough credit (for list preview - deeper interest on inner page)
+            const principalCredit = creditItems.reduce((acc, it) => acc + (it.quantity * (it.pricePerUnit || 0)), 0);
             
             // Total Payments made to this shop
             const payments = transactions.filter(t => t.type === 'Expense' && t.category === 'Shop Payment' && t.title === shopName);
             const totalPayments = payments.reduce((acc, p) => acc + p.amount, 0);
 
-            const currentUdhaari = Math.max(0, principalUdari - totalPayments);
+            const currentCredit = Math.max(0, principalCredit - totalPayments);
 
             return {
                 shopName,
                 itemCount: items.length,
                 totalSpent,
-                currentUdhaari,
+                currentCredit,
             };
         }).sort((a,b) => b.totalSpent - a.totalSpent);
     }, [inventory, transactions]);
@@ -61,7 +61,7 @@ export default function ShopsPage() {
                     <Pressable 
                        key={shop.shopName} 
                        style={styles.card}
-                       onPress={() => router.push(`/shop/${encodeURIComponent(shop.shopName)}`)}
+                       onPress={() => router.push({ pathname: '/shop-detail', params: { name: shop.shopName } })}
                     >
                         <View style={styles.cardHeader}>
                             <View style={styles.headerLeft}>
@@ -78,12 +78,12 @@ export default function ShopsPage() {
                                  <Text style={styles.metricLabel}>Total Spent (All items)</Text>
                                  <Text style={styles.metricVal}>₹{shop.totalSpent.toLocaleString('en-IN')}</Text>
                              </View>
-                             <View style={styles.metricBox}>
-                                 <Text style={styles.metricLabel}>Current Udhaari (Approx)</Text>
-                                 <Text style={[styles.metricVal, { color: shop.currentUdhaari > 0 ? Palette.danger : Palette.success }]}>
-                                    ₹{shop.currentUdhaari.toLocaleString('en-IN')}
+                              <View style={styles.metricBox}>
+                                 <Text style={styles.metricLabel}>Current Credit (Approx)</Text>
+                                 <Text style={[styles.metricVal, { color: shop.currentCredit > 0 ? Palette.danger : Palette.success }]}>
+                                    ₹{shop.currentCredit.toLocaleString('en-IN')}
                                  </Text>
-                             </View>
+                              </View>
                         </View>
                     </Pressable>
                 ))}

@@ -1,26 +1,26 @@
-import { InventoryCard } from '@/components/InventoryCard';
 import CalendarModal from '@/components/CalendarModal';
+import { InventoryCard } from '@/components/InventoryCard';
 import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
-import { InventoryUnit, InventoryItem } from '@/types/farm';
+import { InventoryItem, InventoryUnit } from '@/types/farm';
+import { getSecondaryUnit } from '@/utils/conversions';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import React, { useState, useMemo, useLayoutEffect } from 'react';
 import { useNavigation } from 'expo-router';
+import React, { useLayoutEffect, useMemo, useState } from 'react';
 import {
     Alert,
     FlatList,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
     TextInput,
-    View,
-    KeyboardAvoidingView,
-    Platform
+    View
 } from 'react-native';
-import { getSecondaryUnit } from '@/utils/conversions';
 
 const FIXED_UNITS: InventoryUnit[] = ['kg', 'gm', 'L', 'mL', 'bags'];
 const INVENTORY_CATEGORIES = ['Seeds', 'Fertilizer', 'Pesticide', 'Fuel'];
@@ -66,6 +66,12 @@ export default function InventoryScreen() {
   const [purchaseDate, setPurchaseDate] = useState<Date>(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [invoiceNo, setInvoiceNo] = useState('');
+
+  // Financial/Payment States
+  const [paymentMode, setPaymentMode] = useState<'Cash' | 'Credit'>('Cash');
+  const [interestRate, setInterestRate] = useState('');
+  const [interestPeriod, setInterestPeriod] = useState<'day' | 'week' | 'month' | 'year'>('month');
+  const [overallNote, setOverallNote] = useState('');
   
   const dynamicCategories = useMemo(() => {
      const storedCustom = customEntities
@@ -204,6 +210,16 @@ export default function InventoryScreen() {
       setIsAddingItem(false);
   };
 
+  const resetBatchForm = () => {
+    setPendingItems([]);
+    setShopName('');
+    setInvoiceNo('');
+    setOverallNote('');
+    setPaymentMode('Cash');
+    setInterestRate('');
+    setInterestPeriod('month');
+  };
+
   const onSave = async () => {
     if (isSubmitting) return;
     
@@ -231,7 +247,9 @@ export default function InventoryScreen() {
                 invoiceNo: invoiceNo || undefined,
                 note: currentItemNote || undefined,
                 purchaseDate: purchaseDate.toISOString(),
-                paymentMode: 'Udari' as any,
+                paymentMode,
+                interestRate: paymentMode === 'Credit' ? parseFloat(interestRate) : undefined,
+                interestPeriod: paymentMode === 'Credit' ? interestPeriod : undefined,
             });
             closeModal();
             return;
@@ -247,24 +265,32 @@ export default function InventoryScreen() {
 
     setIsSubmitting(true);
     try {
+      const batchId = Date.now().toString();
+      
       for (const item of pendingItems) {
-          await addInventoryItem({
-              id: Date.now().toString() + Math.random(),
-              ...item,
-              shopName: shopName || undefined,
-              invoiceNo: invoiceNo || undefined,
-              purchaseDate: purchaseDate.toISOString(),
-              paymentMode: 'Udari' as any,
-          });
+        await addInventoryItem({
+          ...item,
+          id: Date.now().toString() + Math.random().toString(36).substring(7),
+          shopName: shopName || undefined,
+          invoiceNo: invoiceNo || undefined,
+          purchaseDate: purchaseDate.toISOString(),
+          paymentMode,
+          interestRate: paymentMode === 'Credit' ? parseFloat(interestRate) : undefined,
+          interestPeriod: paymentMode === 'Credit' ? interestPeriod : undefined,
+          batchId,
+          note: (item.note ? item.note + ' | ' : '') + overallNote,
+        });
       }
-      if (shopName) {
+
+      if (shopName && isOtherShop) {
           addCustomEntity('shop', shopName);
       }
-      
-      setShopName('');
-      setInvoiceNo('');
-      setPendingItems([]);
+
       closeModal();
+      resetBatchForm();
+    } catch (error) {
+        console.error("Failed to save inventory batch", error);
+        Alert.alert("Error", "Could not save supplies.");
     } finally {
       setIsSubmitting(false);
     }
@@ -488,6 +514,71 @@ export default function InventoryScreen() {
                         )}
                     </View>
                 )}
+
+                {/* PAYMENT & FINAL DETAILS */}
+                {!isAddingItem && !editingId && pendingItems.length > 0 && (
+                    <View style={styles.paymentSection}>
+                        <Text style={styles.subFormTitle}>Payment Details</Text>
+                        
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Payment Mode</Text>
+                            <View style={styles.typeToggleCompact}>
+                                <Pressable 
+                                    onPress={() => setPaymentMode('Cash')}
+                                    style={[styles.typeBtn, paymentMode === 'Cash' && styles.typeBtnActive]}
+                                >
+                                    <Text style={[styles.typeBtnText, paymentMode === 'Cash' && styles.typeBtnTextActive]}>Cash</Text>
+                                </Pressable>
+                                <Pressable 
+                                    onPress={() => setPaymentMode('Credit')}
+                                    style={[styles.typeBtn, paymentMode === 'Credit' && styles.typeBtnActiveCredit]}
+                                >
+                                    <Text style={[styles.typeBtnText, paymentMode === 'Credit' && styles.typeBtnTextActive]}>Credit</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+
+                        {paymentMode === 'Credit' && (
+                            <View style={styles.row}>
+                                <View style={[styles.inputGroup, { flex: 1 }]}>
+                                    <Text style={styles.label}>Interest Rate (%)</Text>
+                                    <TextInput 
+                                        style={styles.input} 
+                                        placeholder="e.g. 2" 
+                                        value={interestRate} 
+                                        onChangeText={setInterestRate} 
+                                        keyboardType="numeric" 
+                                    />
+                                </View>
+                                <View style={[styles.inputGroup, { flex: 1.5, marginLeft: 12 }]}>
+                                    <Text style={styles.label}>Per Period</Text>
+                                    <View style={styles.unitToggleContainer}>
+                                        {['day', 'week', 'month', 'year'].map(p => (
+                                            <Pressable 
+                                                key={p} 
+                                                onPress={() => setInterestPeriod(p as any)} 
+                                                style={[styles.periodChip, interestPeriod === p && styles.catChipActive]}
+                                            >
+                                                <Text style={[styles.catChipText, interestPeriod === p && styles.catChipTextActive]}>{p}</Text>
+                                            </Pressable>
+                                        ))}
+                                    </View>
+                                </View>
+                            </View>
+                        )}
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Final Bill Note / Remark</Text>
+                            <TextInput 
+                                style={styles.input} 
+                                placeholder="Any special remarks for this purchase" 
+                                value={overallNote} 
+                                onChangeText={setOverallNote} 
+                            />
+                        </View>
+                    </View>
+                )}
+
 
                 <View style={[styles.modalButtons, { borderTopWidth: 1, borderTopColor: Palette.border, paddingTop: 20 }]}>
                     <Pressable style={[styles.btn, styles.cancelBtn]} onPress={closeModal}>
@@ -741,6 +832,51 @@ const styles = StyleSheet.create({
       borderRadius: 12,
       borderWidth: 1,
       borderColor: '#e2e8f0',
+  },
+  paymentSection: {
+      marginTop: 24,
+      backgroundColor: '#f8fafc',
+      padding: 20,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: '#e2e8f0',
+      marginBottom: 24,
+  },
+  typeToggleCompact: {
+      flexDirection: 'row',
+      backgroundColor: 'white',
+      borderRadius: 12,
+      padding: 4,
+      borderWidth: 1,
+      borderColor: Palette.border,
+      marginTop: 8,
+  },
+  typeBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderRadius: 10,
+  },
+  typeBtnActive: {
+      backgroundColor: Palette.primary,
+  },
+  typeBtnActiveCredit: {
+      backgroundColor: '#f59e0b',
+  },
+  typeBtnText: {
+      fontFamily: 'Outfit-Bold',
+      color: Palette.textSecondary,
+      fontSize: 13,
+  },
+  typeBtnTextActive: {
+      color: 'white',
+  },
+  periodChip: {
+      flex: 1,
+      paddingVertical: 8,
+      alignItems: 'center',
+      borderRadius: 8,
+      backgroundColor: 'transparent',
   },
   costRow: {
       flexDirection: 'row',
