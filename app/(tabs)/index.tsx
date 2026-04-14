@@ -140,19 +140,22 @@ export default function Dashboard() {
                   <Text style={styles.greeting}>Welcome Back,</Text>
                   <Text style={styles.date}>{format(today, 'EEEE, d MMMM')}</Text>
               </View>
+              <Pressable 
+                  style={styles.profileButton} 
+                  onPress={() => router.push('/(tabs)/schedule')}
+              >
+                  <Ionicons name="notifications-outline" size={32} color="yellow" />
+              </Pressable>
           </View>
           
-          <Pressable style={styles.balanceCard} onPress={() => setShowCalendar(true)}>
+          <Pressable style={styles.balanceCard} onPress={() => router.push('/(tabs)/schedule')}>
               <View>
                 <Text style={styles.balanceLabel}>Net Profit (Season)</Text>
                 <Text style={styles.balanceAmount}>₹{seasonStats.profit.toLocaleString('en-IN')}</Text>
-                <View style={styles.seasonBadge}>
+                <Pressable style={styles.seasonBadge} onPress={(e) => { e.stopPropagation(); setShowCalendar(true); }}>
                      <Text style={styles.seasonText}>Since {format(seasonStart, 'dd MMM')}</Text>
-                     <Ionicons name="chevron-down" size={12} color="white" style={{marginLeft: 4}} />
-                </View>
-              </View>
-              <View style={styles.balanceIcon}>
-                  <Ionicons name={seasonStats.profit >= 0 ? "trending-up" : "trending-down"} size={32} color={seasonStats.profit >= 0 ? Palette.success : Palette.danger} />
+                     <Ionicons name="calendar-outline" size={12} color="white" style={{marginLeft: 4}} />
+                </Pressable>
               </View>
           </Pressable>
         </View>
