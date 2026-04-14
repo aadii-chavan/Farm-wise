@@ -6,7 +6,8 @@ import { useFarm } from '@/context/FarmContext';
 import { InventoryUnit, InventoryItem } from '@/types/farm';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useLayoutEffect } from 'react';
+import { useNavigation } from 'expo-router';
 import {
     Alert,
     FlatList,
@@ -26,6 +27,20 @@ const INVENTORY_CATEGORIES = ['Seeds', 'Fertilizer', 'Pesticide', 'Fuel'];
 
 export default function InventoryScreen() {
   const { inventory, addInventoryItem, updateInventoryQuantity, deleteInventoryItem, customEntities, addCustomEntity } = useFarm();
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable 
+          onPress={() => setModalVisible(true)} 
+          style={{ marginRight: 20 }}
+        >
+          <Ionicons name="add-circle" size={32} color={Palette.primary} />
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -290,10 +305,6 @@ export default function InventoryScreen() {
         }
       />
 
-      <Pressable style={styles.fab} onPress={() => setModalVisible(true)}>
-        <Ionicons name="add" size={32} color="white" />
-      </Pressable>
-
       <Modal
         animationType="slide"
         transparent={true}
@@ -532,18 +543,6 @@ const styles = StyleSheet.create({
   addBtnText: {
       color: 'white',
       fontFamily: 'Outfit-Bold',
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    backgroundColor: Palette.primary,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
   },
   modalOverlay: {
       flex: 1,

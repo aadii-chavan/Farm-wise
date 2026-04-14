@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { View, StyleSheet, Text, ScrollView, Pressable, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { useNavigation } from 'expo-router';
 import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
@@ -10,6 +11,7 @@ import { useFarm } from '@/context/FarmContext';
 
 export default function SchedulePage() {
     const { tasks: allTasks, plots, addTask, updateTask } = useFarm();
+    const navigation = useNavigation();
     const today = new Date();
     const [selectedDate, setSelectedDate] = useState(today);
     const [showMainCalendar, setShowMainCalendar] = useState(false);
@@ -101,9 +103,14 @@ export default function SchedulePage() {
             <Stack.Screen options={{ 
                 headerTitle: 'Daily Schedule',
                 headerRight: () => (
-                    <Pressable onPress={() => setShowMainCalendar(true)} style={{ marginRight: 15 }}>
-                        <Ionicons name="calendar-outline" size={24} color={Palette.text} />
-                    </Pressable>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginRight: 15 }}>
+                        <Pressable onPress={() => setShowMainCalendar(true)}>
+                            <Ionicons name="calendar-outline" size={24} color={Palette.text} />
+                        </Pressable>
+                        <Pressable onPress={() => { setPickedDate(selectedDate); setShowModal(true); }}>
+                            <Ionicons name="add-circle" size={32} color={Palette.primary} />
+                        </Pressable>
+                    </View>
                 )
             }} />
             
@@ -190,9 +197,7 @@ export default function SchedulePage() {
                 ))}
             </ScrollView>
 
-            <Pressable style={styles.fab} onPress={() => { setPickedDate(selectedDate); setShowModal(true); }}>
-                <Ionicons name="add" size={32} color="white" />
-            </Pressable>
+
 
             <Modal visible={showModal} transparent animationType="slide">
                 <KeyboardAvoidingView 

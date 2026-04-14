@@ -51,12 +51,18 @@ function RootLayoutRedirect() {
   }, [session, loading, segments]);
 
   return (
-    <Stack>
+    <Stack
+      screenOptions={{
+        headerTintColor: '#1a1a1a',
+        headerTitleStyle: { fontFamily: 'Outfit-Bold' },
+        headerBackTitle: '',
+      }}
+    >
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="add" options={{ title: 'Record Transaction', headerTitleStyle: { fontFamily: 'Outfit-Bold' } }} />
-      <Stack.Screen name="list" options={{ title: 'History', headerTitleStyle: { fontFamily: 'Outfit-Bold' } }} />
-      <Stack.Screen name="profile" options={{ title: 'Profile', headerTitleStyle: { fontFamily: 'Outfit-Bold' } }} />
+      <Stack.Screen name="add" options={{ title: 'Record Transaction' }} />
+      <Stack.Screen name="list" options={{ title: 'History' }} />
+      <Stack.Screen name="profile" options={{ title: 'Profile' }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
     </Stack>
   );

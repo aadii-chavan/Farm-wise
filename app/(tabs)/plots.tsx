@@ -4,8 +4,8 @@ import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
 import { Plot } from '@/types/farm';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useRouter, useNavigation } from 'expo-router';
+import React, { useState, useLayoutEffect } from 'react';
 import {
     Alert,
     FlatList,
@@ -22,6 +22,20 @@ import {
 export default function PlotsScreen() {
   const { plots, transactions, addPlot, deletePlot, updatePlot } = useFarm();
   const router = useRouter();
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable 
+          onPress={() => { resetForm(); setModalVisible(true); }} 
+          style={{ marginRight: 20 }}
+        >
+          <Ionicons name="add-circle" size={32} color={Palette.primary} />
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
   
   // Plot Modal State (Used for both Add and Edit)
   const [modalVisible, setModalVisible] = useState(false);
@@ -117,10 +131,6 @@ export default function PlotsScreen() {
             </View>
         }
       />
-
-      <Pressable style={styles.fab} onPress={() => { resetForm(); setModalVisible(true); }}>
-        <Ionicons name="add" size={32} color="white" />
-      </Pressable>
 
       {/* Add/Edit Plot Modal */}
       <Modal

@@ -341,9 +341,11 @@ export default function RecordTransaction() {
         title: isEditing ? `Edit ${type}` : `Record ${type}`, 
         headerStyle: { backgroundColor: Palette.background },
         headerShadowVisible: false,
+        headerTintColor: Palette.text,
+        headerTitleStyle: { fontFamily: 'Outfit-Bold' },
         headerRight: () => (
             <Pressable onPress={resetForm} hitSlop={10}>
-                <Text style={{ fontFamily: 'Outfit-Medium', color: Palette.primary, fontSize: 16 }}>Reset</Text>
+                <Text style={{ fontFamily: 'Outfit-Bold', color: Palette.primary, fontSize: 16 }}>Reset</Text>
             </Pressable>
         )
       }} />
