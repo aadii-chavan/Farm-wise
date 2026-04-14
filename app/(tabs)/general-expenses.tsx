@@ -242,14 +242,21 @@ export default function GeneralExpensesScreen() {
                                             </View>
                                             <View style={{ flex: 1 }}>
                                                 <Text style={styles.historyTitle} numberOfLines={1}>{item.title}</Text>
-                                                <Text style={styles.historyCategory}>{item.category}</Text>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                    <Text style={styles.historyCategory}>{item.category}</Text>
+                                                    {item.note && (
+                                                        <Text style={styles.noteIndicator} numberOfLines={1}> • {item.note}</Text>
+                                                    )}
+                                                </View>
                                             </View>
                                         </View>
                                         <View style={styles.historyCardRight}>
                                             <Text style={styles.historyAmount}>-₹{item.amount.toLocaleString()}</Text>
-                                            <Pressable onPress={() => handleDelete(item.id)} style={styles.deleteBtnSmall}>
-                                                <Ionicons name="trash-outline" size={14} color={Palette.danger} />
-                                            </Pressable>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                                <Pressable onPress={() => handleDelete(item.id)} style={styles.deleteBtnSmall}>
+                                                    <Ionicons name="trash-outline" size={14} color={Palette.danger} />
+                                                </Pressable>
+                                            </View>
                                         </View>
                                     </Pressable>
                                 ))}
@@ -463,6 +470,7 @@ const styles = StyleSheet.create({
     },
     historyTitle: { fontFamily: 'Outfit-Bold', fontSize: 15, color: Palette.text },
     historyCategory: { fontFamily: 'Outfit', fontSize: 12, color: Palette.textSecondary, marginTop: 1 },
+    noteIndicator: { fontFamily: 'Outfit', fontSize: 12, color: Palette.textSecondary, marginTop: 1, flex: 1 },
     historyCardRight: { alignItems: 'flex-end' },
     historyAmount: { fontFamily: 'Outfit-Bold', fontSize: 15, color: Palette.danger },
     deleteBtnSmall: { marginTop: 6, padding: 4 },
