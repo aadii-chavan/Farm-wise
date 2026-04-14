@@ -55,3 +55,9 @@ export interface Task {
   completed: boolean;
 }
 
+export interface CustomEntity {
+  id: string;
+  entityType: 'category' | 'shop';
+  name: string;
+}
+

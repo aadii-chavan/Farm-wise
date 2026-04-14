@@ -66,14 +66,14 @@ create table if not exists public.inventory (
   name text not null,
   category text not null,
   quantity decimal not null default 0,
+  num_packages decimal,
+  size_per_package decimal,
   unit text not null,
   price_per_unit decimal,
   shop_name text,
   company_name text,
   batch_no text,
-  payment_mode text check (payment_mode in ('Paid', 'Udari')),
-  interest_rate decimal,
-  interest_period text,
+  payment_mode text default 'Udari',
   invoice_no text,
   note text,
   purchase_date timestamp with time zone,
@@ -155,6 +155,27 @@ do $$ begin
   if not exists (select 1 from pg_policies where policyname = 'Users can manage their own tasks') then
     create policy "Users can manage their own tasks" 
       on public.tasks for all 
+      using ( auth.uid() = user_id );
+  end if;
+end $$;
+
+-- 8. Custom Entities (Shops & Categories) Table
+create table if not exists public.custom_entities (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  entity_type text not null, -- 'category' or 'shop'
+  name text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  unique(user_id, entity_type, name)
+);
+
+-- Enable RLS for Custom Entities
+alter table public.custom_entities enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own custom entities') then
+    create policy "Users can manage their own custom entities" 
+      on public.custom_entities for all 
       using ( auth.uid() = user_id );
   end if;
 end $$;

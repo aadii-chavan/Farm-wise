@@ -16,11 +16,12 @@ import {
     TextInput,
     View
 } from 'react-native';
+import { convertUnit, getSecondaryUnit, InventoryUnit } from '@/utils/conversions';
 
 export default function RecordTransaction() {
   const router = useRouter();
   const { plotId: paramPlotId, editId } = useLocalSearchParams();
-  const { addTransaction, updateTransaction, plots, inventory, transactions } = useFarm();
+  const { addTransaction, updateTransaction, plots, inventory, transactions, customEntities, addCustomEntity } = useFarm();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export default function RecordTransaction() {
   const [plotId, setPlotId] = useState<string | null>(null);
   const [inventoryItemId, setInventoryItemId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState('');
+  const [inputUnit, setInputUnit] = useState<string>('kg');
   const [note, setNote] = useState('');
   const [showCalendar, setShowCalendar] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -51,14 +53,15 @@ export default function RecordTransaction() {
   const categories = React.useMemo(() => {
     const invCats = inventory.map(i => i.category);
     const pastCats = transactions.filter(t => t.type === type).map(t => t.category);
+    const storedCustom = customEntities.filter(e => e.entityType === 'category').map(e => e.name);
     
     if (type === 'Expense') {
-        const set = new Set([...EXPENSE_CATEGORIES, ...invCats, ...pastCats]);
+        const set = new Set([...EXPENSE_CATEGORIES, ...invCats, ...pastCats, ...storedCustom]);
         return Array.from(set);
     }
-    const set = new Set([...INCOME_CATEGORIES, ...invCats, ...pastCats]);
+    const set = new Set([...INCOME_CATEGORIES, ...invCats, ...pastCats, ...storedCustom]);
     return Array.from(set);
-  }, [type, inventory, transactions]);
+  }, [type, inventory, transactions, customEntities]);
 
   const resetForm = useCallback(() => {
       setIsEditing(false);
@@ -209,8 +212,13 @@ export default function RecordTransaction() {
               await addTransaction({
                   id: Date.now().toString() + Math.random().toString(36).substring(7),
                   ...tx
-              } as any);
+               } as any);
           }
+      }
+
+      // Save new category if persistent
+      if (isOtherCategory && customCategory) {
+          addCustomEntity('category', customCategory);
       }
 
       resetForm();
@@ -272,41 +280,59 @@ export default function RecordTransaction() {
         setQuantity('');
     } else {
         setInventoryItemId(itemId);
+        setInputUnit(item.unit); // Default to item's primary unit
+        
         if (!title || title.startsWith('Applied ')) {
             setTitle(`Applied ${item.name}`);
         }
+        
         if (item.pricePerUnit && quantity) {
-            const qty = parseFloat(quantity);
-            if (!isNaN(qty)) {
-                const cost = qty * item.pricePerUnit;
-                if (selectedCategories.length <= 1) {
-                    setAmount(cost.toString());
-                } else {
-                    setCategoryAmounts(prev => ({ ...prev, [item.category]: cost.toString() }));
-                }
+            const qtyNum = parseFloat(quantity);
+            if (!isNaN(qtyNum)) {
+                calculateCost(qtyNum, item.unit, item);
             }
         }
     }
   };
 
+  const calculateCost = (qtyVal: number, unit: string, itemProp?: any) => {
+      const item = itemProp || inventory.find(i => i.id === inventoryItemId);
+      if (!item || !item.pricePerUnit) return;
+
+      // Convert input quantity to item's primary unit to calculate cost
+      const convertedQty = convertUnit(qtyVal, unit, item.unit);
+      
+      if (convertedQty !== null) {
+          const cost = convertedQty * item.pricePerUnit;
+          if (selectedCategories.length <= 1) {
+              setAmount(cost.toFixed(2));
+          } else {
+              setCategoryAmounts(prev => ({ ...prev, [item.category]: cost.toFixed(2) }));
+          }
+      }
+  };
+
   const onQuantityChange = (text: string) => {
     setQuantity(text);
-    const item = inventory.find(i => i.id === inventoryItemId);
-    const qty = parseFloat(text);
-    if (item && item.pricePerUnit && !isNaN(qty)) {
-        const cost = qty * item.pricePerUnit;
-        if (selectedCategories.length <= 1) {
-            setAmount(cost.toString());
-        } else {
-            setCategoryAmounts(prev => ({ ...prev, [item.category]: cost.toString() }));
-        }
+    const qtyNum = parseFloat(text);
+    if (!isNaN(qtyNum)) {
+        calculateCost(qtyNum, inputUnit);
     } else if (text === '') {
-        if (selectedCategories.length <= 1) {
-            setAmount('');
-        } else if (item) {
-            setCategoryAmounts(prev => ({ ...prev, [item.category]: '' }));
-        }
+        const item = inventory.find(i => i.id === inventoryItemId);
+        if (selectedCategories.length <= 1) setAmount('');
+        else if (item) setCategoryAmounts(prev => ({ ...prev, [item.category]: '' }));
     }
+  };
+
+  const toggleInputUnit = () => {
+      const secondary = getSecondaryUnit(inputUnit);
+      if (secondary) {
+          setInputUnit(secondary);
+          const qtyNum = parseFloat(quantity);
+          if (!isNaN(qtyNum)) {
+              calculateCost(qtyNum, secondary);
+          }
+      }
   };
 
   return (
@@ -463,16 +489,26 @@ export default function RecordTransaction() {
                     </View>
                     {inventoryItemId && (
                         <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Quantity {inventory.find(i => i.id === inventoryItemId)?.unit}</Text>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                <Text style={styles.label}>Quantity</Text>
+                                {getSecondaryUnit(inputUnit) && (
+                                    <Pressable onPress={toggleInputUnit} style={styles.unitToggleSmall}>
+                                        <Text style={styles.unitToggleText}>Use {getSecondaryUnit(inputUnit)} instead</Text>
+                                    </Pressable>
+                                )}
+                            </View>
                             <View style={styles.inputWrapper}>
                                 <Ionicons name="cube-outline" size={20} color={Palette.textSecondary} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
-                                    placeholder="e.g., 10"
+                                    placeholder={`e.g., 10 ${inputUnit}`}
                                     value={quantity}
                                     onChangeText={onQuantityChange}
                                     keyboardType="numeric"
                                 />
+                                <View style={styles.unitBadge}>
+                                    <Text style={styles.unitBadgeText}>{inputUnit}</Text>
+                                </View>
                             </View>
                             <Text style={styles.infoText}>This will automatically update your inventory stock.</Text>
                         </View>
@@ -735,5 +771,30 @@ const styles = StyleSheet.create({
       marginLeft: 4,
       marginTop: 4,
       fontFamily: 'Outfit',
+  },
+  unitToggleSmall: {
+      backgroundColor: Palette.background,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: Palette.border,
+  },
+  unitToggleText: {
+      fontSize: 12,
+      fontFamily: 'Outfit-Medium',
+      color: Palette.primary,
+  },
+  unitBadge: {
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      backgroundColor: Palette.border,
+      borderRadius: 8,
+      marginRight: 12,
+  },
+  unitBadgeText: {
+      fontSize: 12,
+      fontFamily: 'Outfit-Bold',
+      color: Palette.textSecondary,
   }
 });

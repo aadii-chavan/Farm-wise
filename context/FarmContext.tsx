@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { InventoryItem, Plot, Transaction, Task } from '../types/farm';
+import { InventoryItem, Plot, Transaction, Task, CustomEntity } from '../types/farm';
 import * as Storage from '../utils/storage';
 import { useAuth } from './AuthContext';
 
@@ -9,6 +9,7 @@ interface FarmContextType {
   plots: Plot[];
   inventory: InventoryItem[];
   tasks: Task[];
+  customEntities: CustomEntity[];
   loading: boolean;
   
   // Transactions
@@ -34,6 +35,9 @@ interface FarmContextType {
   updateTask: (task: Task) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   refreshTasks: () => Promise<void>;
+  
+  // Custom Entities
+  addCustomEntity: (type: 'category' | 'shop', name: string) => Promise<void>;
 
   refreshAll: () => Promise<void>;
 }
@@ -47,6 +51,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const [plots, setPlots] = useState<Plot[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [customEntities, setCustomEntities] = useState<CustomEntity[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   const loadData = async () => {
@@ -55,21 +60,24 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
         setPlots([]);
         setInventory([]);
         setTasks([]);
+        setCustomEntities([]);
         setLoading(false);
         return;
     }
 
     setLoading(true);
-    const [tData, pData, iData, tsData] = await Promise.all([
+    const [tData, pData, iData, tsData, ceData] = await Promise.all([
       Storage.getTransactions(),
       Storage.getPlots(),
       Storage.getInventory(),
-      Storage.getTasks()
+      Storage.getTasks(),
+      Storage.getCustomEntities()
     ]);
     setTransactions(tData);
     setPlots(pData);
     setInventory(iData);
     setTasks(tsData);
+    setCustomEntities(ceData);
     setLoading(false);
   };
 
@@ -139,6 +147,11 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   };
 
+  const addCustomEntity = async (type: 'category' | 'shop', name: string) => {
+    await Storage.saveCustomEntity(type, name);
+    await loadData();
+  };
+
   const refreshAll = async () => {
     await loadData();
   };
@@ -166,6 +179,8 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       updateTask,
       deleteTask,
       refreshTasks: refreshAll,
+      customEntities,
+      addCustomEntity,
       refreshAll
     }}>
       {children}

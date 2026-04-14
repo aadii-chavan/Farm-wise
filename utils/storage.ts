@@ -388,3 +388,40 @@ export const deleteTask = async (id: string): Promise<void> => {
         console.error('Failed to delete task', e);
     }
 };
+
+// Custom Entities (Shops & Categories)
+export const getCustomEntities = async (): Promise<any[]> => {
+    try {
+        const { data, error } = await supabase
+          .from('custom_entities')
+          .select('*')
+          .order('name');
+        
+        if (error) throw error;
+        return (data || []).map(e => ({
+            id: e.id,
+            entityType: e.entity_type,
+            name: e.name
+        }));
+    } catch (e) {
+        console.error('Failed to load custom entities', e);
+        return [];
+    }
+};
+
+export const saveCustomEntity = async (type: 'category' | 'shop', name: string): Promise<void> => {
+    try {
+        const userId = await getUserId();
+        if (!userId || !name.trim()) return;
+
+        const { error } = await supabase.from('custom_entities').upsert({
+            user_id: userId,
+            entity_type: type,
+            name: name.trim()
+        }, { onConflict: 'user_id,entity_type,name' });
+
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to save custom entity', e);
+    }
+};
