@@ -4,19 +4,20 @@ import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
 import { Plot } from '@/types/farm';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useNavigation } from 'expo-router';
-import React, { useState, useLayoutEffect } from 'react';
+import { useNavigation, useRouter } from 'expo-router';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import {
     Alert,
+    DeviceEventEmitter,
     FlatList,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     Pressable,
+    ScrollView,
     StyleSheet,
     TextInput,
-    View,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView
+    View
 } from 'react-native';
 
 export default function PlotsScreen() {
@@ -36,6 +37,14 @@ export default function PlotsScreen() {
       ),
     });
   }, [navigation]);
+  
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('FAB_OPEN_PLOT_MODAL', () => {
+      resetForm();
+      setModalVisible(true);
+    });
+    return () => sub.remove();
+  }, []);
   
   // Plot Modal State (Used for both Add and Edit)
   const [modalVisible, setModalVisible] = useState(false);

@@ -1,13 +1,12 @@
-import React, { useState, useLayoutEffect } from 'react';
-import { View, StyleSheet, Text, ScrollView, Pressable, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { useNavigation } from 'expo-router';
-import { Palette } from '@/constants/Colors';
-import { Ionicons } from '@expo/vector-icons';
-import { Stack } from 'expo-router';
-import { format, addDays, subDays } from 'date-fns';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import CalendarModal from '@/components/CalendarModal';
+import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
+import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { addDays, format, subDays } from 'date-fns';
+import { Stack, useNavigation } from 'expo-router';
+import React, { useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function SchedulePage() {
     const { tasks: allTasks, plots, addTask, updateTask } = useFarm();

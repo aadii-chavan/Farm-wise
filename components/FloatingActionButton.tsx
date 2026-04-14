@@ -1,8 +1,8 @@
-import React from 'react';
-import { StyleSheet, Pressable, View } from 'react-native';
+import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
-import { Palette } from '@/constants/Colors';
+import React from 'react';
+import { DeviceEventEmitter, Pressable, StyleSheet } from 'react-native';
 
 export default function FloatingActionButton() {
   const router = useRouter();
@@ -13,13 +13,24 @@ export default function FloatingActionButton() {
     return null;
   }
 
+  const handlePress = () => {
+    // Context-aware logic
+    if (pathname === '/plots') {
+      DeviceEventEmitter.emit('FAB_OPEN_PLOT_MODAL');
+    } else if (pathname === '/inventory') {
+      DeviceEventEmitter.emit('FAB_OPEN_INVENTORY_MODAL');
+    } else {
+      router.push('/add');
+    }
+  };
+
   return (
     <Pressable 
       style={({ pressed }) => [
         styles.fab,
         pressed && styles.pressed
       ]}
-      onPress={() => router.push('/add')}
+      onPress={handlePress}
     >
       <Ionicons name="add" size={32} color="white" />
     </Pressable>

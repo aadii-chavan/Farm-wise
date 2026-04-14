@@ -8,9 +8,10 @@ import { getSecondaryUnit } from '@/utils/conversions';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useNavigation } from 'expo-router';
-import React, { useLayoutEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
     Alert,
+    DeviceEventEmitter,
     FlatList,
     KeyboardAvoidingView,
     Modal,
@@ -41,6 +42,13 @@ export default function InventoryScreen() {
       ),
     });
   }, [navigation]);
+  
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('FAB_OPEN_INVENTORY_MODAL', () => {
+      setModalVisible(true);
+    });
+    return () => sub.remove();
+  }, []);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -1,14 +1,14 @@
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Modal, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { Text } from '@/components/Themed';
-import { useFarm } from '@/context/FarmContext';
-import { Palette } from '@/constants/Colors';
-import { Ionicons } from '@expo/vector-icons';
-import { format, isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
-import { Stack } from 'expo-router';
 import CalendarModal from '@/components/CalendarModal';
 import { FilterModal, FilterState } from '@/components/FilterModal';
+import { Text } from '@/components/Themed';
+import { Palette } from '@/constants/Colors';
+import { useFarm } from '@/context/FarmContext';
 import { GeneralExpense } from '@/types/farm';
+import { Ionicons } from '@expo/vector-icons';
+import { endOfMonth, endOfWeek, format, isWithinInterval, startOfMonth, startOfWeek } from 'date-fns';
+import { Stack } from 'expo-router';
+import React, { useMemo, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 const DEFAULT_CATEGORIES = ['Personal', 'Family', 'Travel', 'Food', 'Medical'];
 
