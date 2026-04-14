@@ -38,6 +38,7 @@
     "extra": {
       "router": {},
       "eas": {
+        "projectId": "69915e90-4e23-4aef-bde8-518fd6d8af2e"
       }
     },
     "owner": "aadiichavan"
