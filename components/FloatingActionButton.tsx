@@ -19,6 +19,8 @@ export default function FloatingActionButton() {
       DeviceEventEmitter.emit('FAB_OPEN_PLOT_MODAL');
     } else if (pathname === '/inventory') {
       DeviceEventEmitter.emit('FAB_OPEN_INVENTORY_MODAL');
+    } else if (pathname === '/schedule') {
+      DeviceEventEmitter.emit('FAB_OPEN_TASK_MODAL');
     } else {
       router.push('/add');
     }

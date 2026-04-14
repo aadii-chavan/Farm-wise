@@ -5,8 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addDays, format, subDays } from 'date-fns';
 import { Stack, useNavigation } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { DeviceEventEmitter, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
 
 export default function SchedulePage() {
     const { tasks: allTasks, plots, addTask, updateTask } = useFarm();
@@ -38,6 +38,14 @@ export default function SchedulePage() {
     const [newCategoryText, setNewCategoryText] = useState('');
     const [newTaskPlot, setNewTaskPlot] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener('FAB_OPEN_TASK_MODAL', () => {
+             setPickedDate(selectedDate);
+             setShowModal(true);
+        });
+        return () => sub.remove();
+    }, [selectedDate]);
 
     const handleAddTask = async () => {
         if (!newTaskTitle.trim() || isSubmitting) return;
