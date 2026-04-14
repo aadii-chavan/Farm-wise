@@ -1,165 +1,118 @@
-import { useColorScheme } from '@/components/useColorScheme';
 import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Drawer } from 'expo-router/drawer';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Pressable } from 'react-native';
+import { useNavigation } from 'expo-router';
+import { DrawerActions } from '@react-navigation/native';
+import CustomDrawerContent from '@/components/CustomDrawerContent';
+import FloatingActionButton from '@/components/FloatingActionButton';
 
-function TabBarIcon(props: {
+function DrawerIcon(props: {
   name: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
 }) {
-  return <Ionicons size={24} style={{ marginBottom: 0 }} {...props} />;
+  return <Ionicons size={22} style={{ marginRight: 0 }} {...props} />;
 }
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+const MenuButton = () => {
+    const navigation = useNavigation();
+    return (
+        <Pressable 
+            onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+            style={{ marginLeft: 20 }}
+        >
+            <Ionicons name="reorder-two-outline" size={32} color={Palette.text} />
+        </Pressable>
+    );
+};
 
+export default function AppLayout() {
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Palette.primary,
-        tabBarInactiveTintColor: '#BDBDBD',
-        headerShown: true,
-        tabBarStyle: {
-            height: 70,
-            paddingBottom: 12,
-            paddingTop: 8,
-            borderTopWidth: 0,
-            elevation: 10,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 8,
-            backgroundColor: 'white',
-        },
-        tabBarLabelStyle: {
-            fontSize: 12,
+    <View style={{ flex: 1 }}>
+      <Drawer
+        drawerContent={(props) => <CustomDrawerContent {...props} />}
+        screenOptions={{
+          drawerActiveTintColor: Palette.primary,
+          drawerInactiveTintColor: Palette.textSecondary,
+          drawerLabelStyle: {
             fontFamily: 'Outfit-SemiBold',
-            marginTop: 4,
-        },
-        headerStyle: {
-            backgroundColor: Palette.background,
+            fontSize: 15,
+            marginLeft: 0,
+          },
+          drawerItemStyle: {
+            borderRadius: 12,
+            marginHorizontal: 12,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+          },
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: 'white',
             elevation: 0,
             shadowOpacity: 0,
-        },
-        headerTitleStyle: {
+          },
+          headerTitleStyle: {
             fontFamily: 'Outfit-Bold',
             fontSize: 20,
-        },
-        headerTintColor: Palette.text,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-                <TabBarIcon name={focused ? "home" : "home-outline"} color={color} />
-            </View>
-          ),
-          tabBarLabel: 'Home',
-        }}
-      />
-      <Tabs.Screen
-        name="analysis"
-        options={{
-          title: 'Analysis',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? "analytics" : "analytics-outline"} color={color} />
-          ),
-          tabBarLabel: 'Analysis',
-        }}
-      />
-      <Tabs.Screen
-        name="plots"
-        options={{
-          title: 'Plots',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? "map" : "map-outline"} color={color} />
-          ),
-          tabBarLabel: 'Plots',
-        }}
-      />
-      <Tabs.Screen
-        name="add"
-        options={{
-          title: 'Record',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={styles.fabContainer}>
-                <View style={[styles.fab, { backgroundColor: focused ? Palette.primaryDark : Palette.primary }]}>
-                    <Ionicons name="add" size={32} color="white" />
-                </View>
-            </View>
-          ),
-          tabBarLabel: '', 
-        }}
-      />
-      <Tabs.Screen
-        name="inventory"
-        options={{
-          title: 'Inventory',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? "cube" : "cube-outline"} color={color} />
-          ),
-          tabBarLabel: 'Inventory',
-        }}
-      />
-      <Tabs.Screen
-        name="shops"
-        options={{
-          title: 'Shops',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? "storefront" : "storefront-outline"} color={color} />
-          ),
-          tabBarLabel: 'Shops',
-        }}
-      />
-      <Tabs.Screen
-        name="schedule"
-        options={{
-          title: 'Schedule',
-          tabBarIcon: ({ color, focused }) => (
-             <TabBarIcon name={focused ? "calendar" : "calendar-outline"} color={color} />
-          ),
-          tabBarLabel: 'Schedule',
-        }}
-      />
-      <Tabs.Screen
-        name="list"
-        options={{
-          href: null,
-          title: 'History',
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          href: null,
-          title: 'Profile',
-        }}
-      />
-
-    </Tabs>
+          },
+          headerTintColor: Palette.text,
+          headerLeft: () => <MenuButton />,
+        }}>
+        <Drawer.Screen
+          name="index"
+          options={{
+            drawerLabel: 'Dashboard',
+            title: 'Farm Wise',
+            drawerIcon: ({ color }) => <DrawerIcon name="grid-outline" color={color} />,
+          }}
+        />
+        <Drawer.Screen
+          name="analysis"
+          options={{
+            drawerLabel: 'Analysis',
+            title: 'Financial Insights',
+            drawerIcon: ({ color }) => <DrawerIcon name="analytics-outline" color={color} />,
+          }}
+        />
+        <Drawer.Screen
+          name="plots"
+          options={{
+            drawerLabel: 'Plots',
+            title: 'My Plots',
+            drawerIcon: ({ color }) => <DrawerIcon name="map-outline" color={color} />,
+          }}
+        />
+        <Drawer.Screen
+          name="inventory"
+          options={{
+            drawerLabel: 'Inventory',
+            title: 'Stock & Inventory',
+            drawerIcon: ({ color }) => <DrawerIcon name="cube-outline" color={color} />,
+          }}
+        />
+        <Drawer.Screen
+          name="shops"
+          options={{
+            drawerLabel: 'Shops',
+            title: 'Shop Ledgers',
+            drawerIcon: ({ color }) => <DrawerIcon name="business-outline" color={color} />,
+          }}
+        />
+        <Drawer.Screen
+          name="schedule"
+          options={{
+            drawerLabel: 'Schedule',
+            title: 'Tasks & Calendar',
+            drawerIcon: ({ color }) => <DrawerIcon name="calendar-outline" color={color} />,
+          }}
+        />
+      </Drawer>
+      
+      {/* The master professional Add button */}
+      <FloatingActionButton />
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-    fabContainer: {
-        position: 'absolute',
-        top: -30,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    fab: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: Palette.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-    }
-});
+const styles = StyleSheet.create({});

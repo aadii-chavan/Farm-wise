@@ -71,13 +71,12 @@ export default function Dashboard() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Header Section */}
         <View style={styles.headerContainer}>
           <View style={styles.headerTop}>
               <View>
-                  <Text style={styles.greeting}>Farm Wise</Text>
+                  <Text style={styles.greeting}>Good Morning!</Text>
                   <Text style={styles.date}>{format(today, 'EEEE, d MMM yyyy')}</Text>
               </View>
               <View style={{ flexDirection: 'row', gap: 12 }}>

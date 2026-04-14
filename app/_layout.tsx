@@ -54,6 +54,9 @@ function RootLayoutRedirect() {
     <Stack>
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="add" options={{ title: 'Record Transaction', headerTitleStyle: { fontFamily: 'Outfit-Bold' } }} />
+      <Stack.Screen name="list" options={{ title: 'History', headerTitleStyle: { fontFamily: 'Outfit-Bold' } }} />
+      <Stack.Screen name="profile" options={{ title: 'Profile', headerTitleStyle: { fontFamily: 'Outfit-Bold' } }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
     </Stack>
   );
