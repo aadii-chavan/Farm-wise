@@ -15,15 +15,19 @@ const chartConfig = {
     backgroundGradientTo: 'white',
     decimalPlaces: 0,
     color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`, // Palette.primary
-    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(71, 85, 105, ${opacity})`, // Palette.textSecondary
     style: {
         borderRadius: 16,
     },
     propsForDots: {
-        r: '4',
+        r: '5',
         strokeWidth: '2',
         stroke: Palette.primary,
     },
+    propsForLabels: {
+        fontFamily: 'Outfit-Medium',
+        fontSize: 10,
+    }
 };
 
 export default function AnalysisPage() {
@@ -123,18 +127,24 @@ export default function AnalysisPage() {
                 {/* Key Metrics */}
                 <View style={styles.metricsRow}>
                     <View style={styles.metricCard}>
+                        <View style={[styles.iconBadge, { backgroundColor: Palette.success + '15' }]}>
+                             <Ionicons name="wallet-outline" size={16} color={Palette.success} />
+                        </View>
                         <Text style={styles.metricLabel}>Net Profit</Text>
                         <Text style={[styles.metricValue, { color: totalStats.profit >= 0 ? Palette.success : Palette.danger }]}>
                             ₹{totalStats.profit.toLocaleString('en-IN')}
                         </Text>
                         <View style={styles.miniTrend}>
-                            <Ionicons name={totalStats.profit >= 0 ? "trending-up" : "trending-down"} size={12} color={totalStats.profit >= 0 ? Palette.success : Palette.danger} />
+                            <Ionicons name={totalStats.profit >= 0 ? "arrow-up" : "arrow-down"} size={10} color={totalStats.profit >= 0 ? Palette.success : Palette.danger} />
                             <Text style={[styles.miniTrendText, { color: totalStats.profit >= 0 ? Palette.success : Palette.danger }]}>
                                 {totalStats.margin.toFixed(1)}% Margin
                             </Text>
                         </View>
                     </View>
                     <View style={styles.metricCard}>
+                        <View style={[styles.iconBadge, { backgroundColor: Palette.primary + '15' }]}>
+                             <Ionicons name="pie-chart-outline" size={16} color={Palette.primary} />
+                        </View>
                         <Text style={styles.metricLabel}>OpEx Ratio</Text>
                         <Text style={styles.metricValue}>
                             {totalStats.income > 0 ? ((totalStats.expense / totalStats.income) * 100).toFixed(1) : '0'}%
@@ -242,23 +252,24 @@ export default function AnalysisPage() {
 const styles = StyleSheet.create({
     container: { 
         flex: 1, 
-        backgroundColor: '#F8FAFC', // Slate 50
+        backgroundColor: Palette.background, 
     },
     scrollContent: {
         padding: 20,
+        paddingBottom: 40,
     },
     periodRow: {
         flexDirection: 'row',
         backgroundColor: '#E2E8F0',
         padding: 4,
-        borderRadius: 12,
+        borderRadius: 14,
         marginBottom: 24,
         alignSelf: 'flex-start',
     },
     periodBtn: {
-        paddingVertical: 6,
+        paddingVertical: 8,
         paddingHorizontal: 16,
-        borderRadius: 8,
+        borderRadius: 10,
     },
     periodBtnActive: {
         backgroundColor: 'white',
@@ -271,7 +282,7 @@ const styles = StyleSheet.create({
     periodText: {
         fontSize: 12,
         fontFamily: 'Outfit-Bold',
-        color: '#64748B',
+        color: Palette.textSecondary,
     },
     periodTextActive: {
         color: Palette.primary,
@@ -284,80 +295,92 @@ const styles = StyleSheet.create({
     metricCard: {
         flex: 1,
         backgroundColor: 'white',
-        borderRadius: 20,
-        padding: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
-    },
-    metricLabel: {
-        fontSize: 12,
-        fontFamily: 'Outfit-Medium',
-        color: '#64748B',
-        marginBottom: 8,
-    },
-    metricValue: {
-        fontSize: 18,
-        fontFamily: 'Outfit-Bold',
-        color: '#1E293B',
-    },
-    metricSub: {
-        fontSize: 10,
-        color: '#94A3B8',
-        marginTop: 4,
-        fontFamily: 'Outfit',
-    },
-    miniTrend: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 6,
-        gap: 4,
-    },
-    miniTrendText: {
-        fontSize: 11,
-        fontFamily: 'Outfit-Bold',
-    },
-    chartSection: {
-        marginBottom: 28,
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontFamily: 'Outfit-Bold',
-        color: '#1E293B',
-        marginBottom: 12,
-    },
-    headerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    seeAll: {
-        fontSize: 13,
-        color: Palette.primary,
-        fontFamily: 'Outfit-SemiBold',
-    },
-    card: {
-        backgroundColor: 'white',
         borderRadius: 24,
-        padding: 16,
+        padding: 20,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
         shadowRadius: 12,
         elevation: 3,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    iconBadge: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        justifyContent: 'center',
         alignItems: 'center',
+        marginBottom: 12,
+    },
+    metricLabel: {
+        fontSize: 13,
+        fontFamily: 'Outfit-Medium',
+        color: Palette.textSecondary,
+        marginBottom: 6,
+    },
+    metricValue: {
+        fontSize: 20,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+    },
+    metricSub: {
+        fontSize: 11,
+        color: Palette.textSecondary,
+        marginTop: 6,
+        fontFamily: 'Outfit',
+    },
+    miniTrend: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+        gap: 4,
+    },
+    miniTrendText: {
+        fontSize: 12,
+        fontFamily: 'Outfit-Bold',
+    },
+    chartSection: {
+        marginBottom: 32,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+        marginBottom: 16,
+    },
+    headerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    seeAll: {
+        fontSize: 14,
+        color: Palette.primary,
+        fontFamily: 'Outfit-SemiBold',
+    },
+    card: {
+        backgroundColor: 'white',
+        borderRadius: 28,
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 15,
+        elevation: 4,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
     },
     chart: {
-        borderRadius: 16,
+        borderRadius: 20,
         marginVertical: 8,
     },
     plotRow: {
         width: '100%',
         flexDirection: 'row',
-        paddingVertical: 12,
+        paddingVertical: 14,
         borderBottomWidth: 1,
         borderBottomColor: '#F1F5F9',
         alignItems: 'center',
@@ -367,37 +390,37 @@ const styles = StyleSheet.create({
         marginRight: 16,
     },
     plotName: {
-        fontSize: 14,
+        fontSize: 15,
         fontFamily: 'Outfit-Bold',
-        color: '#1E293B',
-        marginBottom: 8,
+        color: Palette.text,
+        marginBottom: 10,
     },
     plotBarBg: {
-        height: 6,
+        height: 8,
         backgroundColor: '#F1F5F9',
-        borderRadius: 3,
+        borderRadius: 4,
         width: '100%',
     },
     plotBarFill: {
         height: '100%',
-        borderRadius: 3,
+        borderRadius: 4,
     },
     plotStats: {
         alignItems: 'flex-end',
     },
     plotProfit: {
-        fontSize: 14,
+        fontSize: 15,
         fontFamily: 'Outfit-Bold',
     },
     plotMargin: {
-        fontSize: 10,
-        color: '#94A3B8',
-        marginTop: 2,
+        fontSize: 11,
+        color: Palette.textSecondary,
+        marginTop: 4,
         fontFamily: 'Outfit',
     },
     emptyText: {
         fontFamily: 'Outfit',
-        color: '#94A3B8',
-        padding: 20,
+        color: Palette.textSecondary,
+        padding: 24,
     }
 });
