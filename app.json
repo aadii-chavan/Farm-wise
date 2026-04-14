@@ -4,11 +4,11 @@
     "slug": "farmezy",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/farmezy.png",
     "scheme": "tempapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/farmezy.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/farmezy.png",
         "backgroundColor": "#ffffff"
       },
       "predictiveBackGestureEnabled": false,
@@ -27,7 +27,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/farmezy.png"
     },
     "plugins": [
       "expo-router"
@@ -40,6 +40,7 @@
       "eas": {
         "projectId": "c16f87a6-6ef0-40a9-9515-ff63a1664bf6"
       }
-    }
+    },
+    "owner": "aadiichavan"
   }
 }
