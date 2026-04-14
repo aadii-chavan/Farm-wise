@@ -277,7 +277,7 @@ export default function SchedulePage() {
                                     )}
                                 </View>
                                 <View style={styles.catRow}>
-                                    {task.categories.map(cat => (
+                                    {task.categories.map((cat: string) => (
                                         <View key={cat} style={[styles.catBadge, { backgroundColor: getCategoryColor(cat) + '15' }]}>
                                             <View style={[styles.catDot, { backgroundColor: getCategoryColor(cat) }]} />
                                             <Text style={[styles.catText, { color: getCategoryColor(cat) }]}>{cat}</Text>

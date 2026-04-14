@@ -1,4 +1,4 @@
-import { InventoryItem, Plot, Transaction, GeneralExpense } from '@/types/farm';
+import { InventoryItem, Plot, Transaction, GeneralExpense, Task, TaskCompletion } from '@/types/farm';
 import { supabase } from './supabase';
 
 // Helper to check if a string is a valid UUID
