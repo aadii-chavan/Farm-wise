@@ -14,7 +14,6 @@ import Animated, {
     withTiming,
     SlideInUp,
     FadeIn,
-    stagger,
     FadeInDown,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
