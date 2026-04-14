@@ -1,4 +1,4 @@
--- Farm Wise Supabase Database Schema
+-- FarmEzy Supabase Database Schema
 -- Last Updated: 2026-03-09
 
 -- 1. Profiles Table (Extends Supabase Auth users)

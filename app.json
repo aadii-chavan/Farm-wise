@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Farm Wise",
-    "slug": "farm-wise",
+    "name": "FarmEzy",
+    "slug": "farmezy",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.aadiichavan.farmwise"
+      "bundleIdentifier": "com.aadiichavan.farmezy"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +22,7 @@
         "backgroundColor": "#ffffff"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.aadiichavan.farmwise"
+      "package": "com.aadiichavan.farmezy"
     },
     "web": {
       "bundler": "metro",

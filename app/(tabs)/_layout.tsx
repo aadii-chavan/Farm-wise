@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 const ROUTE_TITLES: Record<string, string> = {
-    '/': 'Farm Wise',
+    '/': 'FarmEzy',
     '/analysis': 'Financial Insights',
     '/plots': 'My Plots',
     '/inventory': 'Stock & Inventory',
@@ -58,7 +58,7 @@ export default function AppLayout() {
     // Determine title based on pathname
     // If pathname is just /(tabs), it's the index
     const currentPath = pathname === '/(tabs)' ? '/' : pathname;
-    const title = ROUTE_TITLES[currentPath] || 'Farm Wise';
+    const title = ROUTE_TITLES[currentPath] || 'FarmEzy';
 
     return (
         <View style={{ flex: 1, backgroundColor: 'white' }}>

@@ -54,7 +54,7 @@ export default function Login() {
           <View style={styles.logoContainer}>
             <Ionicons name="leaf" size={60} color="white" />
           </View>
-          <Text style={styles.title}>Farm Wise</Text>
+          <Text style={styles.title}>FarmEzy</Text>
           <Text style={styles.subtitle}>Empowering your harvest</Text>
         </View>
 
