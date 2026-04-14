@@ -16,7 +16,7 @@ import { useAuth } from '@/context/AuthContext';
 
 
 export default function Dashboard() {
-  const { transactions, plots, refreshAll } = useFarm();
+  const { transactions, plots, inventory, refreshAll } = useFarm();
   const { signOut } = useAuth();
   const router = useRouter();
 
@@ -37,30 +37,91 @@ export default function Dashboard() {
 
   const today = new Date();
   
+  // Filter data by periods
   const seasonTransactions = transactions.filter(t => new Date(t.date) >= seasonStart);
+  const seasonInventory = inventory.filter(i => i.purchaseDate && new Date(i.purchaseDate) >= seasonStart);
+  
   const todayTransactions = seasonTransactions.filter(t => isSameDay(new Date(t.date), today));
+  const todayInventory = seasonInventory.filter(i => i.purchaseDate && isSameDay(new Date(i.purchaseDate), today));
+  
   const monthTransactions = seasonTransactions.filter(t => isSameMonth(new Date(t.date), today));
+  const monthInventory = seasonInventory.filter(i => i.purchaseDate && isSameMonth(new Date(i.purchaseDate), today));
 
-  const getStats = (list: typeof transactions) => {
-    const income = list.filter(t => t.type === 'Income').reduce((acc, t) => acc + t.amount, 0);
-    const expense = list.filter(t => t.type === 'Expense').reduce((acc, t) => acc + t.amount, 0);
+  // Robust helper to calculate interest paid within a period using lifetime deltas
+  const getInterestPaidInPeriod = (startDate: Date, endDate: Date) => {
+    const calculateLifetimeInterest = (targetDate: Date) => {
+        const shopNames = Array.from(new Set(inventory.map(i => i.shopName).filter((s): s is string => !!s)));
+        let totalInterest = 0;
+        shopNames.forEach(name => {
+            const payments = transactions.filter(t => t.type === 'Expense' && t.category === 'Shop Payment' && t.title === name && new Date(t.date) <= targetDate);
+            const totalPaid = payments.reduce((acc, p) => acc + p.amount, 0);
+            
+            const inv = inventory.filter(i => i.shopName === name && i.purchaseDate && new Date(i.purchaseDate) <= targetDate);
+            const totalPrincipal = inv.reduce((acc, i) => acc + ((i.pricePerUnit || 0) * i.quantity), 0);
+            
+            if (totalPaid > totalPrincipal) {
+                totalInterest += (totalPaid - totalPrincipal);
+            }
+        });
+        return totalInterest;
+    };
+
+    const interestAtEnd = calculateLifetimeInterest(endDate);
+    const interestAtStart = calculateLifetimeInterest(startDate);
+    return Math.max(0, interestAtEnd - interestAtStart);
+  };
+
+  const getStats = (txList: typeof transactions, invList: typeof inventory = [], startDate: Date = seasonStart, endDate: Date = today) => {
+    const income = txList.filter(t => t.type === 'Income').reduce((acc, t) => acc + t.amount, 0);
+    
+    // Base expenses (non-shop transactions)
+    const baseTxExpense = txList.filter(t => t.type === 'Expense' && t.category !== 'Shop Payment').reduce((acc, t) => acc + t.amount, 0);
+    
+    // Inventory purchases (Accrual basis)
+    const invExpense = invList.reduce((acc, i) => acc + ((i.pricePerUnit || 0) * i.quantity), 0);
+    
+    // Actual Interest Paid in this specific period
+    const interestPaid = getInterestPaidInPeriod(startDate, endDate);
+    
+    const expense = baseTxExpense + invExpense + interestPaid;
     return { income, expense, profit: income - expense };
   };
 
-  const seasonStats = getStats(seasonTransactions);
-  const todayStats = getStats(todayTransactions);
-  const monthStats = getStats(monthTransactions);
+  const seasonStats = getStats(seasonTransactions, seasonInventory, seasonStart, today);
+  const todayStats = getStats(todayTransactions, todayInventory, today, today);
+  const monthStats = getStats(monthTransactions, monthInventory, new Date(today.getFullYear(), today.getMonth(), 1), today);
 
-  const expenseTransactions = seasonTransactions.filter(t => t.type === 'Expense');
-  const categoryData = Array.from(new Set(expenseTransactions.map(t => t.category))).map(cat => {
-    const total = expenseTransactions.filter(t => t.category === cat).reduce((acc, t) => acc + t.amount, 0);
-    return {
-        name: cat,
-        population: total,
-        percentage: seasonStats.expense > 0 ? (total / seasonStats.expense) * 100 : 0,
-        color: CATEGORY_COLORS[cat as Category] || Palette.primary,
-    };
-  }).filter(d => d.population > 0).sort((a, b) => b.population - a.population);
+  // Prepare Category Data for Chart
+  const categoryData = React.useMemo(() => {
+    const categoriesMap: Record<string, number> = {};
+    
+    // 1. Add base expenses (excluding shop payments)
+    seasonTransactions.filter(t => t.type === 'Expense' && t.category !== 'Shop Payment').forEach(t => {
+        categoriesMap[t.category] = (categoriesMap[t.category] || 0) + t.amount;
+    });
+    
+    // 2. Add inventory purchases (grouped by category: Seeds, Fertilizer, etc.)
+    seasonInventory.forEach(i => {
+        const amount = (i.pricePerUnit || 0) * i.quantity;
+        categoriesMap[i.category] = (categoriesMap[i.category] || 0) + amount;
+    });
+    
+    // 3. Add Interest Paid
+    const interestPaid = getInterestPaidInPeriod(seasonStart, today);
+    if (interestPaid > 0) {
+        categoriesMap['Interest & Finance'] = (categoriesMap['Interest & Finance'] || 0) + interestPaid;
+    }
+
+    return Object.entries(categoriesMap)
+        .map(([name, total]) => ({
+            name,
+            population: total,
+            percentage: seasonStats.expense > 0 ? (total / seasonStats.expense) * 100 : 0,
+            color: CATEGORY_COLORS[name as Category] || Palette.primary,
+        }))
+        .filter(d => d.population > 0)
+        .sort((a, b) => b.population - a.population);
+  }, [seasonTransactions, seasonInventory, seasonStats.expense, seasonStart]);
 
   const screenWidth = Dimensions.get('window').width;
 
@@ -135,7 +196,7 @@ export default function Dashboard() {
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
                     {plots.map(plot => {
-                        const pStats = getStats(transactions.filter(t => t.plotId === plot.id));
+                        const pStats = getStats(transactions.filter(t => t.plotId === plot.id), [], seasonStart, today);
                         return (
                             <Pressable 
                                 key={plot.id} 
