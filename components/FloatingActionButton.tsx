@@ -1,11 +1,17 @@
 import React from 'react';
 import { StyleSheet, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { Palette } from '@/constants/Colors';
 
 export default function FloatingActionButton() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Hide the global FAB on pages that have their own custom add logic or are isolated silos
+  if (pathname === '/general-expenses') {
+    return null;
+  }
 
   return (
     <Pressable 

@@ -60,7 +60,16 @@ export interface Task {
 
 export interface CustomEntity {
   id: string;
-  entityType: 'category' | 'shop';
+  entityType: 'category' | 'shop' | 'general_category';
   name: string;
+}
+
+export interface GeneralExpense {
+  id: string;
+  title: string;
+  amount: number;
+  date: string;
+  category: string;
+  note?: string;
 }
 

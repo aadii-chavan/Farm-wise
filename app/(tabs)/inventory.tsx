@@ -59,6 +59,8 @@ export default function InventoryScreen() {
   const [currentItemNote, setCurrentItemNote] = useState('');
   const [currentCompanyName, setCurrentCompanyName] = useState('');
   const [currentBatchNo, setCurrentBatchNo] = useState('');
+  const [quantityInputMode, setQuantityInputMode] = useState<'package' | 'total'>('package');
+  const [currentTotalQty, setCurrentTotalQty] = useState('');
   
   // Shared Batch Header States
   const [shopName, setShopName] = useState('');
@@ -129,23 +131,44 @@ export default function InventoryScreen() {
       setIsAddingItem(true); // Jump straight to item form
       setModalVisible(true);
   };
-
   const addItemToBatch = () => {
-      if (!currentItemName || !currentNumPackages || !currentSizePerPackage) {
-          Alert.alert("Missing Info", "Please provide Item Name, Quantity, and Size.");
+
+      if (!currentItemName) {
+          Alert.alert("Missing Info", "Please provide Item Name.");
           return;
       }
       
+      let finalQty = 0;
+      let numP = quantityInputMode === 'package' ? parseFloat(currentNumPackages) : undefined;
+      let sizeP = quantityInputMode === 'package' ? parseFloat(currentSizePerPackage) : parseFloat(currentTotalQty);
+      
+      if (quantityInputMode === 'package') {
+          if (!currentNumPackages || !currentSizePerPackage) {
+              Alert.alert("Missing Info", "Please provide Number of Packages and Size per Package.");
+              return;
+          }
+          finalQty = parseFloat(currentNumPackages) * parseFloat(currentSizePerPackage);
+          numP = parseFloat(currentNumPackages);
+          sizeP = parseFloat(currentSizePerPackage);
+      } else {
+          if (!currentTotalQty) {
+              Alert.alert("Missing Info", "Please provide Total Quantity.");
+              return;
+          }
+          finalQty = parseFloat(currentTotalQty);
+          numP = 1; // Direct total
+          sizeP = finalQty;
+      }
+      
       const finalCat = isOtherCategoryItem ? currentCustomCategory : currentItemCategory;
-      const finalQty = parseFloat(currentNumPackages) * parseFloat(currentSizePerPackage);
       const tc = currentTotalCost ? parseFloat(currentTotalCost) : 0;
       const calcPricePerUnit = tc > 0 ? (tc / finalQty) : undefined;
       const itemData = {
           name: currentItemName,
           category: finalCat,
           quantity: finalQty,
-          numPackages: parseFloat(currentNumPackages),
-          sizePerPackage: parseFloat(currentSizePerPackage),
+          numPackages: numP,
+          sizePerPackage: sizeP,
           unit: currentUnit,
           pricePerUnit: calcPricePerUnit,
           companyName: currentCompanyName,
@@ -172,7 +195,10 @@ export default function InventoryScreen() {
   };
 
   const renderUnitCosts = () => {
-    const qty = parseFloat(currentNumPackages || '0') * parseFloat(currentSizePerPackage || '0');
+    const qty = quantityInputMode === 'package' 
+        ? parseFloat(currentNumPackages || '0') * parseFloat(currentSizePerPackage || '0')
+        : parseFloat(currentTotalQty || '0');
+        
     const cost = parseFloat(currentTotalCost || '0');
     if (qty <= 0 || cost <= 0) return null;
 
@@ -463,16 +489,41 @@ export default function InventoryScreen() {
                             </View>
                         </View>
 
-                        <View style={styles.row}>
-                            <View style={[styles.inputGroup, { flex: 1 }]}>
-                                <Text style={styles.label}>Bags / Bottles</Text>
-                                <TextInput style={styles.input} placeholder="Qty" value={currentNumPackages} onChangeText={setCurrentNumPackages} keyboardType="numeric" />
-                            </View>
-                            <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
-                                <Text style={styles.label}>Size</Text>
-                                <TextInput style={styles.input} placeholder="Size" value={currentSizePerPackage} onChangeText={setCurrentSizePerPackage} keyboardType="numeric" />
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Quantity Entry Mode</Text>
+                            <View style={styles.typeToggleCompact}>
+                                <Pressable 
+                                    onPress={() => setQuantityInputMode('package')}
+                                    style={[styles.typeBtn, quantityInputMode === 'package' && styles.typeBtnActive]}
+                                >
+                                    <Text style={[styles.typeBtnText, quantityInputMode === 'package' && styles.typeBtnTextActive]}>By Packages</Text>
+                                </Pressable>
+                                <Pressable 
+                                    onPress={() => setQuantityInputMode('total')}
+                                    style={[styles.typeBtn, quantityInputMode === 'total' && styles.typeBtnActive]}
+                                >
+                                    <Text style={[styles.typeBtnText, quantityInputMode === 'total' && styles.typeBtnTextActive]}>Total Quantity</Text>
+                                </Pressable>
                             </View>
                         </View>
+
+                        {quantityInputMode === 'package' ? (
+                            <View style={styles.row}>
+                                <View style={[styles.inputGroup, { flex: 1 }]}>
+                                    <Text style={styles.label}>Bags / Bottles</Text>
+                                    <TextInput style={styles.input} placeholder="Qty" value={currentNumPackages} onChangeText={setCurrentNumPackages} keyboardType="numeric" />
+                                </View>
+                                <View style={[styles.inputGroup, { flex: 1, marginLeft: 12 }]}>
+                                    <Text style={styles.label}>Size per Bag</Text>
+                                    <TextInput style={styles.input} placeholder="Size" value={currentSizePerPackage} onChangeText={setCurrentSizePerPackage} keyboardType="numeric" />
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Total Quantity</Text>
+                                <TextInput style={styles.input} placeholder="e.g. 500" value={currentTotalQty} onChangeText={setCurrentTotalQty} keyboardType="numeric" />
+                            </View>
+                        )}
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Unit</Text>

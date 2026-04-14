@@ -1,4 +1,4 @@
-import { InventoryItem, Plot, Transaction } from '@/types/farm';
+import { InventoryItem, Plot, Transaction, GeneralExpense } from '@/types/farm';
 import { supabase } from './supabase';
 
 // Helper to check if a string is a valid UUID
@@ -409,7 +409,7 @@ export const getCustomEntities = async (): Promise<any[]> => {
     }
 };
 
-export const saveCustomEntity = async (type: 'category' | 'shop', name: string): Promise<void> => {
+export const saveCustomEntity = async (type: 'category' | 'shop' | 'general_category', name: string): Promise<void> => {
     try {
         const userId = await getUserId();
         if (!userId || !name.trim()) return;
@@ -423,5 +423,63 @@ export const saveCustomEntity = async (type: 'category' | 'shop', name: string):
         if (error) throw error;
     } catch (e) {
         console.error('Failed to save custom entity', e);
+    }
+};
+
+// General Expenses
+export const getGeneralExpenses = async (): Promise<GeneralExpense[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('general_expenses')
+            .select('*')
+            .order('date', { ascending: false });
+        
+        if (error) throw error;
+        return (data || []).map(e => ({
+            id: e.id,
+            title: e.title,
+            amount: Number(e.amount),
+            date: e.date,
+            category: e.category,
+            note: e.note
+        }));
+    } catch (e) {
+        console.error('Failed to load general expenses', e);
+        return [];
+    }
+};
+
+export const saveGeneralExpense = async (expense: GeneralExpense): Promise<void> => {
+    try {
+        const userId = await getUserId();
+        if (!userId) throw new Error('User not authenticated');
+
+        const expenseData: any = {
+            user_id: userId,
+            title: expense.title,
+            amount: expense.amount,
+            date: expense.date,
+            category: expense.category,
+            note: expense.note
+        };
+
+        if (expense.id && isUUID(expense.id)) {
+            expenseData.id = expense.id;
+        }
+
+        const { error } = await supabase.from('general_expenses').upsert(expenseData);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to save general expense', e);
+    }
+};
+
+export const deleteGeneralExpense = async (id: string): Promise<void> => {
+    try {
+        if (!isUUID(id)) return;
+        const { error } = await supabase.from('general_expenses').delete().eq('id', id);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to delete general expense', e);
     }
 };

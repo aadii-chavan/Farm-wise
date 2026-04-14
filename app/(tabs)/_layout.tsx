@@ -107,6 +107,14 @@ export default function AppLayout() {
             drawerIcon: ({ color }) => <DrawerIcon name="calendar-outline" color={color} />,
           }}
         />
+        <Drawer.Screen
+          name="general-expenses"
+          options={{
+            drawerLabel: 'General Expenses',
+            title: 'Personal Expenses',
+            drawerIcon: ({ color }) => <DrawerIcon name="wallet-outline" color={color} />,
+          }}
+        />
       </Drawer>
       
       {/* The master professional Add button */}

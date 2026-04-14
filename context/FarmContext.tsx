@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { InventoryItem, Plot, Transaction, Task, CustomEntity } from '../types/farm';
+import { InventoryItem, Plot, Transaction, Task, CustomEntity, GeneralExpense } from '../types/farm';
 import * as Storage from '../utils/storage';
 import { useAuth } from './AuthContext';
 
@@ -9,6 +9,7 @@ interface FarmContextType {
   plots: Plot[];
   inventory: InventoryItem[];
   tasks: Task[];
+  generalExpenses: GeneralExpense[];
   customEntities: CustomEntity[];
   loading: boolean;
   
@@ -37,9 +38,14 @@ interface FarmContextType {
   refreshTasks: () => Promise<void>;
   
   // Custom Entities
-  addCustomEntity: (type: 'category' | 'shop', name: string) => Promise<void>;
+  addCustomEntity: (type: 'category' | 'shop' | 'general_category', name: string) => Promise<void>;
 
   refreshAll: () => Promise<void>;
+
+  // General Expenses
+  addGeneralExpense: (expense: GeneralExpense) => Promise<void>;
+  updateGeneralExpense: (expense: GeneralExpense) => Promise<void>;
+  deleteGeneralExpense: (id: string) => Promise<void>;
 }
 
 const FarmContext = createContext<FarmContextType | undefined>(undefined);
@@ -51,6 +57,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const [plots, setPlots] = useState<Plot[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [generalExpenses, setGeneralExpenses] = useState<GeneralExpense[]>([]);
   const [customEntities, setCustomEntities] = useState<CustomEntity[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -66,18 +73,20 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     }
 
     setLoading(true);
-    const [tData, pData, iData, tsData, ceData] = await Promise.all([
+    const [tData, pData, iData, tsData, ceData, geData] = await Promise.all([
       Storage.getTransactions(),
       Storage.getPlots(),
       Storage.getInventory(),
       Storage.getTasks(),
-      Storage.getCustomEntities()
+      Storage.getCustomEntities(),
+      Storage.getGeneralExpenses()
     ]);
     setTransactions(tData);
     setPlots(pData);
     setInventory(iData);
     setTasks(tsData);
     setCustomEntities(ceData);
+    setGeneralExpenses(geData);
     setLoading(false);
   };
 
@@ -147,12 +156,27 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   };
 
-  const addCustomEntity = async (type: 'category' | 'shop', name: string) => {
+  const addCustomEntity = async (type: 'category' | 'shop' | 'general_category', name: string) => {
     await Storage.saveCustomEntity(type, name);
     await loadData();
   };
 
   const refreshAll = async () => {
+    await loadData();
+  };
+
+  const addGeneralExpense = async (expense: GeneralExpense) => {
+    await Storage.saveGeneralExpense(expense);
+    await loadData();
+  };
+
+  const updateGeneralExpense = async (expense: GeneralExpense) => {
+    await Storage.saveGeneralExpense(expense);
+    await loadData();
+  };
+
+  const deleteGeneralExpense = async (id: string) => {
+    await Storage.deleteGeneralExpense(id);
     await loadData();
   };
 
@@ -179,6 +203,10 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       updateTask,
       deleteTask,
       refreshTasks: refreshAll,
+      generalExpenses,
+      addGeneralExpense,
+      updateGeneralExpense,
+      deleteGeneralExpense,
       customEntities,
       addCustomEntity,
       refreshAll
