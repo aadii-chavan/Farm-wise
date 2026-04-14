@@ -38,7 +38,7 @@ interface FarmContextType {
   refreshTasks: () => Promise<void>;
   
   // Custom Entities
-  addCustomEntity: (type: 'category' | 'shop' | 'general_category', name: string) => Promise<void>;
+  addCustomEntity: (type: 'category' | 'shop' | 'general_category' | 'recurrence', name: string) => Promise<void>;
 
   refreshAll: () => Promise<void>;
 
@@ -156,7 +156,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   };
 
-  const addCustomEntity = async (type: 'category' | 'shop' | 'general_category', name: string) => {
+  const addCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'recurrence', name: string) => {
     await Storage.saveCustomEntity(type, name);
     await loadData();
   };

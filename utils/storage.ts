@@ -326,9 +326,12 @@ export const getTasks = async (): Promise<any[]> => {
             title: t.title,
             time: t.time,
             date: t.date,
-            category: t.category,
+            categories: t.categories || [t.category] || [],
             plot: t.plot,
             completed: t.completed,
+            recurrence: t.recurrence || 'None',
+            assignedTo: t.assigned_to,
+            note: t.note,
         }));
     } catch (e) {
         console.error('Failed to load tasks', e);
@@ -346,9 +349,13 @@ export const saveTask = async (task: any): Promise<void> => {
             title: task.title,
             time: task.time,
             date: task.date,
-            category: task.category,
+            category: task.categories[0] || 'Misc', // Legacy fallback
+            categories: task.categories,
             plot: task.plot || null,
             completed: task.completed,
+            recurrence: task.recurrence || 'None',
+            assigned_to: task.assignedTo || null,
+            note: task.note || null,
         };
 
         if (task.id && isUUID(task.id)) {
@@ -371,9 +378,13 @@ export const updateTask = async (task: any): Promise<void> => {
                 title: task.title,
                 time: task.time,
                 date: task.date,
-                category: task.category,
+                category: task.categories[0] || 'Misc', // Legacy fallback
+                categories: task.categories,
                 plot: task.plot || null,
                 completed: task.completed,
+                recurrence: task.recurrence || 'None',
+                assigned_to: task.assignedTo || null,
+                note: task.note || null,
             })
             .eq('id', task.id);
         if (error) throw error;
@@ -412,7 +423,7 @@ export const getCustomEntities = async (): Promise<any[]> => {
     }
 };
 
-export const saveCustomEntity = async (type: 'category' | 'shop' | 'general_category', name: string): Promise<void> => {
+export const saveCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'recurrence', name: string): Promise<void> => {
     try {
         const userId = await getUserId();
         if (!userId || !name.trim()) return;

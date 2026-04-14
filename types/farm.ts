@@ -52,16 +52,19 @@ export interface Transaction {
 export interface Task {
   id: string;
   title: string;
-  time: string;
-  date: string;
-  category: string;
+  time: string; // HH:mm format
+  date: string; // YYYY-MM-DD
+  categories: string[];
   plot?: string | null;
   completed: boolean;
+  recurrence?: 'None' | 'Daily' | 'Weekly' | 'Bi-Weekly' | 'Monthly' | 'Every 2 Days' | 'Every 3 Days' | 'Every 10 Days' | 'Every 15 Days';
+  assignedTo?: string;
+  note?: string;
 }
 
 export interface CustomEntity {
   id: string;
-  entityType: 'category' | 'shop' | 'general_category';
+  entityType: 'category' | 'shop' | 'general_category' | 'recurrence';
   name: string;
 }
 

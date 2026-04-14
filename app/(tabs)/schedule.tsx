@@ -3,397 +3,525 @@ import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { addDays, format, subDays } from 'date-fns';
+import { addDays, format, subDays, startOfDay, parse, differenceInCalendarDays, getDate, isAfter, addMinutes } from 'date-fns';
 import { Stack, useNavigation } from 'expo-router';
-import { DeviceEventEmitter, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import { DeviceEventEmitter, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Dimensions } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Task } from '@/types/farm';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const HOUR_HEIGHT = 80;
+const TIME_COLUMN_WIDTH = 60;
+const TIMELINE_PADDING_TOP = 20;
+
+type ViewMode = 'day' | 'three-day' | 'agenda';
+
+interface PositionedTask extends Task {
+    left: number;
+    width: number;
+}
 
 export default function SchedulePage() {
-    const { tasks: allTasks, plots, addTask, updateTask } = useFarm();
-    const navigation = useNavigation();
+    const { tasks: allTasks, plots, addTask, updateTask, deleteTask, customEntities, addCustomEntity } = useFarm();
     const today = new Date();
+    
+    // UI State
     const [selectedDate, setSelectedDate] = useState(today);
+    const [viewMode, setViewMode] = useState<ViewMode>('day');
     const [showMainCalendar, setShowMainCalendar] = useState(false);
-
-    // Active tasks for the selected date
-    const selectedDateString = format(selectedDate, 'yyyy-MM-dd');
-    const tasks = allTasks.filter(t => t.date === selectedDateString);
-
-    // Modal State
     const [showModal, setShowModal] = useState(false);
-    const [newTaskTitle, setNewTaskTitle] = useState('');
-    
-    // Time picker state
-    const [pickedTime, setPickedTime] = useState(new Date());
-    const [showTimePicker, setShowTimePicker] = useState(false);
-    
-    // Date picker state
-    const [pickedDate, setPickedDate] = useState(new Date());
-    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-    // Category picker state
-    const [categories, setCategories] = useState(['Water', 'Fertilizer', 'Equipment', 'Labor']);
-    const [newTaskCategory, setNewTaskCategory] = useState('Water');
-    const [isAddingCategory, setIsAddingCategory] = useState(false);
-    const [newCategoryText, setNewCategoryText] = useState('');
-    const [newTaskPlot, setNewTaskPlot] = useState<string | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    // Form State
+    const [taskTitle, setTaskTitle] = useState('');
+    const [taskTime, setTaskTime] = useState(new Date());
+    const [taskDate, setTaskDate] = useState(new Date());
+    const [taskCategories, setTaskCategories] = useState<string[]>([]);
+    const [taskPlot, setTaskPlot] = useState<string | null>(null);
+    const [taskNote, setTaskNote] = useState('');
+    const [taskRecurrence, setTaskRecurrence] = useState<string>('None');
+    const [taskAssignedTo, setTaskAssignedTo] = useState('');
     
+    const [showTimePicker, setShowTimePicker] = useState(false);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Inline Add state
+    const [newCatName, setNewCatName] = useState('');
+    const [isAddingCat, setIsAddingCat] = useState(false);
+    const [newRecurrence, setNewRecurrence] = useState('');
+    const [isAddingRecurrence, setIsAddingRecurrence] = useState(false);
+
+    const defaultCategories = ['Irrigation', 'Fertilizer', 'Pesticide', 'Labor', 'Equipment', 'Harvest'];
+    const userCategories = useMemo(() => [
+        ...defaultCategories, 
+        ...customEntities.filter(e => e.entityType === 'category').map(e => e.name)
+    ], [customEntities]);
+
+    const defaultRecurrences = ['None', 'Daily', 'Weekly', 'Monthly'];
+    const userRecurrences = useMemo(() => [
+        ...defaultRecurrences, 
+        ...customEntities.filter(e => e.entityType === 'recurrence').map(e => e.name)
+    ], [customEntities]);
+
+    // Recurrence logic helper
+    const checkRecurrence = (t: Task, selected: Date, start: Date) => {
+        const diffDays = differenceInCalendarDays(selected, start);
+        const rec = t.recurrence || 'None';
+
+        if (rec === 'None') return false;
+        if (rec === 'Daily') return true;
+        if (rec === 'Weekly') return diffDays % 7 === 0;
+        if (rec === 'Monthly') return getDate(selected) === getDate(start);
+
+        const dayMatch = rec.match(/Every (\d+) days/i);
+        if (dayMatch) return diffDays % parseInt(dayMatch[1]) === 0;
+
+        const numOnly = rec.match(/(\d+)/);
+        if (numOnly) return diffDays % parseInt(numOnly[1]) === 0;
+
+        return false;
+    };
+
+    // Filter tasks for selected date (including recurring tasks)
+    const dayTasks = useMemo(() => {
+        return allTasks.filter(t => {
+            const taskDateObj = parse(t.date, 'yyyy-MM-dd', new Date());
+            const selectedDateClean = startOfDay(selectedDate);
+            const taskDateClean = startOfDay(taskDateObj);
+
+            if (isAfter(taskDateClean, selectedDateClean)) return false;
+
+            if (t.recurrence === 'None' || !t.recurrence) {
+                return format(selectedDate, 'yyyy-MM-dd') === t.date;
+            }
+
+            return checkRecurrence(t, selectedDateClean, taskDateClean);
+        });
+    }, [allTasks, selectedDate]);
+
+    // Complex Overlap Algorithm (GCal style)
+    const positionedTasks = useMemo(() => {
+        if (dayTasks.length === 0) return [];
+
+        const sorted = [...dayTasks].sort((a, b) => a.time.localeCompare(b.time));
+        const result: PositionedTask[] = [];
+        const columns: Task[][] = [];
+
+        sorted.forEach(task => {
+            let placed = false;
+            for (let i = 0; i < columns.length; i++) {
+                const lastTaskInCol = columns[i][columns[i].length - 1];
+                
+                // For layout, we assume a default duration of 60 mins if not specified
+                // Task.time is HH:mm
+                const taskStart = parse(task.time, 'HH:mm', new Date());
+                const lastEnd = addMinutes(parse(lastTaskInCol.time, 'HH:mm', new Date()), 50); // Small buffer
+
+                if (taskStart >= lastEnd) {
+                    columns[i].push(task);
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
+                columns.push([task]);
+            }
+        });
+
+        const availableWidth = SCREEN_WIDTH - TIME_COLUMN_WIDTH - 40;
+        const colWidth = availableWidth / columns.length;
+
+        columns.forEach((col, colIdx) => {
+            col.forEach(task => {
+                result.push({
+                    ...task,
+                    left: TIME_COLUMN_WIDTH + 15 + (colIdx * colWidth),
+                    width: colWidth - 5
+                });
+            });
+        });
+
+        return result;
+    }, [dayTasks]);
+
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener('FAB_OPEN_TASK_MODAL', () => {
-             setPickedDate(selectedDate);
+             resetForm();
+             setTaskDate(selectedDate);
              setShowModal(true);
         });
         return () => sub.remove();
     }, [selectedDate]);
 
-    const handleAddTask = async () => {
-        if (!newTaskTitle.trim() || isSubmitting) return;
+    const resetForm = (task?: Task) => {
+        if (task) {
+            setSelectedTask(task);
+            setTaskTitle(task.title);
+            const [h, m] = task.time.split(':').map(Number);
+            const d = new Date(); d.setHours(h, m, 0, 0);
+            setTaskTime(d);
+            setTaskDate(parse(task.date, 'yyyy-MM-dd', new Date()));
+            setTaskCategories(task.categories || []);
+            setTaskPlot(task.plot || null);
+            setTaskNote(task.note || '');
+            setTaskRecurrence(task.recurrence || 'None');
+            setTaskAssignedTo(task.assignedTo || '');
+        } else {
+            setSelectedTask(null);
+            setTaskTitle('');
+            setTaskTime(new Date());
+            setTaskDate(selectedDate);
+            setTaskCategories([]);
+            setTaskPlot(null);
+            setTaskNote('');
+            setTaskRecurrence('None');
+            setTaskAssignedTo('');
+        }
+        setIsAddingCat(false);
+        setIsAddingRecurrence(false);
+    }
+
+    const handleSaveTask = async () => {
+        if (!taskTitle.trim() || isSubmitting) return;
         setIsSubmitting(true);
-        
         try {
-            const formattedTime = format(pickedTime, 'hh:mm a');
-            const formattedDate = format(pickedDate, 'yyyy-MM-dd');
-            
-            const task = {
-                id: Math.random().toString(),
-                title: newTaskTitle,
+            const formattedTime = format(taskTime, 'HH:mm');
+            const formattedDate = format(taskDate, 'yyyy-MM-dd');
+            const taskData: Task = {
+                id: selectedTask?.id || Math.random().toString(),
+                title: taskTitle,
                 time: formattedTime,
                 date: formattedDate,
-                category: newTaskCategory,
-                plot: newTaskPlot,
-                completed: false,
+                categories: taskCategories,
+                plot: taskPlot,
+                completed: selectedTask?.completed || false,
+                recurrence: taskRecurrence as any,
+                assignedTo: taskAssignedTo,
+                note: taskNote
             };
-            await addTask(task);
+            if (selectedTask) await updateTask(taskData);
+            else await addTask(taskData);
             setShowModal(false);
-            setNewTaskTitle('');
-            setPickedTime(new Date());
-            setNewTaskCategory('Water');
-            setNewTaskPlot(null);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // Generate a week of dates centered around SELECTED DATE
-    const weekDates = Array.from({ length: 7 }).map((_, i) => addDays(subDays(selectedDate, 3), i));
-
-    const toggleTask = async (id: string) => {
-        const task = allTasks.find(t => t.id === id);
-        if (task) {
-            await updateTask({ ...task, completed: !task.completed });
+    const handleDelete = async () => {
+        if (selectedTask) {
+            await deleteTask(selectedTask.id);
+            setShowModal(false);
         }
     };
 
-    const getCategoryIcon = (category: string) => {
-        switch (category.toLowerCase()) {
-            case 'water': return 'water';
-            case 'fertilizer': return 'leaf';
-            case 'equipment': return 'construct';
-            case 'labor': return 'people';
-            default: return 'list';
-        }
+    const toggleCategory = (cat: string) => {
+        setTaskCategories(prev => 
+            prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+        );
+    };
+
+    const handleAddCategory = async () => {
+        if (!newCatName.trim()) return;
+        await addCustomEntity('category', newCatName.trim());
+        setNewCatName('');
+        setIsAddingCat(false);
+    };
+
+    const handleAddRecurrence = async () => {
+        if (!newRecurrence.trim()) return;
+        const normalized = newRecurrence.toLowerCase().includes('every') ? newRecurrence : `Every ${newRecurrence} days`;
+        await addCustomEntity('recurrence', normalized);
+        setNewRecurrence('');
+        setIsAddingRecurrence(false);
+        setTaskRecurrence(normalized);
+    };
+
+    const getTaskPosition = (timeStr: string) => {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return (hours * HOUR_HEIGHT) + ((minutes / 60) * HOUR_HEIGHT) + TIMELINE_PADDING_TOP;
     };
 
     const getCategoryColor = (category: string) => {
         switch (category.toLowerCase()) {
-            case 'water': return '#2A5C82';      // Premium Deep Ocean
-            case 'fertilizer': return '#30694B'; // Elegant Forest Green
-            case 'equipment': return '#A6633C';  // Rich Cognac/Copper
-            case 'labor': return '#5A5069';      // Muted Eggplant
-            default: return '#64748B';           // Sleek Slate
+            case 'irrigation': return '#2563EB';
+            case 'fertilizer': return '#059669';
+            case 'pesticide': return '#DC2626';
+            case 'labor': return '#7C3AED';
+            case 'equipment': return '#EA580C';
+            case 'harvest': return '#F59E0B';
+            default: return '#64748B';
         }
+    };
+
+    const renderTimeline = () => {
+        const hours = Array.from({ length: 24 }).map((_, i) => i);
+        return (
+            <ScrollView style={styles.timelineContainer} contentContainerStyle={styles.timelineScrollContent}>
+                {hours.map(hour => (
+                    <View key={hour} style={[styles.hourRow, { height: HOUR_HEIGHT }]}>
+                        <View style={styles.timeLabelContainer}>
+                            <Text style={styles.timeLabel}>
+                                {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                            </Text>
+                        </View>
+                        <View style={styles.hourLine} />
+                    </View>
+                ))}
+
+                {positionedTasks.map((task) => {
+                    const top = getTaskPosition(task.time);
+                    const color = task.categories.length > 0 ? getCategoryColor(task.categories[0]) : '#64748B';
+
+                    return (
+                        <Pressable 
+                            key={task.id} 
+                            style={[
+                                styles.taskBlock, 
+                                { 
+                                    top, 
+                                    left: task.left,
+                                    width: task.width,
+                                    height: 54, 
+                                    backgroundColor: color + '15',
+                                    borderLeftColor: color,
+                                    opacity: task.completed ? 0.6 : 1
+                                }
+                            ]}
+                            onPress={() => { resetForm(task); setShowModal(true); }}
+                        >
+                            <View style={styles.taskContent}>
+                                <Text style={[styles.taskBlockTitle, { color }]} numberOfLines={1}>
+                                    {task.title}
+                                </Text>
+                                <View style={styles.taskBlockMeta}>
+                                    <Ionicons name="location-outline" size={10} color={color} />
+                                    <Text style={[styles.taskBlockPlot, { color }]} numberOfLines={1}>
+                                        {task.plot || 'General'}
+                                    </Text>
+                                    <View style={{flexDirection: 'row', marginLeft: 4, gap: 2}}>
+                                        {task.categories.slice(0, 2).map(cat => (
+                                            <View key={cat} style={[styles.miniCat, { backgroundColor: getCategoryColor(cat) }]} />
+                                        ))}
+                                    </View>
+                                </View>
+                            </View>
+                            {task.completed && (
+                                <View style={styles.completedBadge}>
+                                    <Ionicons name="checkmark-circle" size={14} color={Palette.success} />
+                                </View>
+                            )}
+                        </Pressable>
+                    );
+                })}
+
+                {format(new Date(), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd') && (
+                    <View style={[styles.currentTimeLine, { top: getTaskPosition(format(new Date(), 'HH:mm')) }]}>
+                        <View style={styles.currentTimeDot} />
+                    </View>
+                )}
+            </ScrollView>
+        );
+    };
+
+    const renderAgenda = () => {
+        if (dayTasks.length === 0) {
+            return (
+                <View style={styles.emptyContainer}>
+                    <Ionicons name="calendar-outline" size={64} color="#E0E0E0" />
+                    <Text style={styles.emptyText}>No tasks scheduled for this day</Text>
+                </View>
+            );
+        }
+
+        return (
+            <ScrollView style={styles.agendaContainer} contentContainerStyle={{ padding: 20 }}>
+                {dayTasks.map((task) => (
+                    <Pressable key={task.id} style={[styles.agendaCard, task.completed && styles.agendaCardCompleted]} onPress={() => { resetForm(task); setShowModal(true); }}>
+                        <View style={[styles.agendaIndicator, { backgroundColor: task.categories.length > 0 ? getCategoryColor(task.categories[0]) : '#64748B' }]} />
+                        <View style={styles.agendaInfo}>
+                            <Text style={[styles.agendaTitle, task.completed && styles.agendaTitleCompleted]}>{task.title}</Text>
+                            <View style={styles.agendaMeta}>
+                                <Ionicons name="time-outline" size={14} color={Palette.textSecondary} />
+                                <Text style={styles.agendaMetaText}>{task.time}</Text>
+                                {task.plot && (
+                                    <>
+                                        <Text style={styles.agendaDot}>•</Text>
+                                        <Ionicons name="location-outline" size={14} color={Palette.textSecondary} />
+                                        <Text style={styles.agendaMetaText}>{task.plot}</Text>
+                                    </>
+                                )}
+                            </View>
+                        </View>
+                        <Pressable onPress={() => updateTask({ ...task, completed: !task.completed })} style={[styles.agendaCheckbox, task.completed && styles.agendaCheckboxActive]}>
+                            {task.completed && <Ionicons name="checkmark" size={14} color="white" />}
+                        </Pressable>
+                    </Pressable>
+                ))}
+            </ScrollView>
+        );
     };
 
     return (
         <View style={styles.container}>
             <Stack.Screen options={{ 
-                headerTitle: 'Daily Schedule',
+                headerTitle: format(selectedDate, 'MMMM yyyy'),
+                headerTitleStyle: { fontFamily: 'Outfit-Bold' },
                 headerRight: () => (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginRight: 15 }}>
-                        <Pressable onPress={() => setShowMainCalendar(true)}>
-                            <Ionicons name="calendar-outline" size={24} color={Palette.text} />
+                    <View style={styles.headerRight}>
+                        <Pressable onPress={() => setShowMainCalendar(true)} style={styles.iconButton}>
+                            <Ionicons name="calendar-outline" size={22} color={Palette.text} />
                         </Pressable>
-                        <Pressable onPress={() => { setPickedDate(selectedDate); setShowModal(true); }}>
-                            <Ionicons name="add-circle" size={32} color={Palette.primary} />
-                        </Pressable>
+                        <View style={styles.viewToggle}>
+                            <Pressable onPress={() => setViewMode('day')} style={[styles.toggleBtn, viewMode === 'day' && styles.toggleBtnActive]}>
+                                <Ionicons name="list" size={18} color={viewMode === 'day' ? 'white' : Palette.textSecondary} />
+                            </Pressable>
+                            <Pressable onPress={() => setViewMode('agenda')} style={[styles.toggleBtn, viewMode === 'agenda' && styles.toggleBtnActive]}>
+                                <Ionicons name="reorder-four" size={18} color={viewMode === 'agenda' ? 'white' : Palette.textSecondary} />
+                            </Pressable>
+                        </View>
                     </View>
                 )
             }} />
-            
-            <CalendarModal 
-                visible={showMainCalendar}
-                initialDate={selectedDate}
-                onClose={() => setShowMainCalendar(false)}
-                onSelectDate={(date) => setSelectedDate(date)}
-            />
 
-            {/* Header / Date Selector */}
-            <View style={styles.dateSelector}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateScroll}>
-                    {weekDates.map((date, index) => {
-                        const isSelected = date.toDateString() === selectedDate.toDateString();
-                        const isToday = date.toDateString() === today.toDateString();
-                        
+            <CalendarModal visible={showMainCalendar} initialDate={selectedDate} onClose={() => setShowMainCalendar(false)} onSelectDate={(date) => setSelectedDate(date)} />
+
+            <View style={styles.dateStrip}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateStripScroll}>
+                    {Array.from({ length: 14 }).map((_, i) => {
+                        const date = addDays(subDays(today, 3), i);
+                        const isSelected = format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+                        const isToday = format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
                         return (
-                            <Pressable 
-                                key={index} 
-                                style={[styles.dateCard, isSelected && styles.dateCardActive]}
-                                onPress={() => setSelectedDate(date)}
-                            >
-                                <Text style={[styles.dateDayName, isSelected && styles.dateDayNameActive]}>
-                                    {format(date, 'EEE')}
-                                </Text>
-                                <View style={[styles.dateNumberCircle, isSelected && styles.dateNumberCircleActive]}>
-                                    <Text style={[styles.dateNumber, isSelected && styles.dateNumberActive]}>
-                                        {format(date, 'd')}
-                                    </Text>
+                            <Pressable key={i} style={[styles.dateItem, isSelected && styles.dateItemActive]} onPress={() => setSelectedDate(date)}>
+                                <Text style={[styles.dateDay, isSelected && styles.dateDayActive]}>{format(date, 'EEE')}</Text>
+                                <View style={[styles.dateNumCircle, isSelected && styles.dateNumCircleActive, isToday && !isSelected && styles.dateNumCircleToday]}>
+                                    <Text style={[styles.dateNum, isSelected && styles.dateNumActive, isToday && !isSelected && styles.dateNumToday]}>{format(date, 'd')}</Text>
                                 </View>
-                                {isToday && !isSelected && <View style={styles.todayDot} />}
                             </Pressable>
                         );
                     })}
                 </ScrollView>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scroll}>
-                <View style={styles.summaryHeader}>
-                    <Text style={styles.summaryTitle}>
-                        {tasks.filter(t => t.completed).length} of {tasks.length} tasks completed
-                    </Text>
-                    <View style={styles.progressBarBg}>
-                        <View style={[styles.progressBarFill, { width: tasks.length > 0 ? `${(tasks.filter(t => t.completed).length / tasks.length) * 100}%` : '0%' }]} />
-                    </View>
-                </View>
-
-                {tasks.map((task) => (
-                    <Pressable 
-                        key={task.id} 
-                        style={[styles.taskCard, task.completed && styles.taskCardCompleted]}
-                        onPress={() => toggleTask(task.id)}
-                    >
-                        <View style={styles.taskLeft}>
-                            <Pressable 
-                                style={[styles.checkbox, task.completed && styles.checkboxCompleted]} 
-                                onPress={() => toggleTask(task.id)}
-                            >
-                                {task.completed && <Ionicons name="checkmark" size={16} color="white" />}
-                            </Pressable>
-                            <View>
-                                <Text style={[styles.taskTitle, task.completed && styles.taskTitleCompleted]}>
-                                    {task.title}
-                                </Text>
-                                <View style={styles.taskMetaRow}>
-                                    <Ionicons name="time-outline" size={14} color={Palette.textSecondary} />
-                                    <Text style={styles.taskMetaText}>{task.time}</Text>
-                                    
-                                    {task.plot && (
-                                        <>
-                                            <View style={styles.metaDivider} />
-                                            <Ionicons name="location-outline" size={14} color={Palette.textSecondary} />
-                                            <Text style={styles.taskMetaText}>{task.plot}</Text>
-                                        </>
-                                    )}
-                                </View>
-                            </View>
-                        </View>
-                        <View style={[styles.categoryIconBadge, { backgroundColor: getCategoryColor(task.category) + '20' }]}>
-                            <Ionicons name={getCategoryIcon(task.category) as any} size={18} color={getCategoryColor(task.category)} />
-                        </View>
-                    </Pressable>
-                ))}
-            </ScrollView>
-
-
+            {viewMode === 'day' ? renderTimeline() : renderAgenda()}
 
             <Modal visible={showModal} transparent animationType="slide">
-                <KeyboardAvoidingView 
-                    style={styles.modalOverlay} 
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                >
+                <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Add New Task</Text>
-                            <Pressable onPress={() => { setShowModal(false); setShowTimePicker(false); setShowDatePicker(false); }}>
-                                <Ionicons name="close" size={24} color={Palette.textSecondary} />
-                            </Pressable>
+                            <Text style={styles.modalTitle}>{selectedTask ? 'Edit Task' : 'New Task'}</Text>
+                            <View style={{ flexDirection: 'row', gap: 15 }}>
+                                {selectedTask && (
+                                    <Pressable onPress={handleDelete}>
+                                        <Ionicons name="trash-outline" size={22} color={Palette.danger} />
+                                    </Pressable>
+                                )}
+                                <Pressable onPress={() => setShowModal(false)}><Ionicons name="close" size={24} color={Palette.textSecondary} /></Pressable>
+                            </View>
                         </View>
 
-                        <Text style={styles.inputLabel}>Task Name</Text>
-                        <TextInput 
-                            style={styles.textInput} 
-                            placeholder="e.g. Irrigate Northern Plot"
-                            value={newTaskTitle}
-                            onChangeText={setNewTaskTitle}
-                            placeholderTextColor="#999"
-                        />
+                        <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
+                            <Text style={styles.inputLabel}>Event Title</Text>
+                            <TextInput style={styles.textInput} placeholder="e.g. Irrigation of Plot A" value={taskTitle} onChangeText={setTaskTitle} placeholderTextColor="#94A3B8" />
 
-                        {/* Plot Selector */}
-                        <Text style={styles.inputLabel}>Plot (Optional)</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 8, marginBottom: 4 }}>
-                            <Pressable 
-                                style={[
-                                    styles.categoryPill, 
-                                    newTaskPlot === null && { backgroundColor: Palette.primary, borderColor: Palette.primary }
-                                ]}
-                                onPress={() => setNewTaskPlot(null)}
-                            >
-                                <Text style={[
-                                    styles.categoryPillText, 
-                                    newTaskPlot === null && styles.categoryPillTextActive
-                                ]}>None</Text>
-                            </Pressable>
-                            {plots.map((p) => (
-                                <Pressable 
-                                    key={p.id} 
-                                    style={[
-                                        styles.categoryPill, 
-                                        newTaskPlot === p.name && { backgroundColor: Palette.primary, borderColor: Palette.primary }
-                                    ]}
-                                    onPress={() => setNewTaskPlot(p.name)}
-                                >
-                                    <Text style={[
-                                        styles.categoryPillText, 
-                                        newTaskPlot === p.name && styles.categoryPillTextActive
-                                    ]}>{p.name}</Text>
+                            <View style={styles.formRow}>
+                                <View style={{ flex: 1.5 }}>
+                                    <Text style={styles.inputLabel}>Date</Text>
+                                    <Pressable style={styles.inputPicker} onPress={() => setShowDatePicker(true)}>
+                                        <Ionicons name="calendar-outline" size={18} color={Palette.primary} />
+                                        <Text style={styles.pickerText}>{format(taskDate, 'MMM dd, yyyy')}</Text>
+                                    </Pressable>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.inputLabel}>Time</Text>
+                                    <Pressable style={styles.inputPicker} onPress={() => setShowTimePicker(true)}>
+                                        <Ionicons name="time-outline" size={18} color={Palette.primary} />
+                                        <Text style={styles.pickerText}>{format(taskTime, 'hh:mm a')}</Text>
+                                    </Pressable>
+                                </View>
+                            </View>
+
+                            <Text style={styles.inputLabel}>Recurrence</Text>
+                            <View style={styles.multiCatRow}>
+                                {userRecurrences.map(opt => (
+                                    <Pressable key={opt} style={[styles.chip, taskRecurrence === opt && styles.chipActive]} onPress={() => setTaskRecurrence(opt)}>
+                                        <Text style={[styles.chipText, taskRecurrence === opt && styles.chipTextActive]}>{opt}</Text>
+                                    </Pressable>
+                                ))}
+                                {isAddingRecurrence ? (
+                                    <TextInput 
+                                        style={[styles.chip, { minWidth: 100, color: Palette.text }]}
+                                        autoFocus
+                                        placeholder="Every X Days"
+                                        value={newRecurrence}
+                                        onChangeText={setNewRecurrence}
+                                        onSubmitEditing={handleAddRecurrence}
+                                        onBlur={() => setIsAddingRecurrence(false)}
+                                    />
+                                ) : (
+                                    <Pressable style={[styles.chip, { borderStyle: 'dashed' }]} onPress={() => setIsAddingRecurrence(true)}>
+                                        <Ionicons name="add" size={16} color={Palette.textSecondary} />
+                                        <Text style={[styles.chipText, { marginLeft: 4 }]}>Custom</Text>
+                                    </Pressable>
+                                )}
+                            </View>
+
+                            <Text style={styles.inputLabel}>Plot</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                                <Pressable style={[styles.chip, taskPlot === null && styles.chipActive]} onPress={() => setTaskPlot(null)}>
+                                    <Text style={[styles.chipText, taskPlot === null && styles.chipTextActive]}>None</Text>
                                 </Pressable>
-                            ))}
+                                {plots.map(p => (
+                                    <Pressable key={p.id} style={[styles.chip, taskPlot === p.name && styles.chipActive]} onPress={() => setTaskPlot(p.name)}>
+                                        <Text style={[styles.chipText, taskPlot === p.name && styles.chipTextActive]}>{p.name}</Text>
+                                    </Pressable>
+                                ))}
+                            </ScrollView>
+
+                            <Text style={styles.inputLabel}>Categories (Select multiple)</Text>
+                            <View style={styles.multiCatRow}>
+                                {userCategories.map(cat => (
+                                    <Pressable 
+                                        key={cat} 
+                                        style={[styles.chip, taskCategories.includes(cat) && { backgroundColor: getCategoryColor(cat), borderColor: getCategoryColor(cat) }]}
+                                        onPress={() => toggleCategory(cat)}
+                                    >
+                                        <Text style={[styles.chipText, taskCategories.includes(cat) && { color: 'white' }]}>{cat}</Text>
+                                    </Pressable>
+                                ))}
+                                {isAddingCat ? (
+                                    <TextInput 
+                                        style={[styles.chip, { minWidth: 80, color: Palette.text }]}
+                                        autoFocus
+                                        placeholder="New Category"
+                                        value={newCatName}
+                                        onChangeText={setNewCatName}
+                                        onSubmitEditing={handleAddCategory}
+                                        onBlur={() => setIsAddingCat(false)}
+                                    />
+                                ) : (
+                                    <Pressable style={[styles.chip, { borderStyle: 'dashed' }]} onPress={() => setIsAddingCat(true)}>
+                                        <Ionicons name="add" size={16} color={Palette.textSecondary} />
+                                        <Text style={[styles.chipText, { marginLeft: 4 }]}>New</Text>
+                                    </Pressable>
+                                )}
+                            </View>
+
+                            <Text style={styles.inputLabel}>Assigned To</Text>
+                            <TextInput style={styles.textInput} placeholder="Staff member name" value={taskAssignedTo} onChangeText={setTaskAssignedTo} placeholderTextColor="#94A3B8" />
+
+                            <Text style={styles.inputLabel}>Notes</Text>
+                            <TextInput style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]} placeholder="Additional details..." multiline value={taskNote} onChangeText={setTaskNote} placeholderTextColor="#94A3B8" />
+
+                            <Pressable style={[styles.saveButton, isSubmitting && { opacity: 0.7 }]} onPress={handleSaveTask} disabled={isSubmitting}>
+                                {isSubmitting ? <ActivityIndicator color="white" /> : <Text style={styles.saveButtonText}>{selectedTask ? 'Update Schedule' : 'Schedule Task'}</Text>}
+                            </Pressable>
+                            <View style={{ height: 40 }} />
                         </ScrollView>
 
-                        <View style={{ flexDirection: 'row', gap: 16 }}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.inputLabel}>Date</Text>
-                                <Pressable 
-                                    style={styles.textInput} 
-                                    onPress={() => setShowDatePicker(true)}
-                                >
-                                    <Text style={{ fontSize: 16, fontFamily: 'Outfit', color: Palette.text }}>
-                                        {format(pickedDate, 'MMM d, yyyy')}
-                                    </Text>
-                                </Pressable>
-                            </View>
-
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.inputLabel}>Time</Text>
-                                <Pressable 
-                                    style={styles.textInput} 
-                                    onPress={() => setShowTimePicker(true)}
-                                >
-                                    <Text style={{ fontSize: 16, fontFamily: 'Outfit', color: Palette.text }}>
-                                        {format(pickedTime, 'hh:mm a')}
-                                    </Text>
-                                </Pressable>
-                            </View>
-                        </View>
-
-                        {showDatePicker && (
-                            <View style={Platform.OS === 'ios' ? styles.iosTimePickerWrapper : {}}>
-                                <DateTimePicker
-                                    mode="date"
-                                    value={pickedDate}
-                                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                    onChange={(event, date) => {
-                                        if (Platform.OS === 'android') {
-                                            setShowDatePicker(false);
-                                        }
-                                        if (date) setPickedDate(date);
-                                    }}
-                                />
-                                {Platform.OS === 'ios' && (
-                                    <Pressable style={styles.iosTimeConfirm} onPress={() => setShowDatePicker(false)}>
-                                        <Text style={styles.iosTimeConfirmText}>Done</Text>
-                                    </Pressable>
-                                )}
-                            </View>
-                        )}
-
-                        {showTimePicker && (
-                            <View style={Platform.OS === 'ios' ? styles.iosTimePickerWrapper : {}}>
-                                <DateTimePicker
-                                    mode="time"
-                                    value={pickedTime}
-                                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                    onChange={(event, date) => {
-                                        if (Platform.OS === 'android') {
-                                            setShowTimePicker(false);
-                                        }
-                                        if (date) setPickedTime(date);
-                                    }}
-                                />
-                                {Platform.OS === 'ios' && (
-                                    <Pressable style={styles.iosTimeConfirm} onPress={() => setShowTimePicker(false)}>
-                                        <Text style={styles.iosTimeConfirmText}>Done</Text>
-                                    </Pressable>
-                                )}
-                            </View>
-                        )}
-
-                        <Text style={styles.inputLabel}>Category</Text>
-                        <View style={styles.categoryRow}>
-                            {categories.map((cat) => (
-                                <Pressable 
-                                    key={cat} 
-                                    style={[
-                                        styles.categoryPill, 
-                                        newTaskCategory === cat && { backgroundColor: getCategoryColor(cat), borderColor: getCategoryColor(cat) }
-                                    ]}
-                                    onPress={() => setNewTaskCategory(cat)}
-                                >
-                                    <Text style={[
-                                        styles.categoryPillText, 
-                                        newTaskCategory === cat && styles.categoryPillTextActive
-                                    ]}>{cat}</Text>
-                                </Pressable>
-                            ))}
-
-                            {isAddingCategory ? (
-                                <TextInput 
-                                    style={[styles.categoryPill, { minWidth: 80, paddingVertical: 4, height: 36, color: Palette.text, fontFamily: 'Outfit' }]}
-                                    autoFocus
-                                    placeholder="New..."
-                                    placeholderTextColor="#999"
-                                    value={newCategoryText}
-                                    onChangeText={setNewCategoryText}
-                                    onSubmitEditing={() => {
-                                        if (newCategoryText.trim()) {
-                                            const normalized = newCategoryText.trim();
-                                            if (!categories.includes(normalized)) {
-                                                setCategories([...categories, normalized]);
-                                            }
-                                            setNewTaskCategory(normalized);
-                                        }
-                                        setIsAddingCategory(false);
-                                        setNewCategoryText('');
-                                    }}
-                                    onBlur={() => {
-                                        setIsAddingCategory(false);
-                                        setNewCategoryText('');
-                                    }}
-                                />
-                            ) : (
-                                <Pressable 
-                                    style={[styles.categoryPill, { borderStyle: 'dashed' }]}
-                                    onPress={() => setIsAddingCategory(true)}
-                                >
-                                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                                        <Ionicons name="add" size={16} color={Palette.textSecondary} />
-                                        <Text style={[styles.categoryPillText, { marginLeft: 2 }]}>New</Text>
-                                    </View>
-                                </Pressable>
-                            )}
-                        </View>
-
-                        <Pressable 
-                            style={[styles.saveButton, isSubmitting && { opacity: 0.7 }]} 
-                            onPress={handleAddTask}
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting ? (
-                                <ActivityIndicator color="white" />
-                            ) : (
-                                <Text style={styles.saveButtonText}>Schedule Task</Text>
-                            )}
-                        </Pressable>
+                        {showDatePicker && <DateTimePicker mode="date" value={taskDate} onChange={(e, d) => { setShowDatePicker(false); if (d) setTaskDate(d); }} />}
+                        {showTimePicker && <DateTimePicker mode="time" value={taskTime} onChange={(e, d) => { setShowTimePicker(false); if (d) setTaskTime(d); }} />}
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
@@ -402,271 +530,69 @@ export default function SchedulePage() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Palette.background,
-    },
-    dateSelector: {
-        backgroundColor: 'white',
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F0F0F0',
-    },
-    dateScroll: {
-        paddingHorizontal: 16,
-        gap: 12,
-    },
-    dateCard: {
-        alignItems: 'center',
-        padding: 8,
-        borderRadius: 16,
-        width: 54,
-    },
-    dateCardActive: {
-        backgroundColor: Palette.primary + '10',
-    },
-    dateDayName: {
-        fontSize: 12,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-        marginBottom: 8,
-    },
-    dateDayNameActive: {
-        color: Palette.primary,
-        fontFamily: 'Outfit-Bold',
-    },
-    dateNumberCircle: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    dateNumberCircleActive: {
-        backgroundColor: Palette.primary,
-    },
-    dateNumber: {
-        fontSize: 16,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-    },
-    dateNumberActive: {
-        color: 'white',
-    },
-    todayDot: {
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: Palette.primary,
-        marginTop: 6,
-    },
-    scroll: {
-        padding: 20,
-        paddingBottom: 100,
-    },
-    summaryHeader: {
-        marginBottom: 20,
-    },
-    summaryTitle: {
-        fontSize: 14,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-        marginBottom: 8,
-    },
-    progressBarBg: {
-        height: 8,
-        backgroundColor: '#E0E0E0',
-        borderRadius: 4,
-        overflow: 'hidden',
-    },
-    progressBarFill: {
-        height: '100%',
-        backgroundColor: Palette.success,
-        borderRadius: 4,
-    },
-    taskCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: 'white',
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
-        borderWidth: 1,
-        borderColor: 'transparent',
-    },
-    taskCardCompleted: {
-        backgroundColor: '#F9F9F9',
-        borderColor: '#F0F0F0',
-        elevation: 0,
-    },
-    taskLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    checkbox: {
-        width: 24,
-        height: 24,
-        borderRadius: 6,
-        borderWidth: 2,
-        borderColor: '#E0E0E0',
-        marginRight: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'white',
-    },
-    checkboxCompleted: {
-        backgroundColor: Palette.success,
-        borderColor: Palette.success,
-    },
-    taskTitle: {
-        fontSize: 16,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.text,
-        marginBottom: 4,
-    },
-    taskTitleCompleted: {
-        color: Palette.textSecondary,
-        textDecorationLine: 'line-through',
-    },
-    taskMetaRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    taskMetaText: {
-        fontSize: 12,
-        fontFamily: 'Outfit',
-        color: Palette.textSecondary,
-        marginLeft: 4,
-    },
-    metaDivider: {
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: '#E0E0E0',
-        marginHorizontal: 8,
-    },
-    categoryIconBadge: {
-        width: 36,
-        height: 36,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginLeft: 12,
-    },
-    fab: {
-        position: 'absolute',
-        bottom: 24,
-        right: 24,
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: Palette.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: Palette.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        backgroundColor: 'white',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-    },
-    inputLabel: {
-        fontSize: 14,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-        marginBottom: 8,
-        marginTop: 12,
-    },
-    textInput: {
-        backgroundColor: Palette.background,
-        borderRadius: 12,
-        padding: 14,
-        fontSize: 16,
-        fontFamily: 'Outfit',
-        color: Palette.text,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-        minHeight: 52,
-        justifyContent: 'center',
-    },
-    iosTimePickerWrapper: {
-        marginTop: 10,
-        backgroundColor: Palette.background,
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    iosTimeConfirm: {
-        backgroundColor: Palette.primary,
-        padding: 12,
-        alignItems: 'center',
-    },
-    iosTimeConfirmText: {
-        color: 'white',
-        fontFamily: 'Outfit-Bold',
-        fontSize: 16,
-    },
-    categoryRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        marginTop: 8,
-    },
-    categoryPill: {
-        paddingHorizontal: 16,
-        height: 36,
-        justifyContent: 'center',
-        borderRadius: 20,
-        backgroundColor: Palette.background,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    categoryPillText: {
-        fontSize: 14,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-    },
-    categoryPillTextActive: {
-        color: 'white',
-    },
-    saveButton: {
-        backgroundColor: Palette.primary,
-        borderRadius: 16,
-        padding: 16,
-        alignItems: 'center',
-        marginTop: 32,
-    },
-    saveButtonText: {
-        color: 'white',
-        fontFamily: 'Outfit-Bold',
-        fontSize: 16,
-    }
+    container: { flex: 1, backgroundColor: 'white' },
+    headerRight: { flexDirection: 'row', alignItems: 'center', marginRight: 10, gap: 12 },
+    iconButton: { padding: 8 },
+    viewToggle: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 8, padding: 3 },
+    toggleBtn: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: 6 },
+    toggleBtnActive: { backgroundColor: Palette.primary, shadowColor: Palette.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 },
+    dateStrip: { backgroundColor: 'white', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    dateStripScroll: { paddingHorizontal: 16, gap: 10 },
+    dateItem: { width: 45, alignItems: 'center', justifyContent: 'center' },
+    dateItemActive: { opacity: 1 },
+    dateDay: { fontSize: 11, fontFamily: 'Outfit-Medium', color: '#64748B', textTransform: 'uppercase', marginBottom: 6 },
+    dateDayActive: { color: Palette.primary, fontFamily: 'Outfit-Bold' },
+    dateNumCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    dateNumCircleActive: { backgroundColor: Palette.primary },
+    dateNumCircleToday: { borderWidth: 1, borderColor: Palette.primary },
+    dateNum: { fontSize: 15, fontFamily: 'Outfit-Bold', color: '#1E293B' },
+    dateNumActive: { color: 'white' },
+    dateNumToday: { color: Palette.primary },
+    timelineContainer: { flex: 1, backgroundColor: 'white' },
+    timelineScrollContent: { width: SCREEN_WIDTH },
+    hourRow: { flexDirection: 'row', alignItems: 'flex-start' },
+    timeLabelContainer: { width: TIME_COLUMN_WIDTH, alignItems: 'center' },
+    timeLabel: { fontSize: 11, fontFamily: 'Outfit-Medium', color: '#94A3B8', backgroundColor: 'white', zIndex: 1, paddingBottom: 2 },
+    hourLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0', marginTop: 6 },
+    taskBlock: { position: 'absolute', borderRadius: 8, borderLeftWidth: 4, padding: 8, flexDirection: 'row', justifyContent: 'space-between', zIndex: 2 },
+    taskContent: { flex: 1 },
+    taskBlockTitle: { fontSize: 13, fontFamily: 'Outfit-Bold' },
+    taskBlockMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 },
+    taskBlockPlot: { fontSize: 10, fontFamily: 'Outfit-Medium' },
+    miniCat: { width: 6, height: 6, borderRadius: 3 },
+    completedBadge: { marginLeft: 4 },
+    currentTimeLine: { position: 'absolute', left: TIME_COLUMN_WIDTH, right: 0, height: 2, backgroundColor: '#EF4444', zIndex: 10 },
+    currentTimeDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#EF4444', marginLeft: -5, marginTop: -4 },
+    agendaContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+    emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+    emptyText: { fontSize: 16, fontFamily: 'Outfit-Medium', color: '#94A3B8', textAlign: 'center' },
+    agendaCard: { flexDirection: 'row', backgroundColor: 'white', borderRadius: 16, marginBottom: 12, padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
+    agendaCardCompleted: { opacity: 0.7, backgroundColor: '#F1F5F9' },
+    agendaIndicator: { width: 4, height: 40, borderRadius: 2, marginRight: 16 },
+    agendaInfo: { flex: 1 },
+    agendaTitle: { fontSize: 16, fontFamily: 'Outfit-Bold', color: '#1E293B', marginBottom: 4 },
+    agendaTitleCompleted: { textDecorationLine: 'line-through', color: '#64748B' },
+    agendaMeta: { flexDirection: 'row', alignItems: 'center' },
+    agendaMetaText: { fontSize: 12, fontFamily: 'Outfit', color: '#64748B', marginLeft: 4 },
+    agendaDot: { marginHorizontal: 6, color: '#CBD5E1' },
+    agendaCheckbox: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+    agendaCheckboxActive: { backgroundColor: Palette.success, borderColor: Palette.success },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.5)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: 'white', borderTopLeftRadius: 32, borderTopRightRadius: 32, maxHeight: '90%', padding: 24 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    modalTitle: { fontSize: 22, fontFamily: 'Outfit-Bold', color: '#1E293B' },
+    modalScroll: { marginBottom: 20 },
+    inputLabel: { fontSize: 14, fontFamily: 'Outfit-Bold', color: '#475569', marginBottom: 8, marginTop: 16 },
+    textInput: { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 16, fontSize: 16, fontFamily: 'Outfit', color: '#1E293B', borderWidth: 1, borderColor: '#E2E8F0' },
+    formRow: { flexDirection: 'row', gap: 12 },
+    inputPicker: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0', gap: 8 },
+    pickerText: { fontSize: 14, fontFamily: 'Outfit-Medium', color: '#1E293B' },
+    chipScroll: { marginBottom: 8 },
+    multiCatRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', marginRight: 8, height: 40 },
+    chipActive: { backgroundColor: Palette.primary, borderColor: Palette.primary },
+    chipText: { fontSize: 13, fontFamily: 'Outfit-Medium', color: '#64748B' },
+    chipTextActive: { color: 'white' },
+    saveButton: { backgroundColor: Palette.primary, borderRadius: 16, padding: 18, alignItems: 'center', marginTop: 24, shadowColor: Palette.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+    saveButtonText: { color: 'white', fontFamily: 'Outfit-Bold', fontSize: 16 }
 });
