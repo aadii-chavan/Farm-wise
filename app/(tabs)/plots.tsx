@@ -52,12 +52,14 @@ export default function PlotsScreen() {
   const [name, setName] = useState('');
   const [area, setArea] = useState('');
   const [cropType, setCropType] = useState('');
+  const [variety, setVariety] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
     setName('');
     setArea('');
     setCropType('');
+    setVariety('');
     setEditingPlot(null);
   };
 
@@ -76,6 +78,7 @@ export default function PlotsScreen() {
               name,
               area: parseFloat(area),
               cropType,
+              variety,
           };
           await updatePlot(updatedPlot);
       } else {
@@ -84,6 +87,7 @@ export default function PlotsScreen() {
             name,
             area: parseFloat(area),
             cropType,
+            variety,
           };
           await addPlot(newPlot);
       }
@@ -100,6 +104,7 @@ export default function PlotsScreen() {
     setName(plot.name);
     setArea(plot.area.toString());
     setCropType(plot.cropType);
+    setVariety(plot.variety || '');
     setModalVisible(true);
   };
 
@@ -184,6 +189,16 @@ export default function PlotsScreen() {
                         placeholder="e.g., Wheat" 
                         value={cropType}
                         onChangeText={setCropType}
+                    />
+                </View>
+
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Variety</Text>
+                    <TextInput 
+                        style={styles.input} 
+                        placeholder="e.g., Lokwan" 
+                        value={variety}
+                        onChangeText={setVariety}
                     />
                 </View>
 

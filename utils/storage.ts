@@ -113,7 +113,8 @@ export const getPlots = async (): Promise<Plot[]> => {
             id: p.id,
             name: p.name,
             area: Number(p.area),
-            cropType: p.crop_type
+            cropType: p.crop_type,
+            variety: p.variety
         }));
     } catch (e) {
         console.error('Failed to load plots', e);
@@ -130,7 +131,8 @@ export const savePlot = async (plot: Plot): Promise<void> => {
             user_id: userId,
             name: plot.name,
             area: plot.area,
-            crop_type: plot.cropType
+            crop_type: plot.cropType,
+            variety: plot.variety || null
         };
 
         if (plot.id && isUUID(plot.id)) {
@@ -165,7 +167,8 @@ export const updatePlot = async (plot: Plot): Promise<void> => {
           .update({
               name: plot.name,
               area: plot.area,
-              crop_type: plot.cropType
+              crop_type: plot.cropType,
+              variety: plot.variety || null
           })
           .eq('id', plot.id);
         if (error) throw error;

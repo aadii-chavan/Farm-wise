@@ -124,7 +124,9 @@ export default function PlotDetailScreen() {
           <View style={styles.statsCard}>
               <View style={styles.statsHeader}>
                   <View>
-                      <Text style={styles.statsTitle}>{plot.cropType}</Text>
+                      <Text style={styles.statsTitle}>
+                          {plot.cropType}{plot.variety ? ` (${plot.variety})` : ''}
+                      </Text>
                       <Text style={styles.statsSubtitle}>{plot.area} Acres</Text>
                   </View>
                   <View style={[styles.profitBadge, { backgroundColor: profit >= 0 ? Palette.success + '20' : Palette.danger + '20' }]}>

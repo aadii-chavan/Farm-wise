@@ -12,6 +12,7 @@ export interface Plot {
   name: string;
   area: number; // In acres
   cropType: string;
+  variety?: string;
 }
 
 export interface InventoryItem {

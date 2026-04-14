@@ -25,7 +25,9 @@ export function PlotCard({ plot, onPress, onDelete, onEdit, stats }: Props) {
             </View>
             <View>
                 <Text style={styles.name}>{plot.name}</Text>
-                <Text style={styles.details}>{plot.cropType} • {plot.area} Acres</Text>
+                <Text style={styles.details}>
+                  {plot.cropType}{plot.variety ? ` (${plot.variety})` : ''} • {plot.area} Acres
+                </Text>
             </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
