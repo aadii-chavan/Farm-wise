@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { InventoryItem, Plot, Transaction, Task, CustomEntity, GeneralExpense } from '../types/farm';
+import { InventoryItem, Plot, Transaction, Task, CustomEntity, GeneralExpense, TaskCompletion } from '../types/farm';
 import * as Storage from '../utils/storage';
 import { useAuth } from './AuthContext';
 
@@ -11,6 +11,7 @@ interface FarmContextType {
   tasks: Task[];
   generalExpenses: GeneralExpense[];
   customEntities: CustomEntity[];
+  taskCompletions: TaskCompletion[];
   loading: boolean;
   
   // Transactions
@@ -40,6 +41,8 @@ interface FarmContextType {
   // Custom Entities
   addCustomEntity: (type: 'category' | 'shop' | 'general_category' | 'recurrence', name: string) => Promise<void>;
 
+  toggleTaskCompletion: (taskId: string, date: string) => Promise<void>;
+
   refreshAll: () => Promise<void>;
 
   // General Expenses
@@ -59,6 +62,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [generalExpenses, setGeneralExpenses] = useState<GeneralExpense[]>([]);
   const [customEntities, setCustomEntities] = useState<CustomEntity[]>([]);
+  const [taskCompletions, setTaskCompletions] = useState<TaskCompletion[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   const loadData = async () => {
@@ -68,18 +72,20 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
         setInventory([]);
         setTasks([]);
         setCustomEntities([]);
+        setTaskCompletions([]);
         setLoading(false);
         return;
     }
 
     setLoading(true);
-    const [tData, pData, iData, tsData, ceData, geData] = await Promise.all([
+    const [tData, pData, iData, tsData, ceData, geData, tcData] = await Promise.all([
       Storage.getTransactions(),
       Storage.getPlots(),
       Storage.getInventory(),
       Storage.getTasks(),
       Storage.getCustomEntities(),
-      Storage.getGeneralExpenses()
+      Storage.getGeneralExpenses(),
+      Storage.getTaskCompletions()
     ]);
     setTransactions(tData);
     setPlots(pData);
@@ -87,6 +93,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     setTasks(tsData);
     setCustomEntities(ceData);
     setGeneralExpenses(geData);
+    setTaskCompletions(tcData);
     setLoading(false);
   };
 
@@ -161,6 +168,16 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   };
 
+  const toggleTaskCompletion = async (taskId: string, date: string) => {
+    const existing = taskCompletions.find(c => c.taskId === taskId && c.completedAt === date);
+    if (existing) {
+        await Storage.deleteTaskCompletion(taskId, date);
+    } else {
+        await Storage.saveTaskCompletion(taskId, date);
+    }
+    await loadData();
+  };
+
   const refreshAll = async () => {
     await loadData();
   };
@@ -209,6 +226,8 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       deleteGeneralExpense,
       customEntities,
       addCustomEntity,
+      taskCompletions,
+      toggleTaskCompletion,
       refreshAll
     }}>
       {children}

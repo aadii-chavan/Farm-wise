@@ -10,7 +10,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Task } from '@/types/farm';
 
 export default function SchedulePage() {
-    const { tasks: allTasks, plots, addTask, updateTask, deleteTask, customEntities, addCustomEntity } = useFarm();
+    const { tasks: allTasks, plots, addTask, updateTask, deleteTask, customEntities, addCustomEntity, taskCompletions, toggleTaskCompletion } = useFarm();
     const today = new Date();
     
     // UI State
@@ -72,6 +72,7 @@ export default function SchedulePage() {
 
     // Filter tasks for selected date (including recurring tasks)
     const dayTasks = useMemo(() => {
+        const formattedSelectedDate = format(selectedDate, 'yyyy-MM-dd');
         return allTasks.filter(t => {
             const taskDateObj = parse(t.date, 'yyyy-MM-dd', new Date());
             const selectedDateClean = startOfDay(selectedDate);
@@ -79,13 +80,24 @@ export default function SchedulePage() {
 
             if (isAfter(taskDateClean, selectedDateClean)) return false;
 
+            let isVisible = false;
             if (t.recurrence === 'None' || !t.recurrence) {
-                return format(selectedDate, 'yyyy-MM-dd') === t.date;
+                isVisible = formattedSelectedDate === t.date;
+            } else {
+                isVisible = checkRecurrence(t, selectedDateClean, taskDateClean);
             }
 
-            return checkRecurrence(t, selectedDateClean, taskDateClean);
-        }).sort((a, b) => a.time.localeCompare(b.time));
-    }, [allTasks, selectedDate]);
+            if (!isVisible) return false;
+
+            // Check if this specific instance is completed
+            const isDone = taskCompletions.some(c => c.taskId === t.id && c.completedAt === formattedSelectedDate);
+            return { ...t, isCompletedInstance: isDone };
+        }).sort((a, b) => a.time.localeCompare(b.time))
+          .map(t => {
+              const isDone = taskCompletions.some(c => c.taskId === t.id && c.completedAt === formattedSelectedDate);
+              return { ...t, isCompletedInstance: isDone };
+          });
+    }, [allTasks, selectedDate, taskCompletions]);
 
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener('FAB_OPEN_TASK_MODAL', () => {
@@ -150,8 +162,9 @@ export default function SchedulePage() {
         }
     };
 
-    const toggleComplete = async (task: Task) => {
-        await updateTask({ ...task, completed: !task.completed });
+    const toggleComplete = async (task: any) => {
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        await toggleTaskCompletion(task.id, dateStr);
     };
 
     const handleDelete = async (id: string) => {
@@ -234,17 +247,17 @@ export default function SchedulePage() {
                         </Pressable>
                     </View>
                 ) : (
-                    dayTasks.map((task) => (
-                        <View key={task.id} style={[styles.taskCard, task.completed && styles.taskCardCompleted]}>
+                    dayTasks.map((task: any) => (
+                        <View key={task.id} style={[styles.taskCard, task.isCompletedInstance && styles.taskCardCompleted]}>
                             <Pressable 
-                                style={[styles.checkbox, task.completed && styles.checkboxChecked]}
+                                style={[styles.checkbox, task.isCompletedInstance && styles.checkboxChecked]}
                                 onPress={() => toggleComplete(task)}
                             >
-                                {task.completed && <Ionicons name="checkmark" size={18} color="white" />}
+                                {task.isCompletedInstance && <Ionicons name="checkmark" size={18} color="white" />}
                             </Pressable>
 
                             <View style={styles.taskInfo}>
-                                <Text style={[styles.taskTitle, task.completed && styles.taskTitleCompleted]}>
+                                <Text style={[styles.taskTitle, task.isCompletedInstance && styles.taskTitleCompleted]}>
                                     {task.title}
                                 </Text>
                                 <View style={styles.metaRow}>

@@ -77,3 +77,8 @@ export interface GeneralExpense {
   note?: string;
 }
 
+export interface TaskCompletion {
+  id: string;
+  taskId: string;
+  completedAt: string; // YYYY-MM-DD
+}

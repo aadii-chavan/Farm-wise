@@ -497,3 +497,49 @@ export const deleteGeneralExpense = async (id: string): Promise<void> => {
         console.error('Failed to delete general expense', e);
     }
 };
+
+// Task Completions (Per-instance)
+export const getTaskCompletions = async (): Promise<TaskCompletion[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('task_completions')
+            .select('*');
+        if (error) throw error;
+        return (data || []).map(c => ({
+            id: c.id,
+            taskId: c.task_id,
+            completedAt: c.completed_at
+        }));
+    } catch (e) {
+        console.error('Failed to load task completions', e);
+        return [];
+    }
+};
+
+export const saveTaskCompletion = async (taskId: string, date: string): Promise<void> => {
+    try {
+        const userId = await getUserId();
+        if (!userId) return;
+        const { error } = await supabase.from('task_completions').insert({
+            task_id: taskId,
+            user_id: userId,
+            completed_at: date
+        });
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to save task completion', e);
+    }
+};
+
+export const deleteTaskCompletion = async (taskId: string, date: string): Promise<void> => {
+    try {
+        const { error } = await supabase
+            .from('task_completions')
+            .delete()
+            .eq('task_id', taskId)
+            .eq('completed_at', date);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to delete task completion', e);
+    }
+};
