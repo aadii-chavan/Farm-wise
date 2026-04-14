@@ -382,6 +382,7 @@ export default function GeneralExpensesScreen() {
                 onApply={setFilterState} 
                 initialFilters={filterState} 
                 availableCategories={dynamicCategories} 
+                hideType={true}
             />
 
             <CalendarModal visible={showCalendar} initialDate={date} onClose={() => setShowCalendar(false)} onSelectDate={setDate} maximumDate={new Date()} />

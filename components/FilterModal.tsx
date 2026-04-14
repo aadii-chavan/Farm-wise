@@ -17,6 +17,7 @@ interface FilterModalProps {
   onApply: (filters: FilterState) => void;
   initialFilters: FilterState;
   availableCategories: string[];
+  hideType?: boolean;
 }
 
 export const FilterModal: React.FC<FilterModalProps> = ({
@@ -25,6 +26,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   onApply,
   initialFilters,
   availableCategories,
+  hideType,
 }) => {
   const [localFilters, setLocalFilters] = useState<FilterState>(initialFilters);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -75,18 +77,22 @@ export const FilterModal: React.FC<FilterModalProps> = ({
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {/* Transaction Type */}
-            <Text style={styles.sectionTitle}>Transaction Type</Text>
-            <View style={styles.row}>
-              {['Both', 'Income', 'Expense'].map((t) => (
-                <Pressable
-                  key={t}
-                  style={[styles.chip, localFilters.type === t && styles.chipActive]}
-                  onPress={() => setType(t as any)}
-                >
-                  <Text style={[styles.chipText, localFilters.type === t && styles.chipTextActive]}>{t}</Text>
-                </Pressable>
-              ))}
-            </View>
+            {!hideType && (
+              <>
+                <Text style={styles.sectionTitle}>Transaction Type</Text>
+                <View style={styles.row}>
+                  {['Both', 'Income', 'Expense'].map((t) => (
+                    <Pressable
+                      key={t}
+                      style={[styles.chip, localFilters.type === t && styles.chipActive]}
+                      onPress={() => setType(t as any)}
+                    >
+                      <Text style={[styles.chipText, localFilters.type === t && styles.chipTextActive]}>{t}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
 
             {/* Date Range */}
             <Text style={styles.sectionTitle}>Date Range</Text>
@@ -141,7 +147,12 @@ export const FilterModal: React.FC<FilterModalProps> = ({
           <View style={styles.footer}>
             <Pressable 
                 style={styles.clearButton} 
-                onPress={() => setLocalFilters({ type: 'Both', categories: [], dateFilter: 'All Time', customDate: null })}
+                onPress={() => {
+                   const resetVal: FilterState = { type: 'Both', categories: [], dateFilter: 'All Time', customDate: null };
+                   setLocalFilters(resetVal);
+                   onApply(resetVal);
+                   onClose();
+                }}
             >
               <Text style={styles.clearButtonText}>Reset</Text>
             </Pressable>
