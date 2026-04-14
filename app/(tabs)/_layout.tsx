@@ -1,126 +1,132 @@
+import HeaderDropdown from '@/components/HeaderDropdown';
+import FloatingActionButton from '@/components/FloatingActionButton';
 import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
-import { Drawer } from 'expo-router/drawer';
-import React from 'react';
-import { StyleSheet, View, Pressable } from 'react-native';
-import { useNavigation } from 'expo-router';
-import { DrawerActions } from '@react-navigation/native';
-import CustomDrawerContent from '@/components/CustomDrawerContent';
-import FloatingActionButton from '@/components/FloatingActionButton';
+import { Stack, usePathname, useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, View, Text, SafeAreaView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
-function DrawerIcon(props: {
-  name: React.ComponentProps<typeof Ionicons>['name'];
-  color: string;
-}) {
-  return <Ionicons size={22} style={{ marginRight: 0 }} {...props} />;
-}
+const ROUTE_TITLES: Record<string, string> = {
+    '/': 'Farm Wise',
+    '/analysis': 'Financial Insights',
+    '/plots': 'My Plots',
+    '/inventory': 'Stock & Inventory',
+    '/shops': 'Shop Ledgers',
+    '/schedule': 'Tasks & Calendar',
+    '/general-expenses': 'Personal Expenses',
+};
 
-const MenuButton = () => {
-    const navigation = useNavigation();
+const CustomHeader = ({ title, isOpen, onToggle }: { title: string, isOpen: boolean, onToggle: () => void }) => {
+    const { top } = useSafeAreaInsets();
+    const router = useRouter();
+    
+    // Rotating arrow animation
+    const arrowStyle = useAnimatedStyle(() => ({
+        transform: [{ rotate: withSpring(isOpen ? '180deg' : '0deg', { damping: 25, stiffness: 200 }) }],
+    }));
+
     return (
-        <Pressable 
-            onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-            style={{ marginLeft: 20 }}
-        >
-            <Ionicons name="reorder-two-outline" size={32} color={Palette.text} />
-        </Pressable>
+        <View style={[styles.headerContainer, { paddingTop: top }]}>
+            <Pressable style={styles.headerContent} onPress={onToggle}>
+                <View style={styles.titleSection}>
+                    <Text style={styles.headerTitle}>{title}</Text>
+                    <Animated.View style={[styles.arrowIcon, arrowStyle]}>
+                        <Ionicons name="chevron-down" size={20} color={Palette.text} />
+                    </Animated.View>
+                </View>
+                
+                <Pressable 
+                    style={({ pressed }) => [styles.profileButton, pressed && { opacity: 0.7 }]} 
+                    onPress={() => {
+                        if (isOpen) onToggle();
+                        router.push('/profile');
+                    }}
+                >
+                    <Ionicons name="person-circle-outline" size={32} color={Palette.text} />
+                </Pressable>
+            </Pressable>
+        </View>
     );
 };
 
 export default function AppLayout() {
-  return (
-    <View style={{ flex: 1 }}>
-      <Drawer
-        drawerContent={(props) => <CustomDrawerContent {...props} />}
-        screenOptions={{
-          drawerActiveTintColor: Palette.primary,
-          drawerInactiveTintColor: Palette.textSecondary,
-          drawerLabelStyle: {
-            fontFamily: 'Outfit-SemiBold',
-            fontSize: 15,
-            marginLeft: 0,
-          },
-          drawerItemStyle: {
-            borderRadius: 12,
-            marginHorizontal: 12,
-            paddingHorizontal: 8,
-            paddingVertical: 4,
-          },
-          headerShown: true,
-          headerStyle: {
-            backgroundColor: 'white',
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-          headerTitleStyle: {
-            fontFamily: 'Outfit-Bold',
-            fontSize: 20,
-          },
-          headerTintColor: Palette.text,
-          headerLeft: () => <MenuButton />,
-        }}>
-        <Drawer.Screen
-          name="index"
-          options={{
-            drawerLabel: 'Dashboard',
-            title: 'Farm Wise',
-            drawerIcon: ({ color }) => <DrawerIcon name="grid-outline" color={color} />,
-          }}
-        />
-        <Drawer.Screen
-          name="analysis"
-          options={{
-            drawerLabel: 'Analysis',
-            title: 'Financial Insights',
-            drawerIcon: ({ color }) => <DrawerIcon name="analytics-outline" color={color} />,
-          }}
-        />
-        <Drawer.Screen
-          name="plots"
-          options={{
-            drawerLabel: 'Plots',
-            title: 'My Plots',
-            drawerIcon: ({ color }) => <DrawerIcon name="map-outline" color={color} />,
-          }}
-        />
-        <Drawer.Screen
-          name="inventory"
-          options={{
-            drawerLabel: 'Inventory',
-            title: 'Stock & Inventory',
-            drawerIcon: ({ color }) => <DrawerIcon name="cube-outline" color={color} />,
-          }}
-        />
-        <Drawer.Screen
-          name="shops"
-          options={{
-            drawerLabel: 'Shops',
-            title: 'Shop Ledgers',
-            drawerIcon: ({ color }) => <DrawerIcon name="business-outline" color={color} />,
-          }}
-        />
-        <Drawer.Screen
-          name="schedule"
-          options={{
-            drawerLabel: 'Schedule',
-            title: 'Tasks & Calendar',
-            drawerIcon: ({ color }) => <DrawerIcon name="calendar-outline" color={color} />,
-          }}
-        />
-        <Drawer.Screen
-          name="general-expenses"
-          options={{
-            drawerLabel: 'General Expenses',
-            title: 'Personal Expenses',
-            drawerIcon: ({ color }) => <DrawerIcon name="wallet-outline" color={color} />,
-          }}
-        />
-      </Drawer>
-      
-      {/* The master professional Add button */}
-      <FloatingActionButton />
-    </View>
-  );
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const pathname = usePathname();
+    
+    // Determine title based on pathname
+    // If pathname is just /(tabs), it's the index
+    const currentPath = pathname === '/(tabs)' ? '/' : pathname;
+    const title = ROUTE_TITLES[currentPath] || 'Farm Wise';
+
+    return (
+        <View style={{ flex: 1, backgroundColor: 'white' }}>
+            <CustomHeader 
+                title={title} 
+                isOpen={isDropdownOpen} 
+                onToggle={() => setIsDropdownOpen(!isDropdownOpen)} 
+            />
+            
+            <HeaderDropdown 
+                isOpen={isDropdownOpen} 
+                onClose={() => setIsDropdownOpen(false)} 
+            />
+
+            <View style={{ flex: 1 }}>
+                <Stack
+                    screenOptions={{
+                        headerShown: false,
+                        animation: 'fade',
+                    }}
+                >
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="analysis" />
+                    <Stack.Screen name="plots" />
+                    <Stack.Screen name="inventory" />
+                    <Stack.Screen name="shops" />
+                    <Stack.Screen name="schedule" />
+                    <Stack.Screen name="general-expenses" />
+                </Stack>
+            </View>
+            
+            <FloatingActionButton />
+        </View>
+    );
 }
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+    headerContainer: {
+        backgroundColor: 'white',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+        zIndex: 1001,
+    },
+    headerContent: {
+        height: 60,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+    },
+    titleSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    headerTitle: {
+        fontFamily: 'Outfit-Bold',
+        fontSize: 22,
+        color: Palette.text,
+    },
+    arrowIcon: {
+        marginLeft: 8,
+        marginTop: 2,
+    },
+    profileButton: {
+        width: 40,
+        height: 40,
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+    },
+});

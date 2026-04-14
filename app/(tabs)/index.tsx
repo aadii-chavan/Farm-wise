@@ -137,13 +137,8 @@ export default function Dashboard() {
         <View style={styles.headerContainer}>
           <View style={styles.headerTop}>
               <View>
-                  <Text style={styles.greeting}>Good Morning!</Text>
-                  <Text style={styles.date}>{format(today, 'EEEE, d MMM yyyy')}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <Pressable style={styles.profileButton} onPress={() => router.push('/profile')}>
-                      <Ionicons name="person-outline" size={24} color="white" />
-                  </Pressable>
+                  <Text style={styles.greeting}>Welcome Back,</Text>
+                  <Text style={styles.date}>{format(today, 'EEEE, d MMMM')}</Text>
               </View>
           </View>
           
@@ -340,28 +335,29 @@ const styles = StyleSheet.create({
     },
     headerContainer: {
         backgroundColor: Palette.primary,
-        paddingTop: 60,
-        paddingHorizontal: 20,
-        paddingBottom: 30,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
+        paddingTop: 20,
+        paddingHorizontal: 24,
+        paddingBottom: 24,
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
     },
     headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: 20,
     },
     greeting: {
-        fontSize: 22,
-        fontFamily: 'Outfit-Bold',
+        fontSize: 18,
+        fontFamily: 'Outfit-Medium',
         color: 'white',
+        opacity: 0.9,
     },
     date: {
-        fontSize: 14,
-        color: '#E0F2F1',
-        marginTop: 4,
-        opacity: 0.9,
+        fontSize: 24,
+        fontFamily: 'Outfit-Bold',
+        color: 'white',
+        marginTop: 2,
     },
     profileButton: {
         width: 40,
