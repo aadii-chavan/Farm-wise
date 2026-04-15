@@ -1,3 +1,4 @@
+import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
 import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +15,6 @@ import {
     TextInput,
     View
 } from 'react-native';
-import { Text } from '@/components/Themed';
-import { useAuth } from '@/context/AuthContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
