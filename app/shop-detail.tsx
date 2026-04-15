@@ -180,8 +180,14 @@ export default function ShopDetailScreen() {
     }, [inventory, shopPayments, name]);
 
     const handleRecordPayment = async () => {
-        if (!payAmount || parseFloat(payAmount) <= 0) {
+        const amount = parseFloat(payAmount);
+        if (!payAmount || isNaN(amount) || amount <= 0) {
             Alert.alert("Invalid Amount", "Please enter a valid payment amount.");
+            return;
+        }
+
+        if (amount > Math.ceil(summary.currentBalance)) {
+            Alert.alert("Amount Exceeds Balance", `You can only record a maximum payment of ₹${Math.ceil(summary.currentBalance).toLocaleString('en-IN')}.`);
             return;
         }
 
@@ -237,7 +243,16 @@ export default function ShopDetailScreen() {
                 </View>
             </View>
 
-            <Pressable style={styles.payBtn} onPress={() => setIsPayModalVisible(true)}>
+            <Pressable 
+                style={[styles.payBtn, summary.currentBalance <= 0 && { backgroundColor: Palette.textSecondary, opacity: 0.8 }]} 
+                onPress={() => {
+                    if (summary.currentBalance <= 0) {
+                        Alert.alert("No Outstanding Balance", "There are no outstanding bills to pay.");
+                        return;
+                    }
+                    setIsPayModalVisible(true);
+                }}
+            >
                 <Ionicons name="card-outline" size={20} color="white" />
                 <Text style={styles.payBtnText}>Record Payment</Text>
             </Pressable>
