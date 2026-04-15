@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Image,
     KeyboardAvoidingView,
     Platform,
     Pressable,
@@ -51,7 +52,11 @@ export default function Login() {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Ionicons name="leaf" size={60} color="white" />
+            <Image 
+              source={require('../../assets/images/farmezy.png')} 
+              style={styles.logo}
+              resizeMode="cover"
+            />
           </View>
           <Text style={styles.title}>FarmEzy</Text>
           <Text style={styles.subtitle}>Empowering your harvest</Text>
@@ -145,13 +150,27 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 100,
+    overflow: 'hidden',
   },
   title: {
     fontSize: 32,
