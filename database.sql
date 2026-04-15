@@ -77,6 +77,9 @@ create table if not exists public.inventory (
   invoice_no text,
   note text,
   purchase_date timestamp with time zone,
+  interest_rate decimal,
+  interest_period text,
+  batch_id text,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
