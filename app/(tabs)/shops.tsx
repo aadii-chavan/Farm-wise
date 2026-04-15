@@ -50,10 +50,7 @@ export default function ShopsPage() {
         <>
             <Stack.Screen 
                options={{ 
-                   title: 'Shops & Vendors', 
-                   headerShown: true, 
-                   headerShadowVisible: false, 
-                   headerStyle: { backgroundColor: Palette.background } 
+                   headerShown: false, 
                }} 
             />
             <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
