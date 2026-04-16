@@ -28,7 +28,6 @@ const MENU_ITEMS = [
     { id: 'analysis', label: 'Analysis', icon: 'analytics-outline', route: '/analysis' },
     { id: 'plots', label: 'My Plots', icon: 'map-outline', route: '/plots' },
     { id: 'inventory', label: 'Inventory', icon: 'cube-outline', route: '/inventory' },
-    { id: 'shops', label: 'Shops', icon: 'business-outline', route: '/shops' },
     { id: 'schedule', label: 'Schedule', icon: 'calendar-outline', route: '/schedule' },
     { id: 'labor-book', label: 'Labor Book', icon: 'people-outline', route: '/labor-book' },
     { id: 'general-expenses', label: 'Personal Expenses', icon: 'wallet-outline', route: '/general-expenses' },

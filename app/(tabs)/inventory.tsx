@@ -7,7 +7,7 @@ import { InventoryItem, InventoryUnit } from '@/types/farm';
 import { getSecondaryUnit } from '@/utils/conversions';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import { useNavigation } from 'expo-router';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
     Alert,
@@ -27,21 +27,11 @@ const FIXED_UNITS: InventoryUnit[] = ['kg', 'gm', 'L', 'mL', 'bags'];
 const INVENTORY_CATEGORIES = ['Seeds', 'Fertilizer', 'Pesticide', 'Fuel'];
 
 export default function InventoryScreen() {
-  const { inventory, addInventoryItem, updateInventoryQuantity, deleteInventoryItem, customEntities, addCustomEntity } = useFarm();
-  const navigation = useNavigation();
+  const { inventory, addInventoryItem, updateInventoryQuantity, deleteInventoryItem, customEntities, addCustomEntity, transactions } = useFarm();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'stocks' | 'shops'>('stocks');
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable 
-          onPress={() => setModalVisible(true)} 
-          style={{ marginRight: 20 }}
-        >
-          <Ionicons name="add-circle" size={32} color={Palette.primary} />
-        </Pressable>
-      ),
-    });
-  }, [navigation]);
+// No longer using navigation options for header add button to keep it clean with the toggle
   
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('FAB_OPEN_INVENTORY_MODAL', () => {
@@ -107,6 +97,34 @@ export default function InventoryScreen() {
     const unique = Array.from(new Set([...stored, ...existing]));
     return unique;
   }, [inventory, customEntities]);
+
+  const shopProfiles = useMemo(() => {
+    const shopsRaw: Record<string, typeof inventory> = {};
+    inventory.forEach(item => {
+        if (item.shopName && item.shopName.trim() !== '') {
+            const sName = item.shopName.trim();
+            if (!shopsRaw[sName]) shopsRaw[sName] = [];
+            shopsRaw[sName].push(item);
+        }
+    });
+
+    return Object.keys(shopsRaw).map(shopName => {
+        const items = shopsRaw[shopName];
+        const totalSpent = items.reduce((acc, it) => acc + (it.quantity * (it.pricePerUnit || 0)), 0);
+        const creditItems = items.filter(i => i.paymentMode === 'Credit');
+        const principalCredit = creditItems.reduce((acc, it) => acc + (it.quantity * (it.pricePerUnit || 0)), 0);
+        const payments = transactions.filter(t => t.type === 'Expense' && t.category === 'Shop Payment' && t.title === shopName);
+        const totalPayments = payments.reduce((acc, p) => acc + p.amount, 0);
+        const currentCredit = Math.max(0, principalCredit - totalPayments);
+
+        return {
+            shopName,
+            itemCount: items.length,
+            totalSpent,
+            currentCredit,
+        };
+    }).sort((a,b) => b.totalSpent - a.totalSpent);
+  }, [inventory, transactions]);
 
   const handleEdit = (item: InventoryItem) => {
       // For editing single items, we bypass the batch system for now 
@@ -339,33 +357,101 @@ export default function InventoryScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={inventory}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <InventoryCard 
-            item={item} 
-            onUpdateQuantity={(delta) => updateInventoryQuantity(item.id, delta)}
-            onEdit={() => handleEdit(item)}
-            onDelete={() => {
-                Alert.alert("Delete Item", `Remove ${item.name} from inventory?`, [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Delete", style: "destructive", onPress: () => deleteInventoryItem(item.id) }
-                ]);
-            }}
-          />
-        )}
-        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-        ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-                <Ionicons name="cube-outline" size={64} color={Palette.textSecondary + '40'} />
-                <Text style={styles.emptyText}>Inventory is empty.</Text>
-                <Pressable style={styles.addBtn} onPress={() => setModalVisible(true)}>
-                    <Text style={styles.addBtnText}>Add Supplies</Text>
+      {/* Professional Tab Toggle */}
+      <View style={styles.headerToggleContainer}>
+        <View style={styles.toggleWrapper}>
+            <Pressable 
+                style={[styles.toggleBtn, activeTab === 'stocks' && styles.toggleBtnActive]} 
+                onPress={() => setActiveTab('stocks')}
+            >
+                <Ionicons name="cube" size={18} color={activeTab === 'stocks' ? 'white' : Palette.textSecondary} />
+                <Text style={[styles.toggleBtnText, activeTab === 'stocks' && styles.toggleBtnTextActive]}>Stocks</Text>
+            </Pressable>
+            <Pressable 
+                style={[styles.toggleBtn, activeTab === 'shops' && styles.toggleBtnActive]} 
+                onPress={() => setActiveTab('shops')}
+            >
+                <Ionicons name="business" size={18} color={activeTab === 'shops' ? 'white' : Palette.textSecondary} />
+                <Text style={[styles.toggleBtnText, activeTab === 'shops' && styles.toggleBtnTextActive]}>Shops</Text>
+            </Pressable>
+        </View>
+        <Pressable 
+          onPress={() => setModalVisible(true)} 
+          style={styles.headerAddBtn}
+        >
+          <Ionicons name="add" size={24} color="white" />
+        </Pressable>
+      </View>
+
+      {activeTab === 'stocks' ? (
+        <FlatList
+            data={inventory}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+            <InventoryCard 
+                item={item} 
+                onUpdateQuantity={(delta) => updateInventoryQuantity(item.id, delta)}
+                onEdit={() => handleEdit(item)}
+                onDelete={() => {
+                    Alert.alert("Delete Item", `Remove ${item.name} from inventory?`, [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Delete", style: "destructive", onPress: () => deleteInventoryItem(item.id) }
+                    ]);
+                }}
+            />
+            )}
+            contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+            ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                    <Ionicons name="cube-outline" size={64} color={Palette.textSecondary + '40'} />
+                    <Text style={styles.emptyText}>Inventory is empty.</Text>
+                    <Pressable style={styles.addBtn} onPress={() => setModalVisible(true)}>
+                        <Text style={styles.addBtnText}>Add Supplies</Text>
+                    </Pressable>
+                </View>
+            }
+        />
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
+            {shopProfiles.map(shop => (
+                <Pressable 
+                   key={shop.shopName} 
+                   style={styles.shopCard}
+                   onPress={() => router.push({ pathname: '/shop-detail', params: { name: shop.shopName } })}
+                >
+                    <View style={styles.shopCardHeader}>
+                        <View style={styles.shopHeaderLeft}>
+                            <View style={styles.shopIconCircle}>
+                                <Ionicons name="storefront" size={18} color={Palette.primary} />
+                            </View>
+                            <Text style={styles.shopCardName}>{shop.shopName}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={Palette.textSecondary} />
+                    </View>
+                    
+                    <View style={styles.shopMetricsRow}>
+                         <View style={styles.shopMetricBox}>
+                             <Text style={styles.shopMetricLabel}>Total Value</Text>
+                             <Text style={styles.shopMetricVal}>₹{shop.totalSpent.toLocaleString('en-IN')}</Text>
+                         </View>
+                          <View style={styles.shopMetricBox}>
+                             <Text style={styles.shopMetricLabel}>Outstanding Credit</Text>
+                             <Text style={[styles.shopMetricVal, { color: shop.currentCredit > 0 ? Palette.danger : Palette.success }]}>
+                                ₹{shop.currentCredit.toLocaleString('en-IN')}
+                             </Text>
+                          </View>
+                    </View>
                 </Pressable>
-            </View>
-        }
-      />
+            ))}
+            
+            {shopProfiles.length === 0 && (
+                <View style={styles.emptyContainer}>
+                    <Ionicons name="business-outline" size={64} color={Palette.textSecondary + '40'} />
+                    <Text style={styles.emptyText}>No shops recorded yet.</Text>
+                </View>
+            )}
+        </ScrollView>
+      )}
 
       <Modal
         animationType="slide"
@@ -671,7 +757,120 @@ export default function InventoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Palette.background,
+    backgroundColor: '#F8FAFC',
+  },
+  headerToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 12,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  toggleWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    padding: 4,
+  },
+  toggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+  },
+  toggleBtnActive: {
+    backgroundColor: Palette.primary,
+    shadowColor: Palette.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  toggleBtnText: {
+    fontSize: 14,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.textSecondary,
+  },
+  toggleBtnTextActive: {
+    color: 'white',
+  },
+  headerAddBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Palette.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Palette.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  shopCard: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  shopCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  shopHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  shopIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: Palette.primary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  shopCardName: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 17,
+    color: Palette.text,
+  },
+  shopMetricsRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 16,
+  },
+  shopMetricBox: {
+    flex: 1,
+  },
+  shopMetricLabel: {
+    fontFamily: 'Outfit-Medium',
+    fontSize: 11,
+    color: Palette.textSecondary,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
+  shopMetricVal: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 16,
+    color: Palette.text,
   },
   emptyContainer: {
       flex: 1,

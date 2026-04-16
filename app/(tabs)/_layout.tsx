@@ -13,7 +13,6 @@ const ROUTE_TITLES: Record<string, string> = {
     '/analysis': 'Financial Insights',
     '/plots': 'My Plots',
     '/inventory': 'Stock & Inventory',
-    '/shops': 'Shop Ledgers',
     '/schedule': 'Tasks & Calendar',
     '/general-expenses': 'Personal Expenses',
     '/labor-book': 'Labor Book',
@@ -85,7 +84,6 @@ export default function AppLayout() {
                     <Stack.Screen name="analysis" />
                     <Stack.Screen name="plots" />
                     <Stack.Screen name="inventory" />
-                    <Stack.Screen name="shops" />
                     <Stack.Screen name="schedule" />
                     <Stack.Screen name="labor-book" />
                     <Stack.Screen name="general-expenses" />
