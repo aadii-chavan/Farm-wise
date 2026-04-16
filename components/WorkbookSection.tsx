@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFarm } from '@/context/FarmContext';
 import { WorkbookTemplate, WorkbookEntry, WorkbookColumn, WorkbookColumnType } from '@/types/farm';
 import { CalendarModal } from './CalendarModal';
+import { format } from 'date-fns';
 
 interface WorkbookSectionProps {
   plotId: string;
@@ -185,7 +186,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Palette.primary} />
-          <Text style={styles.loadingText}>Loading Workbook...</Text>
+          <Text style={styles.loadingText}>Syncing workbook data...</Text>
         </View>
       );
     }
@@ -193,11 +194,15 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     if (!template || template.columns.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <View style={styles.emptyIconContainer}>
-            <Ionicons name="construct-outline" size={48} color={Palette.primary} />
+          <View style={styles.emptyIllustration}>
+            <View style={styles.emptyInnerCircle}>
+              <Ionicons name="book" size={40} color={Palette.primary} />
+            </View>
+            <View style={[styles.emptyOrbit, { transform: [{ rotate: '45deg' }] }]} />
+            <View style={[styles.emptyOrbit, { transform: [{ rotate: '-45deg' }] }]} />
           </View>
-          <Text style={styles.emptyTitle}>Custom Workbook</Text>
-          <Text style={styles.emptySubtitle}>Create your own custom table to track records for this plot exactly how you want.</Text>
+          <Text style={styles.emptyTitle}>Personalized Tracking</Text>
+          <Text style={styles.emptySubtitle}>Every farm is different. Create a custom structure to track the exact metrics that matter to you.</Text>
           <TouchableOpacity 
             style={styles.setupButton}
             onPress={() => {
@@ -205,7 +210,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
               setShowTemplateModal(true);
             }}
           >
-            <Text style={styles.setupButtonText}>Setup Table Structure</Text>
+            <Ionicons name="sparkles" size={18} color="white" style={{ marginRight: 8 }} />
+            <Text style={styles.setupButtonText}>Start Building</Text>
           </TouchableOpacity>
         </View>
       );
@@ -216,7 +222,10 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     return (
       <View style={{ flex: 1 }}>
         <View style={styles.header}>
-          <Text style={styles.entriesCount}>{entries.length} Records</Text>
+          <View>
+             <Text style={styles.subtitle}>Current Records</Text>
+             <Text style={styles.entriesCount}>{entries.length} Rows</Text>
+          </View>
           <TouchableOpacity 
             style={styles.manageButton}
             onPress={() => {
@@ -224,53 +233,67 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
               setShowTemplateModal(true);
             }}
           >
-            <Ionicons name="settings-outline" size={16} color={Palette.primary} />
-            <Text style={styles.manageButtonText}>Manage Columns</Text>
+            <Ionicons name="options-outline" size={18} color={Palette.primary} />
+            <Text style={styles.manageButtonText}>Structure</Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}>
+          <View style={styles.tableWrapper}>
+            {/* Elegant Table Header */}
             <View style={styles.tableHeader}>
               {sortedColumns.map(col => (
-                <View key={col.id} style={[styles.columnHeader, { width: col.type === 'note' ? 200 : 120 }]}>
-                  <Ionicons 
-                    name={COLUMN_TYPES.find(t => t.value === col.type)?.icon || 'text-outline'} 
-                    size={14} 
-                    color={Palette.textSecondary} 
-                    style={{ marginRight: 6 }}
-                  />
+                <View key={col.id} style={[styles.columnHeader, { width: col.type === 'note' ? 240 : 130 }]}>
+                    <View style={styles.columnIconBg}>
+                        <Ionicons 
+                            name={COLUMN_TYPES.find(t => t.value === col.type)?.icon || 'text-outline'} 
+                            size={12} 
+                            color={Palette.primary} 
+                        />
+                    </View>
                   <Text style={styles.columnHeaderText}>{col.name}</Text>
                 </View>
               ))}
               <View style={{ width: 60 }} />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+            {/* Premium Table Content */}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
               {entries.length === 0 ? (
                 <View style={styles.noEntriesContainer}>
-                  <Text style={styles.noEntriesText}>No records yet. Tap + to add one.</Text>
+                   <View style={styles.noEntriesIcon}>
+                      <Ionicons name="document-text-outline" size={32} color={Palette.textSecondary + '40'} />
+                   </View>
+                  <Text style={styles.noEntriesText}>No records found</Text>
+                  <Text style={styles.noEntriesSub}>Use the button below to add your first row</Text>
                 </View>
               ) : (
-                entries.map(entry => (
+                entries.map((entry, index) => (
                   <Pressable 
                     key={entry.id} 
-                    style={styles.tableRow}
+                    style={[styles.tableRow, index % 2 === 1 && { backgroundColor: Palette.primary + '05' }]}
                     onPress={() => openEntryModal(entry)}
                   >
                     {sortedColumns.map(col => (
-                      <View key={col.id} style={[styles.cell, { width: col.type === 'note' ? 200 : 120 }]}>
+                      <View key={col.id} style={[styles.cell, { width: col.type === 'note' ? 240 : 130 }]}>
                         <Text 
-                          style={[styles.cellText, col.type === 'note' && { fontSize: 13 }]} 
-                          numberOfLines={2}
+                          style={[
+                            styles.cellText, 
+                            col.type === 'note' && styles.noteText,
+                            col.type === 'number' && styles.numberText,
+                            !entry.data[col.id] && { color: Palette.textSecondary + '40' }
+                          ]} 
                         >
-                          {entry.data[col.id] || '-'}
+                          {entry.data[col.id] || '—'}
                         </Text>
                       </View>
                     ))}
-                    <View style={[styles.cell, { width: 60, flexDirection: 'row', justifyContent: 'flex-end' }]}>
-                      <TouchableOpacity onPress={() => handleDeleteEntry(entry.id)}>
-                        <Ionicons name="trash-outline" size={18} color={Palette.danger + '80'} />
+                    <View style={[styles.cell, { width: 60, flexDirection: 'row', justifyContent: 'center' }]}>
+                      <TouchableOpacity 
+                        onPress={() => handleDeleteEntry(entry.id)}
+                        style={styles.deleteBtn}
+                      >
+                        <Ionicons name="trash" size={16} color={Palette.danger + '80'} />
                       </TouchableOpacity>
                     </View>
                   </Pressable>
@@ -284,7 +307,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
           style={styles.fab}
           onPress={() => openEntryModal()}
         >
-          <Ionicons name="add" size={30} color="white" />
+          <Ionicons name="add" size={32} color="white" />
         </TouchableOpacity>
       </View>
     );
@@ -300,36 +323,43 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
       <Modal visible={showTemplateModal} animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Table Columns</Text>
-            <TouchableOpacity onPress={() => setShowTemplateModal(false)}>
-              <Ionicons name="close" size={28} color={Palette.text} />
+            <View>
+                <Text style={styles.modalTitle}>Structure Builder</Text>
+                <Text style={styles.modalSubtitle}>Edit your table layout</Text>
+            </View>
+            <TouchableOpacity 
+                style={styles.closeBtn}
+                onPress={() => setShowTemplateModal(false)}
+            >
+              <Ionicons name="close" size={24} color={Palette.text} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalContent}>
-            <Text style={styles.modalSubtitle}>Define what information you want to track for this plot.</Text>
-            
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
             {editingColumns.map((col, index) => (
               <View key={col.id} style={styles.columnEditorCard}>
                 <View style={styles.columnEditorHeader}>
-                  <Text style={styles.columnEditorIndex}>Column #{index + 1}</Text>
-                  <TouchableOpacity onPress={() => removeColumn(col.id)}>
-                    <Ionicons name="trash-outline" size={20} color={Palette.danger} />
+                  <View style={styles.indexBadge}>
+                    <Text style={styles.indexBadgeText}>{index + 1}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.removeBtn}
+                    onPress={() => removeColumn(col.id)}
+                  >
+                    <Ionicons name="remove-circle" size={22} color={Palette.danger} />
                   </TouchableOpacity>
                 </View>
 
                 <TextInput
                   style={styles.columnNameInput}
-                  placeholder="Column Name (e.g. Date, Activity)"
+                  placeholder="e.g. Activity Name"
+                  placeholderTextColor={Palette.textSecondary + '60'}
                   value={col.name}
                   onChangeText={(val) => updateColumn(col.id, { name: val })}
                 />
 
-                <View style={styles.typeSelectorLabelRow}>
-                  <Text style={styles.typeLabel}>Data Type</Text>
-                </View>
-                
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeList}>
+                <Text style={styles.typeLabel}>Data Type</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeList} contentContainerStyle={{ paddingRight: 20 }}>
                   {COLUMN_TYPES.map(type => (
                     <TouchableOpacity 
                       key={type.value}
@@ -341,7 +371,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                     >
                       <Ionicons 
                         name={type.icon} 
-                        size={16} 
+                        size={14} 
                         color={col.type === type.value ? 'white' : Palette.textSecondary} 
                       />
                       <Text style={[
@@ -356,27 +386,27 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                   style={styles.requiredToggle}
                   onPress={() => updateColumn(col.id, { required: !col.required })}
                 >
-                  <Ionicons 
-                    name={col.required ? "checkbox" : "square-outline"} 
-                    size={20} 
-                    color={col.required ? Palette.primary : Palette.textSecondary} 
-                  />
-                  <Text style={styles.requiredToggleText}>Required Field</Text>
+                  <View style={[styles.checkbox, col.required && styles.checkboxActive]}>
+                    {col.required && <Ionicons name="checkmark" size={14} color="white" />}
+                  </View>
+                  <Text style={styles.requiredToggleText}>Mandatory field</Text>
                 </TouchableOpacity>
               </View>
             ))}
 
             <TouchableOpacity style={styles.addColumnButton} onPress={addColumn}>
-              <Ionicons name="add-circle-outline" size={24} color={Palette.primary} />
-              <Text style={styles.addColumnButtonText}>Add New Column</Text>
+              <Ionicons name="add-circle" size={22} color={Palette.primary} />
+              <Text style={styles.addColumnButtonText}>Add Column</Text>
             </TouchableOpacity>
 
-            <View style={{ height: 100 }} />
+            <View style={{ height: 120 }} />
           </ScrollView>
 
-          <TouchableOpacity style={styles.saveTemplateButton} onPress={handleSaveTemplate}>
-            <Text style={styles.saveTemplateButtonText}>Save Structure</Text>
-          </TouchableOpacity>
+          <View style={styles.modalFooter}>
+            <TouchableOpacity style={styles.saveTemplateButton} onPress={handleSaveTemplate}>
+                <Text style={styles.saveTemplateButtonText}>Update Structure</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
@@ -386,13 +416,18 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
           <KeyboardAvoidingView 
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.entryModalRoot}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
           >
             <View style={styles.entryModalContainer}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{editingEntry ? 'Edit Record' : 'Add Record'}</Text>
-                <TouchableOpacity onPress={() => setShowEntryModal(false)}>
-                  <Ionicons name="close" size={28} color={Palette.text} />
+                <View>
+                    <Text style={styles.modalTitle}>{editingEntry ? 'Edit Entry' : 'Log Entry'}</Text>
+                    <Text style={styles.modalSubtitle}>Fill in the details below</Text>
+                </View>
+                <TouchableOpacity 
+                    style={styles.closeBtn}
+                    onPress={() => setShowEntryModal(false)}
+                >
+                  <Ionicons name="close" size={24} color={Palette.text} />
                 </TouchableOpacity>
               </View>
 
@@ -410,28 +445,33 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
 
                     {col.type === 'category' ? (
                       <TouchableOpacity 
-                        style={styles.datePickerButton}
+                        style={styles.formInputContainer}
                         onPress={() => setShowCategoryPicker({ active: true, colId: col.id })}
                       >
-                        <Text style={[styles.datePickerText, !newEntryData[col.id] && { color: Palette.textSecondary }]}>
-                          {newEntryData[col.id] || 'Select Category'}
+                        <Text style={[styles.datePickerText, !newEntryData[col.id] && { color: Palette.textSecondary + '60' }]}>
+                          {newEntryData[col.id] || 'Select one...'}
                         </Text>
-                        <Ionicons name="caret-down" size={20} color={Palette.primary} />
+                        <Ionicons name="chevron-down" size={18} color={Palette.primary} />
                       </TouchableOpacity>
                     ) : col.type === 'date' ? (
                       <TouchableOpacity 
-                        style={styles.datePickerButton}
+                        style={styles.formInputContainer}
                         onPress={() => setShowDatePicker({ active: true, colId: col.id })}
                       >
-                        <Text style={[styles.datePickerText, !newEntryData[col.id] && { color: Palette.textSecondary }]}>
-                          {newEntryData[col.id] || 'Select Date'}
+                        <Text style={[styles.datePickerText, !newEntryData[col.id] && { color: Palette.textSecondary + '60' }]}>
+                          {newEntryData[col.id] || 'Choose Date'}
                         </Text>
-                        <Ionicons name="calendar-outline" size={20} color={Palette.primary} />
+                        <Ionicons name="calendar" size={18} color={Palette.primary} />
                       </TouchableOpacity>
                     ) : (
                       <TextInput
-                        style={[styles.formInput, col.type === 'note' && { height: 100, textAlignVertical: 'top' }]}
+                        style={[
+                            styles.formInput, 
+                            col.type === 'note' && { height: 120, textAlignVertical: 'top' },
+                            { color: Palette.text }
+                        ]}
                         placeholder={`Enter ${col.name.toLowerCase()}`}
+                        placeholderTextColor={Palette.textSecondary + '60'}
                         multiline={col.type === 'note'}
                         keyboardType={col.type === 'number' ? 'numeric' : col.type === 'phone' ? 'phone-pad' : 'default'}
                         value={newEntryData[col.id]?.toString()}
@@ -444,7 +484,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
 
               <View style={styles.entryModalFooter}>
                 <TouchableOpacity style={styles.saveEntryButton} onPress={handleSaveEntry}>
-                  <Text style={styles.saveEntryButtonText}>Save Record</Text>
+                    <Ionicons name="checkmark-circle" size={20} color="white" style={{marginRight: 8}} />
+                    <Text style={styles.saveEntryButtonText}>Save Record</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -452,15 +493,18 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
         </View>
       </Modal>
 
-      {/* Category Picker Modal */}
+      {/* Category Picker */}
       <Modal visible={!!showCategoryPicker} transparent animationType="fade">
         <Pressable style={styles.pickerOverlay} onPress={() => setShowCategoryPicker(null)}>
           <View style={styles.pickerContainer}>
             <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Category</Text>
+              <Text style={styles.pickerTitle}>Select Option</Text>
+              <TouchableOpacity onPress={() => setShowCategoryPicker(null)}>
+                  <Ionicons name="close" size={20} color={Palette.textSecondary} />
+              </TouchableOpacity>
             </View>
             
-            <ScrollView style={{ maxHeight: 300 }}>
+            <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
               {workbookCategories.map(cat => (
                 <TouchableOpacity 
                   key={cat} 
@@ -474,7 +518,9 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                 >
                   <Text style={styles.pickerItemText}>{cat}</Text>
                   {showCategoryPicker && newEntryData[showCategoryPicker.colId] === cat && (
-                    <Ionicons name="checkmark" size={20} color={Palette.primary} />
+                    <View style={styles.checkCircle}>
+                        <Ionicons name="checkmark" size={14} color="white" />
+                    </View>
                   )}
                 </TouchableOpacity>
               ))}
@@ -484,17 +530,24 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
               <View style={styles.addNewSection}>
                 <TextInput
                   style={styles.newCatInput}
-                  placeholder="Enter new category name"
+                  placeholder="New category name"
+                  placeholderTextColor={Palette.textSecondary + '60'}
                   value={newCategoryName}
                   onChangeText={setNewCategoryName}
                   autoFocus
                 />
                 <View style={styles.newCatActions}>
-                  <TouchableOpacity onPress={() => setIsAddingCategory(false)}>
-                    <Text style={[styles.newCatButtonText, { color: Palette.textSecondary }]}>Cancel</Text>
+                  <TouchableOpacity 
+                    style={styles.cancelCatBtn}
+                    onPress={() => setIsAddingCategory(false)}
+                  >
+                    <Text style={styles.cancelCatText}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleAddCategory}>
-                    <Text style={[styles.newCatButtonText, { color: Palette.primary }]}>Add</Text>
+                  <TouchableOpacity 
+                    style={styles.addCatBtn}
+                    onPress={handleAddCategory}
+                  >
+                    <Text style={styles.addCatText}>Add</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -503,8 +556,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                 style={styles.plusNewButton}
                 onPress={() => setIsAddingCategory(true)}
               >
-                <Ionicons name="add" size={20} color={Palette.primary} />
-                <Text style={styles.plusNewButtonText}>(+ New)</Text>
+                <Ionicons name="add-circle" size={20} color={Palette.primary} />
+                <Text style={styles.plusNewButtonText}>Create New</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -517,7 +570,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
         onClose={() => setShowDatePicker(null)}
         onSelectDate={(date) => {
           if (showDatePicker) {
-            setNewEntryData({ ...newEntryData, [showDatePicker.colId]: date.toISOString().split('T')[0] });
+            setNewEntryData({ ...newEntryData, [showDatePicker.colId]: format(date, 'yyyy-MM-dd') });
             setShowDatePicker(null);
           }
         }}
@@ -529,123 +582,205 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 10,
   },
   loadingContainer: {
-    padding: 40,
+    padding: 60,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 16,
     color: Palette.textSecondary,
-    fontFamily: 'Outfit',
+    fontFamily: 'Outfit-Medium',
+    fontSize: 14,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
+    alignItems: 'flex-end',
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: Palette.textSecondary,
+    fontFamily: 'Outfit-Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   entriesCount: {
-    fontSize: 14,
-    color: Palette.textSecondary,
-    fontFamily: 'Outfit-Medium',
+    fontSize: 20,
+    color: Palette.text,
+    fontFamily: 'Outfit-Bold',
   },
   manageButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Palette.primary + '10',
+    backgroundColor: Palette.primary + '15',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Palette.primary + '20',
   },
   manageButtonText: {
-    fontSize: 12,
+    fontSize: 13,
     color: Palette.primary,
     fontFamily: 'Outfit-Bold',
     marginLeft: 6,
   },
+  tableWrapper: {
+    borderRadius: 16,
+    backgroundColor: 'white',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#f5f5f5',
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: Palette.border,
   },
   columnHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+  },
+  columnIconBg: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    backgroundColor: Palette.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
   columnHeaderText: {
     fontFamily: 'Outfit-Bold',
     fontSize: 13,
-    color: Palette.text,
+    color: '#475569',
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#F1F5F9',
     alignItems: 'center',
+    minHeight: 56,
   },
   cell: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    justifyContent: 'center',
   },
   cellText: {
-    fontFamily: 'Outfit',
+    fontFamily: 'Outfit-Medium',
     fontSize: 14,
     color: Palette.text,
+    lineHeight: 20,
+  },
+  noteText: {
+    fontSize: 13,
+    color: '#475569',
+  },
+  numberText: {
+      fontFamily: 'Outfit-Bold',
+      color: Palette.primary,
+  },
+  deleteBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: Palette.danger + '10',
+      alignItems: 'center',
+      justifyContent: 'center',
   },
   noEntriesContainer: {
-    padding: 40,
+    padding: 60,
     alignItems: 'center',
   },
+  noEntriesIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: '#F8FAFC',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+  },
   noEntriesText: {
-    color: Palette.textSecondary,
-    fontFamily: 'Outfit',
+    color: Palette.text,
+    fontFamily: 'Outfit-Bold',
+    fontSize: 16,
+  },
+  noEntriesSub: {
+      color: Palette.textSecondary,
+      fontFamily: 'Outfit',
+      fontSize: 13,
+      marginTop: 4,
   },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 30,
-    marginTop: 20,
+    padding: 40,
+    minHeight: 400,
   },
-  emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Palette.primary + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
+  emptyIllustration: {
+      width: 120,
+      height: 120,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 30,
+  },
+  emptyInnerCircle: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      backgroundColor: Palette.primary + '10',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2,
+  },
+  emptyOrbit: {
+      position: 'absolute',
+      width: 110,
+      height: 60,
+      borderRadius: 100,
+      borderWidth: 1,
+      borderColor: Palette.primary + '20',
+      borderStyle: 'dashed',
   },
   emptyTitle: {
     fontSize: 22,
     fontFamily: 'Outfit-Bold',
     color: Palette.text,
-    marginBottom: 10,
+    textAlign: 'center',
+    marginBottom: 12,
   },
   emptySubtitle: {
     fontSize: 14,
     color: Palette.textSecondary,
     textAlign: 'center',
     fontFamily: 'Outfit',
-    lineHeight: 20,
-    marginBottom: 30,
+    lineHeight: 22,
+    marginBottom: 34,
+    paddingHorizontal: 20,
   },
   setupButton: {
+    flexDirection: 'row',
     backgroundColor: Palette.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingHorizontal: 28,
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
     shadowColor: Palette.primary,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   setupButtonText: {
     color: 'white',
@@ -654,97 +789,119 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    right: 0,
+    right: 4,
     bottom: 20,
     backgroundColor: Palette.primary,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
     shadowColor: Palette.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
   },
+  // Modal UI Enhancements
   modalContainer: {
     flex: 1,
-    backgroundColor: Palette.background,
+    backgroundColor: '#F8FAFC',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 24,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: Palette.border,
-    backgroundColor: 'white',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontFamily: 'Outfit-Bold',
     color: Palette.text,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: Palette.textSecondary,
+    fontFamily: 'Outfit-Medium',
+    marginTop: 2,
+  },
+  closeBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: '#F1F5F9',
+      alignItems: 'center',
+      justifyContent: 'center',
   },
   modalContent: {
     padding: 20,
   },
-  modalSubtitle: {
-    fontSize: 14,
-    color: Palette.textSecondary,
-    fontFamily: 'Outfit',
-    marginBottom: 20,
-  },
   columnEditorCard: {
     backgroundColor: 'white',
-    borderRadius: 15,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: Palette.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
   },
   columnEditorHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  columnEditorIndex: {
-    fontSize: 12,
+  indexBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+      backgroundColor: Palette.primary + '15',
+  },
+  indexBadgeText: {
+    fontSize: 11,
     fontFamily: 'Outfit-Bold',
     color: Palette.primary,
-    textTransform: 'uppercase',
+  },
+  removeBtn: {
+      padding: 4,
   },
   columnNameInput: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    padding: 12,
-    fontFamily: 'Outfit-Medium',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 16,
+    fontFamily: 'Outfit-SemiBold',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#eee',
-    marginBottom: 12,
-  },
-  typeSelectorLabelRow: {
-    marginBottom: 8,
+    borderColor: Palette.border,
+    marginBottom: 16,
+    color: Palette.text,
   },
   typeLabel: {
     fontSize: 12,
     fontFamily: 'Outfit-Bold',
     color: Palette.textSecondary,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   typeList: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 20,
   },
   typeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginRight: 10,
     borderWidth: 1,
     borderColor: 'transparent',
   },
@@ -753,10 +910,10 @@ const styles = StyleSheet.create({
     borderColor: Palette.primary,
   },
   typeItemText: {
-    fontSize: 12,
-    fontFamily: 'Outfit-Medium',
+    fontSize: 13,
+    fontFamily: 'Outfit-Bold',
     color: Palette.textSecondary,
-    marginLeft: 6,
+    marginLeft: 8,
   },
   activeTypeItemText: {
     color: 'white',
@@ -764,23 +921,37 @@ const styles = StyleSheet.create({
   requiredToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
+    paddingVertical: 4,
+  },
+  checkbox: {
+      width: 20,
+      height: 20,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: Palette.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 10,
+  },
+  checkboxActive: {
+      backgroundColor: Palette.primary,
+      borderColor: Palette.primary,
   },
   requiredToggleText: {
     fontSize: 14,
     fontFamily: 'Outfit-Medium',
     color: Palette.text,
-    marginLeft: 8,
   },
   addColumnButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: 20,
     borderWidth: 2,
     borderColor: Palette.primary,
     borderStyle: 'dashed',
-    borderRadius: 12,
+    borderRadius: 20,
     marginTop: 10,
     backgroundColor: Palette.primary + '05',
   },
@@ -790,26 +961,31 @@ const styles = StyleSheet.create({
     color: Palette.primary,
     marginLeft: 10,
   },
+  modalFooter: {
+      padding: 24,
+      backgroundColor: 'white',
+      borderTopWidth: 1,
+      borderTopColor: Palette.border,
+  },
   saveTemplateButton: {
     backgroundColor: Palette.primary,
-    margin: 20,
     padding: 18,
-    borderRadius: 15,
+    borderRadius: 16,
     alignItems: 'center',
     shadowColor: Palette.primary,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowRadius: 10,
   },
   saveTemplateButtonText: {
     color: 'white',
     fontFamily: 'Outfit-Bold',
-    fontSize: 18,
+    fontSize: 16,
   },
+  // Entry Form Enhancements
   entryModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     justifyContent: 'flex-end',
   },
   entryModalRoot: {
@@ -818,62 +994,71 @@ const styles = StyleSheet.create({
   },
   entryModalContainer: {
     backgroundColor: 'white',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    maxHeight: '90%',
-    flex: 1,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    height: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
   },
   entryModalFooter: {
-    padding: 20,
+    paddingInline: 24,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: Palette.border,
     backgroundColor: 'white',
   },
   formScrollView: {
     flex: 1,
   },
   formScrollContent: {
-    padding: 20,
+    padding: 24,
     paddingBottom: 60,
   },
   formGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   formLabel: {
     fontSize: 14,
     fontFamily: 'Outfit-Bold',
-    color: Palette.text,
-    marginBottom: 8,
+    color: '#64748B',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   formInput: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    padding: 14,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 16,
     fontSize: 16,
-    fontFamily: 'Outfit',
+    fontFamily: 'Outfit-Medium',
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: Palette.border,
   },
-  datePickerButton: {
+  formInputContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    padding: 14,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 16,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: Palette.border,
   },
   datePickerText: {
     fontSize: 16,
-    fontFamily: 'Outfit',
+    fontFamily: 'Outfit-Medium',
     color: Palette.text,
   },
   saveEntryButton: {
     backgroundColor: Palette.primary,
-    padding: 16,
-    borderRadius: 12,
+    flexDirection: 'row',
+    padding: 18,
+    borderRadius: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveEntryButtonText: {
     color: 'white',
@@ -882,27 +1067,30 @@ const styles = StyleSheet.create({
   },
   pickerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
     justifyContent: 'center',
-    padding: 30,
+    padding: 24,
   },
   pickerContainer: {
     backgroundColor: 'white',
-    borderRadius: 20,
-    paddingVertical: 10,
+    borderRadius: 24,
+    paddingVertical: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 10,
   },
   pickerHeader: {
-    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#F1F5F9',
   },
   pickerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Outfit-Bold',
     color: Palette.text,
   },
@@ -910,49 +1098,70 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 18,
     borderBottomWidth: 1,
-    borderBottomColor: '#f9f9f9',
+    borderBottomColor: '#F8FAFC',
   },
   pickerItemText: {
-    fontSize: 15,
-    fontFamily: 'Outfit',
+    fontSize: 16,
+    fontFamily: 'Outfit-Medium',
     color: Palette.text,
+  },
+  checkCircle: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: Palette.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
   },
   plusNewButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+    padding: 20,
+    backgroundColor: Palette.primary + '08',
   },
   plusNewButtonText: {
     fontSize: 15,
     fontFamily: 'Outfit-Bold',
     color: Palette.primary,
-    marginLeft: 8,
+    marginLeft: 10,
   },
   addNewSection: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+    padding: 20,
+    backgroundColor: '#F8FAFC',
   },
   newCatInput: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 14,
-    fontFamily: 'Outfit',
-    marginBottom: 12,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    fontFamily: 'Outfit-Medium',
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    color: Palette.text,
   },
   newCatActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 20,
+    gap: 24,
   },
-  newCatButtonText: {
-    fontSize: 14,
-    fontFamily: 'Outfit-Bold',
+  cancelCatBtn: {
+      padding: 4,
+  },
+  cancelCatText: {
+      fontSize: 14,
+      fontFamily: 'Outfit-Bold',
+      color: Palette.textSecondary,
+  },
+  addCatBtn: {
+      padding: 4,
+  },
+  addCatText: {
+      fontSize: 14,
+      fontFamily: 'Outfit-Bold',
+      color: Palette.primary,
   },
 });
