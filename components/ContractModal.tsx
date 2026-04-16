@@ -80,6 +80,11 @@ export function ContractModal({ visible, onClose, onSave, contractor, plots, ini
             return;
         }
 
+        if (deadline < startDate) {
+            Alert.alert('Invalid Dates', 'The project deadline must be after the start date.');
+            return;
+        }
+
         try {
             setIsSaving(true);
             const contract: LaborContract = {
@@ -264,6 +269,9 @@ export function ContractModal({ visible, onClose, onSave, contractor, plots, ini
                 onClose={() => setShowStartPicker(false)}
                 onSelectDate={(date) => {
                     setStartDate(date);
+                    if (deadline < date) {
+                        setDeadline(date);
+                    }
                     setShowStartPicker(false);
                 }}
             />
