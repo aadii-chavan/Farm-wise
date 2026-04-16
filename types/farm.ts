@@ -114,7 +114,6 @@ export interface LaborContract {
   contractorId: string; // references LaborProfile
   projectName: string;
   service?: string;
-  category?: string;
   startDate?: string;
   deadline: string;
   totalAmount: number;

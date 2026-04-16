@@ -32,30 +32,48 @@ export default function LaborBookScreen() {
     const contractors = useMemo(() => laborProfiles.filter(p => p.type === 'Contract'), [laborProfiles]);
 
     const stats = useMemo(() => {
+        // 1. Total Advance Outstanding
+        const advances = laborTransactions
+            .filter(t => (t.type as string) === 'Advance')
+            .reduce((acc, t) => acc + t.amount, 0);
+        const repayments = laborTransactions
+            .filter(t => (t.type as string) === 'Advance Repayment')
+            .reduce((acc, t) => acc + t.amount, 0);
+        const advanceOutstanding = advances - repayments;
+
+        // 2. Active Contract Remaining Balance
+        const activeContracts = laborContracts.filter(c => c.status === 'Active');
+        const contractObligation = activeContracts.reduce((acc, c) => acc + (c.totalAmount - c.advancePaid), 0);
+
+        // 3. Today's Labor Strength
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayAttendance = laborAttendance.filter(a => a.date === todayStr && a.status === 'Present').length;
+
         return {
-            totalWorkers: laborProfiles.length,
-            activeContracts: laborContracts.filter(c => c.status === 'Active').length,
-            todayAttendance: 0, // Placeholder
+            advanceOutstanding,
+            contractObligation,
+            todayAttendance,
+            activeContracts: activeContracts.length
         };
-    }, [laborProfiles, laborContracts]);
+    }, [laborProfiles, laborContracts, laborTransactions, laborAttendance]);
 
     return (
         <View style={styles.container}>
             {/* Header Stats */}
             <View style={styles.statsOverview}>
                 <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Total Staff</Text>
-                    <Text style={styles.statValue}>{stats.totalWorkers}</Text>
+                    <Text style={styles.statLabel}>Advances</Text>
+                    <Text style={[styles.statValue, { color: Palette.danger }]}>₹{stats.advanceOutstanding.toLocaleString()}</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Contracts</Text>
-                    <Text style={styles.statValue}>{stats.activeContracts}</Text>
+                    <Text style={styles.statLabel}>Contract Bal.</Text>
+                    <Text style={[styles.statValue, { color: Palette.primary }]}>₹{stats.contractObligation.toLocaleString()}</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Attendance</Text>
-                    <Text style={styles.statValue}>{stats.todayAttendance}%</Text>
+                    <Text style={styles.statLabel}>Today Present</Text>
+                    <Text style={styles.statValue}>{stats.todayAttendance}</Text>
                 </View>
             </View>
 

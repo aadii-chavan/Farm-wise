@@ -51,7 +51,6 @@ CREATE TABLE IF NOT EXISTS public.labor_contracts (
     contractor_id uuid REFERENCES public.labor_profiles(id) ON DELETE CASCADE,
     project_name text NOT NULL,
     service text,
-    category text,
     start_date date DEFAULT CURRENT_DATE,
     deadline date,
     total_amount numeric DEFAULT 0,
@@ -67,9 +66,6 @@ DO $$
 BEGIN 
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='labor_contracts' AND column_name='service') THEN
         ALTER TABLE public.labor_contracts ADD COLUMN service text;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='labor_contracts' AND column_name='category') THEN
-        ALTER TABLE public.labor_contracts ADD COLUMN category text;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='labor_contracts' AND column_name='start_date') THEN
         ALTER TABLE public.labor_contracts ADD COLUMN start_date date DEFAULT CURRENT_DATE;

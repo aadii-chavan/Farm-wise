@@ -25,15 +25,12 @@ interface ContractModalProps {
     plots: Plot[];
 }
 
-const EXPENSE_CATEGORIES: ExpenseCategory[] = ['Labor', 'Misc', 'Transport', 'Seeds', 'Fertilizer', 'Pesticide', 'Equipment'];
-
 export function ContractModal({ visible, onClose, onSave, contractor, plots }: ContractModalProps) {
     const [projectName, setProjectName] = useState('');
     const [service, setService] = useState('');
     const [startDate, setStartDate] = useState(new Date());
     const [deadline, setDeadline] = useState(new Date());
     const [plotId, setPlotId] = useState<string | null>(null);
-    const [category, setCategory] = useState<ExpenseCategory>('Labor');
     const [totalAmount, setTotalAmount] = useState('');
     const [advancePaid, setAdvancePaid] = useState('');
     const [notes, setNotes] = useState('');
@@ -54,7 +51,6 @@ export function ContractModal({ visible, onClose, onSave, contractor, plots }: C
         setStartDate(new Date());
         setDeadline(new Date());
         setPlotId(null);
-        setCategory('Labor');
         setTotalAmount('');
         setAdvancePaid('');
         setNotes('');
@@ -79,7 +75,6 @@ export function ContractModal({ visible, onClose, onSave, contractor, plots }: C
                 contractorId: contractor.id,
                 projectName: projectName.trim(),
                 service: service.trim(),
-                category,
                 startDate: format(startDate, 'yyyy-MM-dd'),
                 deadline: format(deadline, 'yyyy-MM-dd'),
                 totalAmount: parseFloat(totalAmount),
@@ -193,21 +188,6 @@ export function ContractModal({ visible, onClose, onSave, contractor, plots }: C
                                         onPress={() => setPlotId(plotId === p.id ? null : p.id)}
                                     >
                                         <Text style={[styles.serviceText, plotId === p.id && styles.activeServiceText]}>{p.name}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
-
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Expense Category</Text>
-                            <View style={styles.serviceSelector}>
-                                {EXPENSE_CATEGORIES.map((cat) => (
-                                    <TouchableOpacity 
-                                        key={cat}
-                                        style={[styles.serviceChip, category === cat && styles.activeServiceChip]}
-                                        onPress={() => setCategory(cat)}
-                                    >
-                                        <Text style={[styles.serviceText, category === cat && styles.activeServiceText]}>{cat}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </View>
