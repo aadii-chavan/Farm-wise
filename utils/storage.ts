@@ -620,7 +620,8 @@ export const getLaborAttendance = async (date?: string): Promise<LaborAttendance
             workerId: a.worker_id,
             date: a.date,
             status: a.status,
-            plotId: a.plot_id
+            plotId: a.plot_id,
+            notes: a.notes
         }));
     } catch (e) {
         console.error('Failed to load labor attendance', e);
@@ -639,7 +640,8 @@ export const saveLaborAttendanceBatch = async (records: LaborAttendance[]): Prom
             worker_id: r.workerId,
             date: r.date,
             status: r.status,
-            plot_id: r.plotId && isUUID(r.plotId) ? r.plotId : null
+            plot_id: r.plotId && isUUID(r.plotId) ? r.plotId : null,
+            notes: r.notes
         }));
 
         const { error } = await supabase.from('labor_attendance').upsert(data, { onConflict: 'worker_id,date' });

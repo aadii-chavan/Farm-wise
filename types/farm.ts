@@ -106,6 +106,7 @@ export interface LaborAttendance {
   date: string;
   status: AttendanceStatus;
   plotId?: string;
+  notes?: string;
 }
 
 export interface LaborContract {

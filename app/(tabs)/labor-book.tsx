@@ -90,6 +90,15 @@ export default function LaborBookScreen() {
                                             <Text style={styles.badgeText}>₹{worker.baseWage}/Day</Text>
                                         </View>
                                     </View>
+                                    {worker.phone && (
+                                        <View style={styles.cardInfoRow}>
+                                            <Ionicons name="call-outline" size={14} color={Palette.textSecondary} />
+                                            <Text style={styles.infoLabel}>{worker.phone}</Text>
+                                        </View>
+                                    )}
+                                    {worker.notes && (
+                                        <Text style={styles.cardNote} numberOfLines={2}>{worker.notes}</Text>
+                                    )}
                                 </View>
                             ))
                         )}
@@ -124,7 +133,17 @@ export default function LaborBookScreen() {
                                     </View>
                                     <View style={styles.cardInfoRow}>
                                         <Text style={styles.infoLabel}>Daily Cost: ₹{Math.round((worker.baseWage || 0) / 365)}</Text>
+                                        {worker.phone && (
+                                            <>
+                                                <Text style={[styles.infoLabel, { marginHorizontal: 8 }]}>|</Text>
+                                                <Ionicons name="call-outline" size={12} color={Palette.textSecondary} />
+                                                <Text style={styles.infoLabel}>{worker.phone}</Text>
+                                            </>
+                                        )}
                                     </View>
+                                    {worker.notes && (
+                                        <Text style={styles.cardNote} numberOfLines={2}>{worker.notes}</Text>
+                                    )}
                                 </View>
                             ))
                         )}
@@ -164,6 +183,15 @@ export default function LaborBookScreen() {
                                                     ₹{activeContract.advancePaid.toLocaleString()} paid of ₹{activeContract.totalAmount.toLocaleString()}
                                                 </Text>
                                             </View>
+                                        )}
+                                        {worker.phone && (
+                                            <View style={[styles.cardInfoRow, { marginTop: activeContract ? 12 : 4 }]}>
+                                                <Ionicons name="call-outline" size={14} color={Palette.textSecondary} />
+                                                <Text style={styles.infoLabel}>{worker.phone}</Text>
+                                            </View>
+                                        )}
+                                        {worker.notes && (
+                                            <Text style={styles.cardNote} numberOfLines={2}>{worker.notes}</Text>
                                         )}
                                     </View>
                                 );
@@ -346,6 +374,22 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit',
         color: Palette.textSecondary,
         marginTop: 6,
+    },
+    infoLabel: {
+        fontSize: 13,
+        color: Palette.textSecondary,
+        fontFamily: 'Outfit',
+        marginLeft: 4,
+    },
+    cardNote: {
+        fontSize: 12,
+        color: Palette.textSecondary,
+        fontFamily: 'Outfit',
+        marginTop: 8,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+        fontStyle: 'italic',
     },
     emptyContainer: {
         alignItems: 'center',

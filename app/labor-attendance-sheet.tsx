@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +28,10 @@ export default function AttendanceSheetScreen() {
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
     const [localAttendance, setLocalAttendance] = useState<LaborAttendance[]>([]);
+    const [selectedCell, setSelectedCell] = useState<{ worker: LaborProfile, date: Date } | null>(null);
+    const [editStatus, setEditStatus] = useState<AttendanceStatus>('Present');
+    const [editNote, setEditNote] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
     // Sync local state with context state
     React.useEffect(() => {
@@ -39,25 +43,31 @@ export default function AttendanceSheetScreen() {
         return localAttendance.find(a => a.workerId === workerId && a.date === dateStr);
     };
 
-    const handleCycleStatus = async (workerId: string, date: Date) => {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        const currentRecord = getAttendance(workerId, date);
-        
-        let nextStatus: AttendanceStatus = 'Present';
-        if (currentRecord?.status === 'Present') nextStatus = 'Half-Day';
-        else if (currentRecord?.status === 'Half-Day') nextStatus = 'Absent';
-        else if (currentRecord?.status === 'Absent') nextStatus = 'Present';
+    const handleOpenEdit = (worker: LaborProfile, date: Date) => {
+        const record = getAttendance(worker.id, date);
+        setSelectedCell({ worker, date });
+        setEditStatus(record?.status || 'Present');
+        setEditNote(record?.notes || '');
+    };
 
-        // Optimistic Update
+    const handleSaveDetail = async () => {
+        if (!selectedCell) return;
+        
+        setIsSaving(true);
+        const dateStr = format(selectedCell.date, 'yyyy-MM-dd');
+        const currentRecord = getAttendance(selectedCell.worker.id, selectedCell.date);
+        
         const newRecord: LaborAttendance = {
             id: currentRecord?.id || '',
-            workerId,
+            workerId: selectedCell.worker.id,
             date: dateStr,
-            status: nextStatus
+            status: editStatus,
+            notes: editNote.trim()
         };
 
+        // Optimistic Update
         setLocalAttendance(prev => {
-            const index = prev.findIndex(a => a.workerId === workerId && a.date === dateStr);
+            const index = prev.findIndex(a => a.workerId === selectedCell.worker.id && a.date === dateStr);
             if (index > -1) {
                 const copy = [...prev];
                 copy[index] = newRecord;
@@ -68,14 +78,17 @@ export default function AttendanceSheetScreen() {
 
         try {
             await saveLaborAttendance([newRecord]);
+            setSelectedCell(null);
         } catch (error) {
             setLocalAttendance(laborAttendance);
             Alert.alert('Error', 'Failed to save attendance');
+        } finally {
+            setIsSaving(false);
         }
     };
 
-    const renderCell = (workerId: string, date: Date) => {
-        const record = getAttendance(workerId, date);
+    const renderCell = (worker: LaborProfile, date: Date) => {
+        const record = getAttendance(worker.id, date);
         
         let char = '';
         let color = '#E2E8F0';
@@ -85,15 +98,21 @@ export default function AttendanceSheetScreen() {
         else if (record?.status === 'Absent') { char = 'A'; color = Palette.danger; bg = Palette.danger + '15'; }
         else if (record?.status === 'Half-Day') { char = 'H'; color = '#F59E0B'; bg = '#F59E0B' + '15'; }
 
+        const hasNote = record?.notes && record.notes.length > 0;
+
         return (
             <TouchableOpacity 
                 activeOpacity={0.6}
-                onLongPress={() => handleCycleStatus(workerId, date)}
-                onPress={() => handleCycleStatus(workerId, date)}
+                onPress={() => handleOpenEdit(worker, date)}
                 style={[styles.cell, { backgroundColor: bg }]}
                 delayPressIn={0}
             >
                 <Text style={[styles.cellText, { color }]}>{char || '·'}</Text>
+                {hasNote && (
+                    <View style={styles.noteIndicatorContainer}>
+                        <Ionicons name="document-text" size={10} color={color} />
+                    </View>
+                )}
             </TouchableOpacity>
         );
     };
@@ -202,7 +221,7 @@ export default function AttendanceSheetScreen() {
                                         <View key={worker.id} style={[styles.row, styles.contentRow]}>
                                             {days.map(day => (
                                                 <View key={day.toISOString()}>
-                                                    {renderCell(worker.id, day)}
+                                                    {renderCell(worker, day)}
                                                 </View>
                                             ))}
                                             <View style={styles.totalCell}>
@@ -241,6 +260,83 @@ export default function AttendanceSheetScreen() {
                 </View>
                 <Text style={styles.legendSub}>Tap any cell once to change attendance</Text>
             </View>
+
+            {/* Attendance Detail Modal */}
+            <Modal
+                visible={!!selectedCell}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setSelectedCell(null)}
+            >
+                <View style={styles.modalOverlay}>
+                    <KeyboardAvoidingView 
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        style={styles.modalContent}
+                    >
+                        <View style={styles.modalHeader}>
+                            <View>
+                                <Text style={styles.modalTitle}>{selectedCell?.worker.name}</Text>
+                                <Text style={styles.modalSub}>
+                                    {selectedCell ? format(selectedCell.date, 'PPPP') : ''}
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setSelectedCell(null)}>
+                                <Ionicons name="close" size={24} color={Palette.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.statusOptions}>
+                            {(['Present', 'Half-Day', 'Absent'] as AttendanceStatus[]).map((status) => {
+                                const active = editStatus === status;
+                                return (
+                                    <TouchableOpacity
+                                        key={status}
+                                        onPress={() => setEditStatus(status)}
+                                        style={[
+                                            styles.statusBtn,
+                                            active && styles.statusBtnActive,
+                                            active && status === 'Present' && { backgroundColor: Palette.success },
+                                            active && status === 'Absent' && { backgroundColor: Palette.danger },
+                                            active && status === 'Half-Day' && { backgroundColor: '#F59E0B' },
+                                        ]}
+                                    >
+                                        <Text style={[styles.statusBtnText, active && { color: 'white' }]}>
+                                            {status}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+
+                        <Text style={styles.inputLabel}>Notes</Text>
+                        <TextInput
+                            style={styles.modalNoteInput}
+                            placeholder="Add a reason or note..."
+                            value={editNote}
+                            onChangeText={setEditNote}
+                            multiline
+                            numberOfLines={3}
+                            placeholderTextColor={Palette.textSecondary + '70'}
+                        />
+
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity 
+                                style={[styles.modalActionBtn, styles.cancelBtn]} 
+                                onPress={() => setSelectedCell(null)}
+                            >
+                                <Text style={styles.cancelBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalActionBtn, styles.saveBtn]} 
+                                onPress={handleSaveDetail}
+                                disabled={isSaving}
+                            >
+                                <Text style={styles.saveBtnText}>{isSaving ? 'Saving...' : 'Save'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </KeyboardAvoidingView>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -411,5 +507,117 @@ const styles = StyleSheet.create({
         color: Palette.textSecondary,
         fontFamily: 'Outfit',
         padding: 12,
+    },
+    // New Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        padding: 24,
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderRadius: 24,
+        padding: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 24,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+    },
+    modalSub: {
+        fontSize: 13,
+        color: Palette.textSecondary,
+        fontFamily: 'Outfit',
+        marginTop: 2,
+    },
+    statusOptions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 24,
+    },
+    statusBtn: {
+        flex: 1,
+        marginHorizontal: 4,
+        paddingVertical: 12,
+        borderRadius: 12,
+        backgroundColor: '#F1F5F9',
+        alignItems: 'center',
+    },
+    statusBtnActive: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    statusBtnText: {
+        fontSize: 13,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.textSecondary,
+    },
+    inputLabel: {
+        fontSize: 14,
+        fontFamily: 'Outfit-SemiBold',
+        color: Palette.text,
+        marginBottom: 8,
+    },
+    modalNoteInput: {
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        padding: 16,
+        height: 100,
+        textAlignVertical: 'top',
+        fontSize: 15,
+        fontFamily: 'Outfit',
+        color: Palette.text,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    modalActions: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    modalActionBtn: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 14,
+        alignItems: 'center',
+    },
+    cancelBtn: {
+        marginRight: 8,
+        backgroundColor: '#F1F5F9',
+    },
+    saveBtn: {
+        marginLeft: 8,
+        backgroundColor: Palette.primary,
+    },
+    cancelBtnText: {
+        fontFamily: 'Outfit-Bold',
+        color: Palette.textSecondary,
+    },
+    saveBtnText: {
+        fontFamily: 'Outfit-Bold',
+        color: 'white',
+    },
+    noteIndicatorContainer: {
+        position: 'absolute',
+        top: 4,
+        right: 4,
+    },
+    hasNote: {
+        // Option to style cells with notes differently
     }
 });
