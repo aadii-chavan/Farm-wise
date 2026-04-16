@@ -64,6 +64,7 @@ function RootLayoutRedirect() {
       <Stack.Screen name="list" options={{ title: 'History' }} />
       <Stack.Screen name="profile" options={{ title: 'Profile' }} />
       <Stack.Screen name="shop-detail" options={{ title: 'Shop Detail' }} />
+      <Stack.Screen name="labor-attendance-sheet" options={{ title: 'Attendance Sheet' }} />
       <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
     </Stack>
   );

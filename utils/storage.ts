@@ -634,6 +634,7 @@ export const saveLaborAttendanceBatch = async (records: LaborAttendance[]): Prom
         if (!userId) throw new Error('User not authenticated');
 
         const data = records.map(r => ({
+            ...(r.id && isUUID(r.id) ? { id: r.id } : {}),
             user_id: userId,
             worker_id: r.workerId,
             date: r.date,
@@ -641,7 +642,7 @@ export const saveLaborAttendanceBatch = async (records: LaborAttendance[]): Prom
             plot_id: r.plotId && isUUID(r.plotId) ? r.plotId : null
         }));
 
-        const { error } = await supabase.from('labor_attendance').upsert(data);
+        const { error } = await supabase.from('labor_attendance').upsert(data, { onConflict: 'worker_id,date' });
         if (error) throw error;
     } catch (e) {
         console.error('Failed to save attendance batch', e);

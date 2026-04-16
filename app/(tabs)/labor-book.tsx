@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useRouter } from 'expo-router';
 import { View, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
 import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
@@ -6,15 +7,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFarm } from '@/context/FarmContext';
 import { LaborType, LaborProfile, LaborAttendance } from '@/types/farm';
 import { LaborModal } from '@/components/LaborModal';
-import { AttendanceModal } from '@/components/AttendanceModal';
 
 const { width } = Dimensions.get('window');
 
 export default function LaborBookScreen() {
-    const { laborProfiles, laborContracts, laborTransactions, laborAttendance, plots, addLaborProfile, saveLaborAttendance } = useFarm();
+    const router = useRouter();
+    const { laborProfiles, laborContracts, laborTransactions, laborAttendance, plots, addLaborProfile } = useFarm();
     const [activeTab, setActiveTab] = useState<LaborType>('Daily');
     const [showAddModal, setShowAddModal] = useState(false);
-    const [showAttendanceModal, setShowAttendanceModal] = useState(false);
 
     const dailyWorkers = useMemo(() => laborProfiles.filter(p => p.type === 'Daily'), [laborProfiles]);
     const annualStaff = useMemo(() => laborProfiles.filter(p => p.type === 'Annual'), [laborProfiles]);
@@ -68,9 +68,12 @@ export default function LaborBookScreen() {
                     <View>
                         <View style={styles.sectionHeader}>
                             <Text style={styles.sectionTitle}>Daily Wage Workers</Text>
-                            <Pressable style={styles.headerAction} onPress={() => setShowAttendanceModal(true)}>
-                                <Ionicons name="calendar-outline" size={20} color={Palette.primary} />
-                                <Text style={styles.headerActionText}>Log Attendance</Text>
+                            <Pressable 
+                                style={styles.headerAction} 
+                                onPress={() => router.push({ pathname: '/labor-attendance-sheet', params: { type: 'Daily' } })}
+                            >
+                                <Ionicons name="grid-outline" size={18} color={Palette.primary} />
+                                <Text style={styles.headerActionText}>Attendance Sheet</Text>
                             </Pressable>
                         </View>
                         {dailyWorkers.length === 0 ? (
@@ -97,9 +100,12 @@ export default function LaborBookScreen() {
                     <View>
                         <View style={styles.sectionHeader}>
                             <Text style={styles.sectionTitle}>Annual Tenure Staff</Text>
-                            <Pressable style={styles.headerAction} onPress={() => setShowAttendanceModal(true)}>
-                                <Ionicons name="calendar-outline" size={20} color={Palette.primary} />
-                                <Text style={styles.headerActionText}>Log Absences</Text>
+                            <Pressable 
+                                style={styles.headerAction} 
+                                onPress={() => router.push({ pathname: '/labor-attendance-sheet', params: { type: 'Annual' } })}
+                            >
+                                <Ionicons name="grid-outline" size={18} color={Palette.primary} />
+                                <Text style={styles.headerActionText}>Attendance Sheet</Text>
                             </Pressable>
                         </View>
                         {annualStaff.length === 0 ? (
@@ -176,13 +182,6 @@ export default function LaborBookScreen() {
                 onClose={() => setShowAddModal(false)}
                 onSave={addLaborProfile}
                 initialType={activeTab}
-            />
-
-            <AttendanceModal
-                visible={showAttendanceModal}
-                onClose={() => setShowAttendanceModal(false)}
-                workers={laborProfiles.filter(p => p.type !== 'Contract' && p.isActive)}
-                onSave={saveLaborAttendance}
             />
         </View>
     );

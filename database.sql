@@ -241,7 +241,8 @@ create table if not exists public.labor_attendance (
   date date not null,
   status text not null check (status in ('Present', 'Absent', 'Half-Day')),
   plot_id uuid references public.plots(id) on delete set null,
-  created_at timestamp with time zone default timezone('utc'::text, now())
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  unique(worker_id, date)
 );
 
 -- Enable RLS for Labor Attendance
