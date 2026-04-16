@@ -1,15 +1,25 @@
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, Alert, Platform, KeyboardAvoidingView } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+    View, 
+    StyleSheet, 
+    ScrollView, 
+    TouchableOpacity, 
+    Dimensions, 
+    Modal, 
+    TextInput, 
+    Alert, 
+    Platform, 
+    KeyboardAvoidingView 
+} from 'react-native';
 import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useFarm } from '@/context/FarmContext';
-import { Stack, useRouter } from 'expo-router';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { LaborProfile, LaborAttendance, AttendanceStatus } from '@/types/farm';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 
 const { width } = Dimensions.get('window');
-
-import { useLocalSearchParams } from 'expo-router';
 
 export default function AttendanceSheetScreen() {
     const router = useRouter();
