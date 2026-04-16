@@ -90,9 +90,11 @@ export default function InventoryScreen() {
      const existingItems = inventory
         .map(i => i.category)
         .filter(c => !INVENTORY_CATEGORIES.includes(c));
-     const uniqueCustom = Array.from(new Set([...storedCustom, ...existingItems]));
      
-     return [...INVENTORY_CATEGORIES.filter(c => c !== 'Other'), ...uniqueCustom, 'Other'];
+     const allCats = [...INVENTORY_CATEGORIES, ...storedCustom, ...existingItems];
+     const uniqueCats = Array.from(new Set(allCats.filter(c => c !== 'Other')));
+     uniqueCats.push('Other');
+     return uniqueCats;
   }, [inventory, customEntities]);
   
   const dynamicShops = useMemo(() => {
