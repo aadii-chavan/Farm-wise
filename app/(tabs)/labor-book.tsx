@@ -1,20 +1,31 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'expo-router';
-import { View, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Dimensions, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useFarm } from '@/context/FarmContext';
 import { LaborType, LaborProfile, LaborAttendance } from '@/types/farm';
 import { LaborModal } from '@/components/LaborModal';
+import { ContractModal } from '@/components/ContractModal';
 
 const { width } = Dimensions.get('window');
 
 export default function LaborBookScreen() {
     const router = useRouter();
-    const { laborProfiles, laborContracts, laborTransactions, laborAttendance, plots, addLaborProfile } = useFarm();
     const [activeTab, setActiveTab] = useState<LaborType>('Daily');
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showContractModal, setShowContractModal] = useState(false);
+    const [selectedContractor, setSelectedContractor] = useState<LaborProfile | null>(null);
+    const { 
+        laborProfiles, 
+        laborContracts, 
+        laborTransactions, 
+        laborAttendance, 
+        plots, 
+        addLaborProfile,
+        addLaborContract
+    } = useFarm();
 
     const dailyWorkers = useMemo(() => laborProfiles.filter(p => p.type === 'Daily'), [laborProfiles]);
     const annualStaff = useMemo(() => laborProfiles.filter(p => p.type === 'Annual'), [laborProfiles]);
@@ -83,7 +94,11 @@ export default function LaborBookScreen() {
                             </View>
                         ) : (
                             dailyWorkers.map(worker => (
-                                <View key={worker.id} style={styles.laborCard}>
+                                <TouchableOpacity 
+                                    key={worker.id} 
+                                    style={styles.laborCard}
+                                    onPress={() => router.push({ pathname: '/worker-detail', params: { id: worker.id } })}
+                                >
                                     <View style={styles.cardHeader}>
                                         <Text style={styles.workerName}>{worker.name}</Text>
                                         <View style={styles.badge}>
@@ -99,7 +114,7 @@ export default function LaborBookScreen() {
                                     {worker.notes && (
                                         <Text style={styles.cardNote} numberOfLines={2}>{worker.notes}</Text>
                                     )}
-                                </View>
+                                    </TouchableOpacity>
                             ))
                         )}
                     </View>
@@ -124,7 +139,11 @@ export default function LaborBookScreen() {
                             </View>
                         ) : (
                             annualStaff.map(worker => (
-                                <View key={worker.id} style={styles.laborCard}>
+                                <TouchableOpacity 
+                                    key={worker.id} 
+                                    style={styles.laborCard}
+                                    onPress={() => router.push({ pathname: '/worker-detail', params: { id: worker.id } })}
+                                >
                                     <View style={styles.cardHeader}>
                                         <Text style={styles.workerName}>{worker.name}</Text>
                                         <View style={[styles.badge, { backgroundColor: Palette.success + '20' }]}>
@@ -144,7 +163,7 @@ export default function LaborBookScreen() {
                                     {worker.notes && (
                                         <Text style={styles.cardNote} numberOfLines={2}>{worker.notes}</Text>
                                     )}
-                                </View>
+                                    </TouchableOpacity>
                             ))
                         )}
                     </View>
@@ -164,7 +183,11 @@ export default function LaborBookScreen() {
                             contractors.map(worker => {
                                 const activeContract = laborContracts.find(c => c.contractorId === worker.id && c.status === 'Active');
                                 return (
-                                    <View key={worker.id} style={styles.laborCard}>
+                                    <TouchableOpacity 
+                                        key={worker.id} 
+                                        style={styles.laborCard}
+                                        onPress={() => router.push({ pathname: '/worker-detail', params: { id: worker.id } })}
+                                    >
                                         <View style={styles.cardHeader}>
                                             <Text style={styles.workerName}>{worker.name}</Text>
                                             {activeContract && (
@@ -193,7 +216,19 @@ export default function LaborBookScreen() {
                                         {worker.notes && (
                                             <Text style={styles.cardNote} numberOfLines={2}>{worker.notes}</Text>
                                         )}
-                                    </View>
+
+                                        <TouchableOpacity 
+                                            style={styles.createContractBtn}
+                                            onPress={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedContractor(worker);
+                                                setShowContractModal(true);
+                                            }}
+                                        >
+                                            <Ionicons name="add-circle-outline" size={16} color="white" />
+                                            <Text style={styles.createContractText}>Create Contract</Text>
+                                        </TouchableOpacity>
+                                    </TouchableOpacity>
                                 );
                             })
                         )}
@@ -210,6 +245,14 @@ export default function LaborBookScreen() {
                 onClose={() => setShowAddModal(false)}
                 onSave={addLaborProfile}
                 initialType={activeTab}
+            />
+
+            <ContractModal
+                visible={showContractModal}
+                onClose={() => setShowContractModal(false)}
+                onSave={addLaborContract}
+                contractor={selectedContractor}
+                plots={plots}
             />
         </View>
     );
@@ -345,11 +388,6 @@ const styles = StyleSheet.create({
     cardInfoRow: {
         marginTop: 8,
     },
-    infoLabel: {
-        fontSize: 12,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-    },
     contractDetails: {
         marginTop: 12,
     },
@@ -417,5 +455,20 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 8,
         zIndex: 999,
+    },
+    createContractBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: Palette.primary,
+        paddingVertical: 10,
+        borderRadius: 12,
+        marginTop: 12,
+        gap: 8,
+    },
+    createContractText: {
+        color: 'white',
+        fontFamily: 'Outfit-Bold',
+        fontSize: 14,
     },
 });

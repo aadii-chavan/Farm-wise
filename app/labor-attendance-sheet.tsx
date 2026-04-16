@@ -17,7 +17,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFarm } from '@/context/FarmContext';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { LaborProfile, LaborAttendance, AttendanceStatus } from '@/types/farm';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { 
+    format, 
+    startOfMonth, 
+    endOfMonth, 
+    eachDayOfInterval, 
+    startOfWeek, 
+    endOfWeek, 
+    addDays, 
+    subDays, 
+    isWithinInterval,
+    differenceInDays
+} from 'date-fns';
+import { CalendarModal } from '@/components/CalendarModal';
 
 const { width } = Dimensions.get('window');
 
@@ -26,16 +38,46 @@ export default function AttendanceSheetScreen() {
     const params = useLocalSearchParams();
     const sheetType = (params.type as string) || 'Daily';
     
-    const { laborProfiles, laborAttendance, saveLaborAttendance } = useFarm();
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    const { 
+        laborProfiles, 
+        laborAttendance, 
+        saveLaborAttendance, 
+        laborTransactions, 
+        addLaborTransaction 
+    } = useFarm();
+
+    const [startDate, setStartDate] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+    const [endDate, setEndDate] = useState(endOfWeek(new Date(), { weekStartsOn: 1 }));
+    const [showStartPicker, setShowStartPicker] = useState(false);
+    const [showEndPicker, setShowEndPicker] = useState(false);
+    const [showRangePresets, setShowRangePresets] = useState(false);
+    
+    const [payingWorker, setPayingWorker] = useState<{ worker: LaborProfile, amount: number } | null>(null);
+    const [editAmount, setEditAmount] = useState('');
+    const [paymentType, setPaymentType] = useState<'Weekly Settle' | 'Advance' | 'Advance Repayment'>('Weekly Settle');
+    const [paymentNote, setPaymentNote] = useState('');
+    const [repaymentMethod, setRepaymentMethod] = useState<'Cash' | 'Wage Income'>('Cash');
+    const [isPaying, setIsPaying] = useState(false);
 
     const workers = useMemo(() => 
         laborProfiles.filter(p => p.type === sheetType && p.isActive),
     [laborProfiles, sheetType]);
 
-    const monthStart = startOfMonth(selectedDate);
-    const monthEnd = endOfMonth(selectedDate);
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const days = useMemo(() => 
+        eachDayOfInterval({ start: startDate, end: endDate }),
+    [startDate, endDate]);
+
+    // Navigation logic
+    const navigateCycle = (direction: 'next' | 'prev') => {
+        const diff = differenceInDays(endDate, startDate) + 1;
+        if (direction === 'next') {
+            setStartDate(addDays(startDate, diff));
+            setEndDate(addDays(endDate, diff));
+        } else {
+            setStartDate(subDays(startDate, diff));
+            setEndDate(subDays(endDate, diff));
+        }
+    };
 
     const [localAttendance, setLocalAttendance] = useState<LaborAttendance[]>([]);
     const [selectedCell, setSelectedCell] = useState<{ worker: LaborProfile, date: Date } | null>(null);
@@ -97,6 +139,42 @@ export default function AttendanceSheetScreen() {
         }
     };
 
+    const advancePending = useMemo(() => {
+        if (!payingWorker) return 0;
+        const workerTransactions = laborTransactions.filter(t => t.workerId === payingWorker.worker.id);
+        const advances = workerTransactions
+            .filter(t => (t.type as string) === 'Advance')
+            .reduce((acc, t) => acc + t.amount, 0);
+        const repayments = workerTransactions
+            .filter(t => (t.type as string) === 'Advance Repayment')
+            .reduce((acc, t) => acc + t.amount, 0);
+        return advances - repayments;
+    }, [payingWorker, laborTransactions]);
+
+    const handleSavePayment = async () => {
+        if (!payingWorker) return;
+        setIsPaying(true);
+        try {
+            await addLaborTransaction({
+                id: '',
+                workerId: payingWorker.worker.id,
+                amount: editAmount ? parseFloat(editAmount) : (paymentType === 'Weekly Settle' ? payingWorker.amount : 0),
+                date: new Date().toISOString().split('T')[0],
+                type: paymentType as any,
+                repaymentMethod: paymentType === 'Advance Repayment' ? repaymentMethod : undefined,
+                note: paymentNote.trim() || `${paymentType} for period ${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`
+            });
+            Alert.alert('Success', 'Transaction recorded successfully');
+            setPayingWorker(null);
+            setEditAmount('');
+            setPaymentNote('');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to record transaction');
+        } finally {
+            setIsPaying(false);
+        }
+    };
+
     const renderCell = (worker: LaborProfile, date: Date) => {
         const record = getAttendance(worker.id, date);
         
@@ -127,10 +205,20 @@ export default function AttendanceSheetScreen() {
         );
     };
 
-    const changeMonth = (delta: number) => {
-        const newDate = new Date(selectedDate);
-        newDate.setMonth(newDate.getMonth() + delta);
-        setSelectedDate(newDate);
+    const setCycleRange = (type: 'thisWeek' | 'lastWeek' | 'thisMonth') => {
+        const today = new Date();
+        if (type === 'thisWeek') {
+            setStartDate(startOfWeek(today, { weekStartsOn: 1 }));
+            setEndDate(endOfWeek(today, { weekStartsOn: 1 }));
+        } else if (type === 'lastWeek') {
+            const lastWeek = subDays(today, 7);
+            setStartDate(startOfWeek(lastWeek, { weekStartsOn: 1 }));
+            setEndDate(endOfWeek(lastWeek, { weekStartsOn: 1 }));
+        } else if (type === 'thisMonth') {
+            setStartDate(startOfMonth(today));
+            setEndDate(endOfMonth(today));
+        }
+        setShowRangePresets(false);
     };
 
     return (
@@ -139,6 +227,14 @@ export default function AttendanceSheetScreen() {
                 headerShown: true, 
                 title: `${sheetType} Attendance`,
                 headerTitleStyle: { fontFamily: 'Outfit-Bold' },
+                headerRight: () => (
+                    <TouchableOpacity 
+                        onPress={() => setShowRangePresets(true)} 
+                        style={styles.rangeSelectBtn}
+                    >
+                        <Ionicons name="options" size={18} color={Palette.primary} />
+                    </TouchableOpacity>
+                ),
                 headerLeft: () => (
                     <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 8 }}>
                         <Ionicons name="arrow-back" size={24} color={Palette.text} />
@@ -146,14 +242,37 @@ export default function AttendanceSheetScreen() {
                 )
             }} />
 
-            {/* Header Controls */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.monthNav}>
+            {/* Range Indicator & Navigation */}
+            <View style={styles.rangeIndicator}>
+                <TouchableOpacity onPress={() => navigateCycle('prev')} style={styles.navBtn}>
                     <Ionicons name="chevron-back" size={20} color={Palette.primary} />
                 </TouchableOpacity>
-                <Text style={styles.monthTitle}>{format(selectedDate, 'MMMM yyyy')}</Text>
-                <TouchableOpacity onPress={() => changeMonth(1)} style={styles.monthNav}>
+
+                <TouchableOpacity 
+                    style={styles.rangeInfo}
+                    onPress={() => setShowRangePresets(true)}
+                >
+                    <Text style={styles.rangeLabel}>Attendance period</Text>
+                    <Text style={styles.rangeDates}>
+                        {format(startDate, 'MMM d')} — {format(endDate, 'MMM d')}
+                    </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => navigateCycle('next')} style={styles.navBtn}>
                     <Ionicons name="chevron-forward" size={20} color={Palette.primary} />
+                </TouchableOpacity>
+            </View>
+
+            {/* Custom Range Selection (Alternative to presets) */}
+            <View style={styles.customRangeBar}>
+                <TouchableOpacity onPress={() => setShowStartPicker(true)} style={styles.datePickerTrigger}>
+                    <Text style={styles.datePickerLabel}>Start</Text>
+                    <Text style={styles.datePickerValue}>{format(startDate, 'dd/MM/yy')}</Text>
+                </TouchableOpacity>
+                <View style={styles.dateLink} />
+                <TouchableOpacity onPress={() => setShowEndPicker(true)} style={styles.datePickerTrigger}>
+                    <Text style={styles.datePickerLabel}>End</Text>
+                    <Text style={styles.datePickerValue}>{format(endDate, 'dd/MM/yy')}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -177,14 +296,34 @@ export default function AttendanceSheetScreen() {
                                     <Text style={styles.emptyText}>No {sheetType.toLowerCase()} staff found</Text>
                                 </View>
                             ) : (
-                                workers.map(worker => (
-                                    <View key={worker.id} style={[styles.row, styles.contentRow]}>
-                                        <View style={styles.nameCell}>
-                                            <Text style={styles.workerName} numberOfLines={1}>{worker.name}</Text>
-                                            <Text style={styles.workerSub}>Base: ₹{worker.baseWage}</Text>
+                                workers.map(worker => {
+                                    // Calculate advance pending for the icon
+                                    const workerTransactions = laborTransactions.filter(t => t.workerId === worker.id);
+                                    const totalAdv = workerTransactions
+                                        .filter(t => (t.type as string) === 'Advance')
+                                        .reduce((acc, t) => acc + t.amount, 0);
+                                    const totalRepay = workerTransactions
+                                        .filter(t => (t.type as string) === 'Advance Repayment')
+                                        .reduce((acc, t) => acc + t.amount, 0);
+                                    const advancePendingAmount = totalAdv - totalRepay;
+
+                                    return (
+                                        <View key={worker.id} style={[styles.row, styles.contentRow]}>
+                                            <TouchableOpacity 
+                                                style={styles.nameCell}
+                                                onPress={() => router.push({ pathname: '/worker-detail', params: { id: worker.id } })}
+                                            >
+                                                <View style={styles.nameRow}>
+                                                    <Text style={styles.workerName} numberOfLines={1}>{worker.name}</Text>
+                                                    {advancePendingAmount > 0 && (
+                                                        <Ionicons name="alert-circle" size={12} color={Palette.danger} style={{ marginLeft: 4 }} />
+                                                    )}
+                                                </View>
+                                                <Text style={styles.workerSub}>Base: ₹{worker.baseWage}</Text>
+                                            </TouchableOpacity>
                                         </View>
-                                    </View>
-                                ))
+                                    );
+                                })
                             )}
                         </View>
 
@@ -223,9 +362,40 @@ export default function AttendanceSheetScreen() {
                                         return acc;
                                     }, 0);
 
-                                    const financialValue = sheetType === 'Daily' 
+                                    const grossWages = sheetType === 'Daily' 
                                         ? (totalPresent * (worker.baseWage || 0))
                                         : (totalAbsent * ((worker.baseWage || 0) / 365));
+
+                                    // Transaction adjustments
+                                    const workerTransactions = laborTransactions.filter(t => t.workerId === worker.id);
+                                    
+                                    const periodPayments = workerTransactions.filter(t => {
+                                        const tDate = new Date(t.date);
+                                        // Simple string comparison for dates often better with Supabase dates
+                                        const dateStr = t.date;
+                                        const startStr = format(startDate, 'yyyy-MM-dd');
+                                        const endStr = format(endDate, 'yyyy-MM-dd');
+                                        return dateStr >= startStr && dateStr <= endStr && t.type === 'Weekly Settle';
+                                    }).reduce((acc, t) => acc + t.amount, 0);
+
+                                    const wageRepayments = workerTransactions.filter(t => {
+                                        const dateStr = t.date;
+                                        const startStr = format(startDate, 'yyyy-MM-dd');
+                                        const endStr = format(endDate, 'yyyy-MM-dd');
+                                        return dateStr >= startStr && dateStr <= endStr && 
+                                               t.type === 'Advance Repayment' && t.repaymentMethod === 'Wage Income';
+                                    }).reduce((acc, t) => acc + t.amount, 0);
+
+                                    const netPayout = Math.round(grossWages - periodPayments - wageRepayments);
+
+                                    // Total advance for the icon
+                                    const totalAdv = workerTransactions
+                                        .filter(t => (t.type as string) === 'Advance')
+                                        .reduce((acc, t) => acc + t.amount, 0);
+                                    const totalRepay = workerTransactions
+                                        .filter(t => (t.type as string) === 'Advance Repayment')
+                                        .reduce((acc, t) => acc + t.amount, 0);
+                                    const workerAdvancePending = totalAdv - totalRepay;
 
                                     return (
                                         <View key={worker.id} style={[styles.row, styles.contentRow]}>
@@ -237,11 +407,17 @@ export default function AttendanceSheetScreen() {
                                             <View style={styles.totalCell}>
                                                 <Text style={styles.totalText}>{totalPresent}</Text>
                                             </View>
-                                            <View style={[styles.totalCell, { width: 80 }]}>
+                                            <TouchableOpacity 
+                                                style={[styles.totalCell, { width: 80 }]}
+                                                onPress={() => setPayingWorker({ worker, amount: Math.round(netPayout) })}
+                                            >
                                                 <Text style={[styles.totalText, { color: sheetType === 'Daily' ? Palette.success : Palette.danger }]}>
-                                                    {sheetType === 'Daily' ? '+' : '-'}₹{Math.round(financialValue)}
+                                                    {sheetType === 'Daily' ? '+' : '-'}₹{Math.round(netPayout)}
                                                 </Text>
-                                            </View>
+                                                <View style={styles.payIcon}>
+                                                    <Ionicons name="card-outline" size={10} color={sheetType === 'Daily' ? Palette.success : Palette.danger} />
+                                                </View>
+                                            </TouchableOpacity>
                                         </View>
                                     );
                                 })}
@@ -270,6 +446,190 @@ export default function AttendanceSheetScreen() {
                 </View>
                 <Text style={styles.legendSub}>Tap any cell once to change attendance</Text>
             </View>
+
+            {/* Range Presets Modal */}
+            <Modal
+                visible={showRangePresets}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowRangePresets(false)}
+            >
+                <TouchableOpacity 
+                    style={styles.modalOverlay} 
+                    activeOpacity={1} 
+                    onPress={() => setShowRangePresets(false)}
+                >
+                    <View style={styles.pickerContent}>
+                        <Text style={styles.pickerTitle}>Quick Select</Text>
+                        
+                        <TouchableOpacity style={styles.presetBtn} onPress={() => setCycleRange('thisWeek')}>
+                            <Ionicons name="calendar-outline" size={20} color={Palette.primary} />
+                            <Text style={styles.presetBtnText}>This Week (Mon - Sun)</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.presetBtn} onPress={() => setCycleRange('lastWeek')}>
+                            <Ionicons name="time-outline" size={20} color={Palette.primary} />
+                            <Text style={styles.presetBtnText}>Last Week</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.presetBtn} onPress={() => setCycleRange('thisMonth')}>
+                            <Ionicons name="calendar-clear-outline" size={20} color={Palette.primary} />
+                            <Text style={styles.presetBtnText}>Full Month</Text>
+                        </TouchableOpacity>
+
+                        <Text style={styles.pickerHint}>You can also tap the dates at the top to select exact custom days.</Text>
+                        
+                        <TouchableOpacity 
+                            style={styles.pickerCloseBtn}
+                            onPress={() => setShowRangePresets(false)}
+                        >
+                            <Text style={styles.pickerCloseText}>Close</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* Date Pickers */}
+            <CalendarModal
+                visible={showStartPicker}
+                onClose={() => setShowStartPicker(false)}
+                onSelectDate={(date) => {
+                    setStartDate(date);
+                    setShowStartPicker(false);
+                }}
+                initialDate={startDate}
+            />
+            <CalendarModal
+                visible={showEndPicker}
+                onClose={() => setShowEndPicker(false)}
+                onSelectDate={(date) => {
+                    setEndDate(date);
+                    setShowEndPicker(false);
+                }}
+                initialDate={endDate}
+            />
+
+            {/* Payment Modal */}
+            <Modal
+                visible={!!payingWorker}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setPayingWorker(null)}
+            >
+                <View style={styles.modalOverlay}>
+                    <KeyboardAvoidingView 
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        style={styles.modalContent}
+                    >
+                        <View style={styles.modalHeader}>
+                            <View>
+                                <Text style={styles.modalTitle}>Record Transaction</Text>
+                                <Text style={styles.modalSub}>{payingWorker?.worker.name}</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setPayingWorker(null)}>
+                                <Ionicons name="close" size={24} color={Palette.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.financialSummary}>
+                            <View style={styles.summaryItem}>
+                                <Text style={styles.summaryLabel}>Wages Due</Text>
+                                <Text style={[styles.summaryValue, { color: Palette.success }]}>₹{payingWorker?.amount.toLocaleString()}</Text>
+                            </View>
+                            <View style={styles.summaryDivider} />
+                            <View style={styles.summaryItem}>
+                                <Text style={styles.summaryLabel}>Advance Pending</Text>
+                                <Text style={[styles.summaryValue, { color: Palette.danger }]}>₹{advancePending.toLocaleString()}</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.typeSelectorSmall}>
+                            {(['Weekly Settle', 'Advance', 'Advance Repayment'] as const).map((t) => (
+                                <TouchableOpacity 
+                                    key={t}
+                                    style={[styles.typeBtnSmall, paymentType === t && styles.activeTypeBtnSmall]}
+                                    onPress={() => {
+                                        setPaymentType(t);
+                                        if (t === 'Weekly Settle') {
+                                            setEditAmount(String(payingWorker?.amount || ''));
+                                        } else {
+                                            setEditAmount('');
+                                        }
+                                    }}
+                                >
+                                    <Text style={[styles.typeTextSmall, paymentType === t && styles.activeTypeTextSmall]}>
+                                        {t === 'Weekly Settle' ? 'Settle Wages' : t === 'Advance' ? 'Give Advance' : 'Repayment'}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View style={styles.paymentSummary}>
+                            <View style={styles.amountInputContainer}>
+                                <Text style={styles.currencyPrefix}>₹</Text>
+                                <TextInput
+                                    style={styles.paymentAmountInput}
+                                    value={editAmount}
+                                    onChangeText={setEditAmount}
+                                    keyboardType="numeric"
+                                    placeholder={paymentType === 'Weekly Settle' ? String(payingWorker?.amount || '0') : "0"}
+                                    placeholderTextColor={Palette.textSecondary + '40'}
+                                />
+                            </View>
+                            <Text style={styles.paymentPeriod}>
+                                {paymentType === 'Weekly Settle' ? `Calculated for selected period` : 
+                                 paymentType === 'Advance' ? 'New advance amount to record' : 'Amount being repaid by worker'}
+                            </Text>
+                        </View>
+
+                        {paymentType === 'Advance Repayment' && (
+                            <View style={styles.repaymentMethodSection}>
+                                <Text style={styles.inputLabel}>Repayment Method</Text>
+                                <View style={styles.methodToggle}>
+                                    {(['Cash', 'Wage Income'] as const).map((m) => (
+                                        <TouchableOpacity 
+                                            key={m}
+                                            style={[styles.methodBtn, repaymentMethod === m && styles.activeMethodBtn]}
+                                            onPress={() => setRepaymentMethod(m)}
+                                        >
+                                            <Ionicons 
+                                                name={m === 'Cash' ? 'cash-outline' : 'wallet-outline'} 
+                                                size={16} 
+                                                color={repaymentMethod === m ? 'white' : Palette.textSecondary} 
+                                            />
+                                            <Text style={[styles.methodText, repaymentMethod === m && styles.activeMethodText]}>
+                                                {m}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
+
+                        <Text style={styles.inputLabel}>Transaction Note</Text>
+                        <TextInput
+                            style={styles.modalNoteInput}
+                            placeholder="Add payment details..."
+                            value={paymentNote}
+                            onChangeText={setPaymentNote}
+                            multiline
+                            numberOfLines={2}
+                            placeholderTextColor={Palette.textSecondary + '70'}
+                        />
+
+                        <TouchableOpacity 
+                            style={[styles.paySubmitBtn, isPaying && { opacity: 0.7 }]}
+                            onPress={handleSavePayment}
+                            disabled={isPaying}
+                        >
+                            <Ionicons name="checkmark-circle" size={20} color="white" />
+                            <Text style={styles.paySubmitText}>
+                                {isPaying ? 'Recording...' : `Confirm ${paymentType}`}
+                            </Text>
+                        </TouchableOpacity>
+                    </KeyboardAvoidingView>
+                </View>
+            </Modal>
 
             {/* Attendance Detail Modal */}
             <Modal
@@ -518,6 +878,225 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit',
         padding: 12,
     },
+    navBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: Palette.primary + '10',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    customRangeBar: {
+        flexDirection: 'row',
+        backgroundColor: 'white',
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    datePickerTrigger: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+        padding: 10,
+        borderRadius: 12,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    datePickerLabel: {
+        fontSize: 10,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.textSecondary,
+        textTransform: 'uppercase',
+    },
+    datePickerValue: {
+        fontSize: 14,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.primary,
+        marginTop: 2,
+    },
+    dateLink: {
+        width: 20,
+        height: 1,
+        backgroundColor: '#E2E8F0',
+        marginHorizontal: 10,
+    },
+    typeSelectorSmall: {
+        flexDirection: 'row',
+        backgroundColor: '#F1F5F9',
+        padding: 4,
+        borderRadius: 12,
+        marginBottom: 20,
+    },
+    typeBtnSmall: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    activeTypeBtnSmall: {
+        backgroundColor: 'white',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    typeTextSmall: {
+        fontSize: 12,
+        fontFamily: 'Outfit-Medium',
+        color: Palette.textSecondary,
+    },
+    activeTypeTextSmall: {
+        color: Palette.primary,
+        fontFamily: 'Outfit-Bold',
+    },
+    amountInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    currencyPrefix: {
+        fontSize: 32,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+        marginRight: 4,
+    },
+    paymentAmountInput: {
+        fontSize: 32,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+        minWidth: 100,
+        textAlign: 'center',
+    },
+    rangeIndicator: {
+        flexDirection: 'row',
+        backgroundColor: 'white',
+        padding: 16,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    rangeInfo: {
+        flex: 1,
+    },
+    rangeLabel: {
+        fontSize: 10,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    rangeDates: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+        marginTop: 2,
+    },
+    changeRangeBtn: {
+        backgroundColor: Palette.primary + '10',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+    },
+    changeRangeText: {
+        color: Palette.primary,
+        fontFamily: 'Outfit-Bold',
+        fontSize: 12,
+    },
+    rangeSelectBtn: {
+        marginRight: 16,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: Palette.primary + '10',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    pickerContent: {
+        backgroundColor: 'white',
+        borderRadius: 24,
+        padding: 24,
+        width: '85%',
+        alignSelf: 'center',
+    },
+    pickerTitle: {
+        fontSize: 20,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    presetBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 16,
+        marginBottom: 12,
+    },
+    presetBtnText: {
+        marginLeft: 12,
+        fontSize: 16,
+        fontFamily: 'Outfit-Medium',
+        color: Palette.text,
+    },
+    pickerHint: {
+        fontSize: 12,
+        color: Palette.textSecondary,
+        fontFamily: 'Outfit',
+        textAlign: 'center',
+        marginTop: 8,
+        marginBottom: 20,
+    },
+    pickerCloseBtn: {
+        alignItems: 'center',
+        padding: 12,
+    },
+    pickerCloseText: {
+        color: Palette.primary,
+        fontFamily: 'Outfit-Bold',
+    },
+    paymentSummary: {
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        padding: 24,
+        borderRadius: 20,
+        marginBottom: 20,
+    },
+    paymentAmount: {
+        fontSize: 32,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+    },
+    paymentPeriod: {
+        fontSize: 13,
+        color: Palette.textSecondary,
+        fontFamily: 'Outfit',
+        marginTop: 4,
+    },
+    paySubmitBtn: {
+        flexDirection: 'row',
+        backgroundColor: Palette.primary,
+        paddingVertical: 16,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    paySubmitText: {
+        color: 'white',
+        fontFamily: 'Outfit-Bold',
+        fontSize: 16,
+        marginLeft: 8,
+    },
+    payIcon: {
+        position: 'absolute',
+        bottom: 4,
+        right: 4,
+    },
     // New Modal Styles
     modalOverlay: {
         flex: 1,
@@ -622,6 +1201,10 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit-Bold',
         color: 'white',
     },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     noteIndicatorContainer: {
         position: 'absolute',
         top: 4,
@@ -629,5 +1212,72 @@ const styles = StyleSheet.create({
     },
     hasNote: {
         // Option to style cells with notes differently
-    }
+    },
+    financialSummary: {
+        flexDirection: 'row',
+        backgroundColor: '#F8FAFC',
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 20,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    summaryItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    summaryLabel: {
+        fontSize: 10,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.textSecondary,
+        textTransform: 'uppercase',
+        marginBottom: 4,
+    },
+    summaryValue: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+    },
+    summaryDivider: {
+        width: 1,
+        height: 24,
+        backgroundColor: '#E2E8F0',
+        marginHorizontal: 12,
+    },
+    repaymentMethodSection: {
+        marginBottom: 20,
+    },
+    methodToggle: {
+        flexDirection: 'row',
+        backgroundColor: '#F1F5F9',
+        padding: 4,
+        borderRadius: 12,
+    },
+    methodBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        borderRadius: 8,
+        gap: 6,
+    },
+    activeMethodBtn: {
+        backgroundColor: Palette.primary,
+        shadowColor: Palette.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    methodText: {
+        fontSize: 13,
+        fontFamily: 'Outfit-Medium',
+        color: Palette.textSecondary,
+    },
+    activeMethodText: {
+        color: 'white',
+        fontFamily: 'Outfit-Bold',
+    },
 });

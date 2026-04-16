@@ -113,15 +113,18 @@ export interface LaborContract {
   id: string;
   contractorId: string; // references LaborProfile
   projectName: string;
-  totalAmount: number;
+  service?: string;
+  category?: string;
+  startDate?: string;
   deadline: string;
+  totalAmount: number;
   advancePaid: number;
   status: 'Active' | 'Completed' | 'Cancelled';
   plotId?: string;
   notes?: string;
 }
 
-export type LaborTransactionType = 'Weekly Settle' | 'Annual Installment' | 'Contract Advance' | 'Other';
+export type LaborTransactionType = 'Weekly Settle' | 'Annual Installment' | 'Advance' | 'Advance Repayment' | 'Other';
 
 export interface LaborTransaction {
   id: string;
@@ -129,5 +132,6 @@ export interface LaborTransaction {
   amount: number;
   date: string;
   type: LaborTransactionType;
+  repaymentMethod?: 'Cash' | 'Wage Income';
   note?: string;
 }

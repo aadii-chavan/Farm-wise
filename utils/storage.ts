@@ -666,6 +666,9 @@ export const getLaborContracts = async (): Promise<LaborContract[]> => {
             id: c.id,
             contractorId: c.contractor_id,
             projectName: c.project_name,
+            service: c.service,
+            category: c.category,
+            startDate: c.start_date,
             totalAmount: Number(c.total_amount),
             deadline: c.deadline,
             advancePaid: Number(c.advance_paid),
@@ -688,6 +691,9 @@ export const saveLaborContract = async (contract: LaborContract): Promise<void> 
             user_id: userId,
             contractor_id: contract.contractorId,
             project_name: contract.projectName,
+            service: contract.service || null,
+            category: contract.category || null,
+            start_date: contract.startDate || null,
             total_amount: contract.totalAmount,
             deadline: contract.deadline,
             advance_paid: contract.advancePaid,
@@ -724,6 +730,7 @@ export const getLaborTransactions = async (workerId?: string): Promise<LaborTran
             amount: Number(t.amount),
             date: t.date,
             type: t.type,
+            repaymentMethod: t.repayment_method,
             note: t.note
         }));
     } catch (e) {
@@ -743,6 +750,7 @@ export const saveLaborTransaction = async (transaction: LaborTransaction): Promi
             amount: transaction.amount,
             date: transaction.date,
             type: transaction.type,
+            repayment_method: transaction.repaymentMethod || null,
             note: transaction.note
         };
 
