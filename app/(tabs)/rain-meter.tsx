@@ -189,8 +189,8 @@ export default function RainMeterScreen() {
                             <div class="stat-value">${stats.distinctDays}</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-label">Total Entries</div>
-                            <div class="stat-value">${processedData.length}</div>
+                            <div class="stat-label">Last Rainfall</div>
+                            <div class="stat-value" style="font-size: 18px;">${stats.lastRecord ? format(parseISO(stats.lastRecord.date), 'dd MMM yyyy') : 'N/A'}</div>
                         </div>
                     </div>
 
