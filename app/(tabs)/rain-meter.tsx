@@ -123,39 +123,112 @@ export default function RainMeterScreen() {
 
     const handlePDF = async () => {
         if (!Print || !Sharing) {
-            Alert.alert("Error", "PDF libraries not available");
+            Alert.alert("Libraries Missing", "Please run 'npx expo install expo-print expo-sharing' to enable this feature.");
             return;
         }
+
         const userName = user?.user_metadata?.full_name || user?.email || 'Farmer';
         const tableRows = [...processedData].reverse().map((r, idx) => `
-            <tr style="background-color: ${idx % 2 === 0 ? 'white' : '#f8fafc'};">
-                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${format(parseISO(r.date), 'dd MMM yyyy')}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${r.displayTime}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #2563eb;">${r.amount} mm</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${r.note || '-'}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold;">${r.cumulativeTotal.toFixed(1)} mm</td>
+            <tr style="background-color: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">${format(parseISO(r.date), 'dd MMM yyyy')}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">${r.displayTime}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #2563eb; font-weight: 700; font-size: 14px;">${r.amount} mm</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; color: #475569; font-size: 12px;">${r.note || '-'}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 800; color: #1e293b; font-size: 14px;">${r.cumulativeTotal.toFixed(1)} mm</td>
             </tr>
         `).join('');
 
-        const html = `<html><body style="font-family: Arial; padding: 40px;">
-            <h1 style="color: #2563eb;">FarmEzy Rainfall Report</h1>
-            <p>Prepared for: ${userName}</p>
-            <div style="display: flex; gap: 20px; margin: 20px 0;">
-                <div style="background: #f1f5f9; padding: 15px; border-radius: 10px; flex: 1;">Total: ${stats.total.toFixed(1)} mm</div>
-                <div style="background: #f1f5f9; padding: 15px; border-radius: 10px; flex: 1;">Rainy Days: ${stats.distinctDays}</div>
-            </div>
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead style="background: #2563eb; color: white;">
-                    <tr><th>Date</th><th>Time</th><th style="text-align: center;">Amt</th><th>Note</th><th style="text-align: right;">Total</th></tr>
-                </thead>
-                <tbody>${tableRows}</tbody>
-            </table>
-        </body></html>`;
+        const html = `
+            <html>
+                <head>
+                    <style>
+                        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }
+                        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 4px solid #2563eb; padding-bottom: 25px; margin-bottom: 35px; }
+                        .logo-container { flex: 1; }
+                        .logo-text { font-size: 38px; font-weight: 900; color: #2563eb; letter-spacing: -1.5px; margin: 0; }
+                        .logo-sub { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin-top: -5px; }
+                        .report-meta { text-align: right; flex: 1; }
+                        .report-title { font-size: 26px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+                        .user-info { font-size: 15px; color: #475569; margin-top: 8px; }
+                        
+                        .stats-grid { display: flex; gap: 20px; margin-bottom: 35px; }
+                        .stat-card { flex: 1; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: center; }
+                        .stat-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+                        .stat-value { font-size: 24px; font-weight: 900; color: #2563eb; }
+                        
+                        .table-container { border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+                        table { width: 100%; border-collapse: collapse; background: white; }
+                        th { background-color: #2563eb; color: white; text-align: left; padding: 16px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+                        
+                        .footer { margin-top: 60px; padding-top: 30px; border-top: 2px solid #f1f5f9; text-align: center; }
+                        .footer-brand { font-size: 18px; font-weight: 800; color: #2563eb; margin-bottom: 5px; }
+                        .footer-tagline { font-size: 13px; color: #64748b; font-weight: 500; }
+                        .disclaimer { font-size: 11px; color: #94a3b8; margin-top: 20px; font-style: italic; max-width: 80%; margin-left: auto; margin-right: auto; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="logo-container">
+                            <h1 class="logo-text">FarmEzy</h1>
+                            <p class="logo-sub">Smart Agriculture</p>
+                        </div>
+                        <div class="report-meta">
+                            <h2 class="report-title">Rainfall Ledger</h2>
+                            <div class="user-info">Prepared for: <b>${userName}</b></div>
+                            <div style="font-size: 12px; color: #94a3b8; margin-top: 5px;">Period: ${filterType === 'all' ? 'All Records' : `${format(startDate, 'dd MMM')} - ${format(endDate, 'dd MMM yyyy')}`}</div>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Volume</div>
+                            <div class="stat-value">${stats.total.toFixed(1)} <small style="font-size: 14px;">mm</small></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Rainy Days</div>
+                            <div class="stat-value">${stats.distinctDays}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Total Entries</div>
+                            <div class="stat-value">${processedData.length}</div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th style="text-align: center;">Amt (mm)</th>
+                                    <th>Observations</th>
+                                    <th style="text-align: right;">Cumulative</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="footer">
+                        <div class="footer-brand">FarmEzy</div>
+                        <div class="footer-tagline">Your Digital Partner in Modern Agriculture</div>
+                        <p class="disclaimer">
+                            This Rainfall Ledger is a system-generated document based on data provided by the user. 
+                            It is intended for agricultural planning and historical reference. FarmEzy is not liable for 
+                            any discrepancies in manual data entry.
+                        </p>
+                        <p style="font-size: 10px; color: #cbd5e1; margin-top: 15px;">Generated on: ${format(new Date(), 'dd MMMM yyyy, hh:mm a')}</p>
+                    </div>
+                </body>
+            </html>
+        `;
 
         try {
             const { uri } = await Print.printToFileAsync({ html });
-            await Sharing.shareAsync(uri);
-        } catch (e) { Alert.alert("Error", "PDF generation failed"); }
+            await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf', dialogTitle: 'Share FarmEzy Rain Report' });
+        } catch (e) { Alert.alert("Error", "Failed to generate PDF"); }
     };
 
     return (
