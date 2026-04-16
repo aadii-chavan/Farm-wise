@@ -318,18 +318,38 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addRainRecord = async (record: RainRecord) => {
-    await Storage.saveRainRecord(record);
-    await loadData();
+    // Generate a temporary ID if it's a new record
+    const tempId = record.id || Date.now().toString();
+    const optimisticRecord = { ...record, id: tempId };
+    
+    setRainRecords(prev => {
+        const filtered = prev.filter(r => r.id !== record.id);
+        return [optimisticRecord, ...filtered].sort((a,b) => b.date.localeCompare(a.date));
+    });
+
+    try {
+        await Storage.saveRainRecord(record);
+    } catch (e) {
+        await loadData();
+    }
   };
 
   const updateRainRecord = async (record: RainRecord) => {
-    await Storage.saveRainRecord(record);
-    await loadData();
+    setRainRecords(prev => prev.map(r => r.id === record.id ? record : r));
+    try {
+        await Storage.saveRainRecord(record);
+    } catch (e) {
+        await loadData();
+    }
   };
 
   const deleteRainRecord = async (id: string) => {
-    await Storage.deleteRainRecord(id);
-    await loadData();
+    setRainRecords(prev => prev.filter(r => r.id !== id));
+    try {
+        await Storage.deleteRainRecord(id);
+    } catch (e) {
+        await loadData();
+    }
   };
 
   return (
