@@ -36,6 +36,7 @@ export default function PlotDetailScreen() {
       customDate: null,
   });
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'History' | 'WorkBook'>('History');
 
   const allCategories = useMemo(() => {
     return Array.from(new Set(plotTransactions.map(t => t.category)));
@@ -149,56 +150,76 @@ export default function PlotDetailScreen() {
               </View>
           </View>
 
-          <View style={styles.filtersContainer}>
-             <Pressable style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
-                 <Ionicons name="options" size={20} color={Palette.primary} style={{ marginRight: 8 }} />
-                 <Text style={styles.filterButtonText}>Filter Options</Text>
-                 {((filterState.type !== 'Both' ? 1 : 0) + (filterState.dateFilter !== 'All Time' ? 1 : 0) + (filterState.categories.length > 0 ? 1 : 0)) > 0 && (
-                 <View style={styles.filterBadge}>
-                    <Text style={styles.filterBadgeText}>
-                        {(filterState.type !== 'Both' ? 1 : 0) + (filterState.dateFilter !== 'All Time' ? 1 : 0) + (filterState.categories.length > 0 ? 1 : 0)}
-                    </Text>
-                 </View>
-                 )}
-                 <Ionicons name="chevron-down" size={16} color={Palette.textSecondary} style={{ marginLeft: 'auto' }} />
-             </Pressable>
+          <View style={styles.tabContainer}>
+            <Pressable 
+              style={[styles.tabButton, activeTab === 'History' && styles.activeTabButton]}
+              onPress={() => setActiveTab('History')}
+            >
+              <Text style={[styles.tabButtonText, activeTab === 'History' && styles.activeTabButtonText]}>History</Text>
+            </Pressable>
+            <Pressable 
+              style={[styles.tabButton, activeTab === 'WorkBook' && styles.activeTabButton]}
+              onPress={() => setActiveTab('WorkBook')}
+            >
+              <Text style={[styles.tabButtonText, activeTab === 'WorkBook' && styles.activeTabButtonText]}>WorkBook</Text>
+            </Pressable>
           </View>
 
-          <View style={styles.historyHeader}>
-              <Text style={styles.historyTitle}>Filtered History</Text>
-              <Text style={styles.historyCount}>{filteredTransactions.length} entries</Text>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-              {groupedTransactions.length === 0 ? (
-                  <View style={styles.emptyContainer}>
-                      <Ionicons name="receipt-outline" size={48} color={Palette.textSecondary + '40'} />
-                      <Text style={styles.emptyText}>No transactions for this plot yet.</Text>
-                  </View>
-              ) : (
-                  groupedTransactions.map((group, index) => (
-                      <View key={group.date} style={styles.timelineGroup}>
-                          <View style={styles.timelineDateContainer}>
-                              <View style={styles.timelineDot} />
-                              <Text style={styles.timelineDateText}>
-                                {new Date(group.date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+          {activeTab === 'History' ? (
+              <>
+                  <View style={styles.filterRow}>
+                      <Pressable style={styles.filterButton} onPress={() => setShowFilterModal(true)}>
+                          <Ionicons name="options" size={16} color={Palette.primary} style={{ marginRight: 6 }} />
+                          <Text style={styles.filterButtonText}>Filter</Text>
+                          {((filterState.type !== 'Both' ? 1 : 0) + (filterState.dateFilter !== 'All Time' ? 1 : 0) + (filterState.categories.length > 0 ? 1 : 0)) > 0 && (
+                          <View style={styles.filterBadge}>
+                              <Text style={styles.filterBadgeText}>
+                                  {(filterState.type !== 'Both' ? 1 : 0) + (filterState.dateFilter !== 'All Time' ? 1 : 0) + (filterState.categories.length > 0 ? 1 : 0)}
                               </Text>
                           </View>
-                          <View style={styles.timelineContent}>
-                              {group.data.map((item: any, idx: number) => (
-                                  <View key={item.id} style={styles.timelineItemWrapper}>
-                                      <TransactionCard 
-                                          transaction={item} 
-                                          onDelete={() => confirmDelete(item.id)}
-                                          onEdit={() => router.push({ pathname: '/add', params: { editId: item.id } })}
-                                      />
-                                  </View>
-                              ))}
+                          )}
+                          <Ionicons name="chevron-down" size={14} color={Palette.textSecondary} style={{ marginLeft: 6 }} />
+                      </Pressable>
+                      <Text style={styles.historyCount}>{filteredTransactions.length} entries</Text>
+                  </View>
+
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+                      {groupedTransactions.length === 0 ? (
+                          <View style={styles.emptyContainer}>
+                              <Ionicons name="receipt-outline" size={48} color={Palette.textSecondary + '40'} />
+                              <Text style={styles.emptyText}>No transactions for this plot yet.</Text>
                           </View>
-                      </View>
-                  ))
-              )}
-          </ScrollView>
+                      ) : (
+                          groupedTransactions.map((group, index) => (
+                              <View key={group.date} style={styles.timelineGroup}>
+                                  <View style={styles.timelineDateContainer}>
+                                      <View style={styles.timelineDot} />
+                                      <Text style={styles.timelineDateText}>
+                                        {new Date(group.date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                      </Text>
+                                  </View>
+                                  <View style={styles.timelineContent}>
+                                      {group.data.map((item: any, idx: number) => (
+                                          <View key={item.id} style={styles.timelineItemWrapper}>
+                                              <TransactionCard 
+                                                  transaction={item} 
+                                                  onDelete={() => confirmDelete(item.id)}
+                                                  onEdit={() => router.push({ pathname: '/add', params: { editId: item.id } })}
+                                              />
+                                          </View>
+                                      ))}
+                                  </View>
+                              </View>
+                          ))
+                      )}
+                  </ScrollView>
+              </>
+          ) : (
+              <View style={styles.emptyContainer}>
+                  <Ionicons name="book-outline" size={48} color={Palette.textSecondary + '40'} />
+                  <Text style={styles.emptyText}>WorkBook coming soon...</Text>
+              </View>
+          )}
       </View>
 
       <Pressable 
@@ -290,22 +311,80 @@ const styles = StyleSheet.create({
       height: 20,
       backgroundColor: '#f0f0f0',
   },
-  historyHeader: {
+  filterRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 16,
-      paddingHorizontal: 4,
   },
-  historyTitle: {
-      fontSize: 18,
-      fontFamily: 'Outfit-Bold',
+  filterButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'white',
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: '#f0f0f0',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.02,
+      shadowRadius: 3,
+      elevation: 1,
+  },
+  filterButtonText: {
+      fontFamily: 'Outfit-Medium',
+      fontSize: 14,
       color: Palette.text,
+  },
+  filterBadge: {
+      backgroundColor: Palette.primary,
+      borderRadius: 10,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      marginLeft: 6,
+      justifyContent: 'center',
+      alignItems: 'center',
+  },
+  filterBadgeText: {
+      color: 'white',
+      fontSize: 10,
+      fontFamily: 'Outfit-Bold',
   },
   historyCount: {
       fontSize: 12,
       color: Palette.textSecondary,
       fontFamily: 'Outfit-Medium',
+  },
+  tabContainer: {
+      flexDirection: 'row',
+      backgroundColor: '#f5f5f5',
+      padding: 4,
+      borderRadius: 12,
+      marginBottom: 16,
+  },
+  tabButton: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderRadius: 8,
+  },
+  activeTabButton: {
+      backgroundColor: 'white',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 4,
+      elevation: 2,
+  },
+  tabButtonText: {
+      fontFamily: 'Outfit-Medium',
+      fontSize: 14,
+      color: Palette.textSecondary,
+  },
+  activeTabButtonText: {
+      color: Palette.primary,
+      fontFamily: 'Outfit-Bold',
   },
   emptyContainer: {
       alignItems: 'center',
@@ -317,42 +396,6 @@ const styles = StyleSheet.create({
       color: Palette.textSecondary,
       fontFamily: 'Outfit',
       marginTop: 12,
-  },
-  filtersContainer: {
-      marginBottom: 20,
-  },
-  filterButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: 'white',
-      padding: 16,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: '#f0f0f0',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.02,
-      shadowRadius: 5,
-      elevation: 2,
-  },
-  filterButtonText: {
-      fontFamily: 'Outfit-Medium',
-      fontSize: 16,
-      color: Palette.text,
-  },
-  filterBadge: {
-      backgroundColor: Palette.primary,
-      borderRadius: 12,
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      marginLeft: 8,
-      justifyContent: 'center',
-      alignItems: 'center',
-  },
-  filterBadgeText: {
-      color: 'white',
-      fontSize: 12,
-      fontFamily: 'Outfit-Bold',
   },
   timelineGroup: {
       marginBottom: 16,
