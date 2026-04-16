@@ -62,6 +62,16 @@ export default function LaborBookScreen() {
                     </View>
                     <Text style={styles.actionLabel}>Transactions</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity 
+                    style={styles.actionCard}
+                    onPress={() => router.push('/labor-analytics')}
+                >
+                    <View style={[styles.actionIcon, { backgroundColor: '#F59E0B' + '15' }]}>
+                        <Ionicons name="bar-chart-outline" size={24} color="#F59E0B" />
+                    </View>
+                    <Text style={styles.actionLabel}>Analytics</Text>
+                </TouchableOpacity>
             </View>
 
             {/* Tab Navigation */}
@@ -361,7 +371,7 @@ const styles = StyleSheet.create({
     actionCard: {
         flex: 1,
         backgroundColor: 'white',
-        padding: 16,
+        padding: 12,
         borderRadius: 20,
         alignItems: 'center',
         shadowColor: '#000',
@@ -371,17 +381,18 @@ const styles = StyleSheet.create({
         elevation: 3,
         borderWidth: 1,
         borderColor: '#F1F5F9',
+        minWidth: (width - 64) / 3,
     },
     actionIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
+        width: 40,
+        height: 40,
+        borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 10,
+        marginBottom: 8,
     },
     actionLabel: {
-        fontSize: 12,
+        fontSize: 10,
         fontFamily: 'Outfit-Bold',
         color: Palette.text,
         textAlign: 'center',
