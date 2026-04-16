@@ -133,4 +133,5 @@ export interface LaborTransaction {
   type: LaborTransactionType;
   repaymentMethod?: 'Cash' | 'Wage Income';
   note?: string;
+  contractId?: string;
 }

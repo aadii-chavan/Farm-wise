@@ -112,3 +112,13 @@ CHECK (type IN (
   'Contract Payment', 
   'Other'
 ));
+
+-- 10. Link Transactions to Contracts for better tracking and automated cleanup
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='labor_transactions' AND column_name='contract_id') THEN
+        ALTER TABLE public.labor_transactions ADD COLUMN contract_id uuid REFERENCES public.labor_contracts(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_labor_transactions_contract ON public.labor_transactions(contract_id);

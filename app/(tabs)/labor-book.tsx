@@ -340,7 +340,8 @@ export default function LaborBookScreen() {
                         amount: amt,
                         date: new Date().toISOString().split('T')[0],
                         type: 'Contract Payment',
-                        note: `Payment: ${selectedContract.projectName}`
+                        note: `Payment: ${selectedContract.projectName}`,
+                        contractId: cid
                     });
 
                     // 2. Update the contract's cumulative paid amount

@@ -251,17 +251,18 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addLaborContract = async (contract: LaborContract) => {
-    await Storage.saveLaborContract(contract);
+    const saved = await Storage.saveLaborContract(contract);
     
     // Automatically log the initial advance as a transaction
-    if (contract.advancePaid > 0) {
+    if (saved && saved.advancePaid > 0) {
       await addLaborTransaction({
         id: '',
-        workerId: contract.contractorId,
-        amount: contract.advancePaid,
-        date: contract.startDate || new Date().toISOString().split('T')[0],
+        workerId: saved.contractorId,
+        amount: saved.advancePaid,
+        date: saved.startDate || new Date().toISOString().split('T')[0],
         type: 'Contract Payment',
-        note: `Initial Advance: ${contract.projectName}`
+        note: `Initial Advance: ${saved.projectName}`,
+        contractId: saved.id
       });
     } else {
       await loadData();

@@ -681,7 +681,7 @@ export const getLaborContracts = async (): Promise<LaborContract[]> => {
     }
 };
 
-export const saveLaborContract = async (contract: LaborContract): Promise<void> => {
+export const saveLaborContract = async (contract: LaborContract): Promise<LaborContract | null> => {
     try {
         const userId = await getUserId();
         if (!userId) throw new Error('User not authenticated');
@@ -704,10 +704,24 @@ export const saveLaborContract = async (contract: LaborContract): Promise<void> 
             contractData.id = contract.id;
         }
 
-        const { error } = await supabase.from('labor_contracts').upsert(contractData);
+        const { data, error } = await supabase.from('labor_contracts').upsert(contractData).select().single();
         if (error) throw error;
+        return data ? {
+            id: data.id,
+            contractorId: data.contractor_id,
+            projectName: data.project_name,
+            service: data.service,
+            startDate: data.start_date,
+            deadline: data.deadline,
+            totalAmount: Number(data.total_amount),
+            advancePaid: Number(data.advance_paid),
+            status: data.status,
+            plotId: data.plot_id,
+            notes: data.notes
+        } : null;
     } catch (e) {
         console.error('Failed to save labor contract', e);
+        return null;
     }
 };
 
@@ -729,7 +743,8 @@ export const getLaborTransactions = async (workerId?: string): Promise<LaborTran
             date: t.date,
             type: t.type,
             repaymentMethod: t.repayment_method,
-            note: t.note
+            note: t.note,
+            contractId: t.contract_id
         }));
     } catch (e) {
         console.error('Failed to load labor transactions', e);
@@ -749,7 +764,8 @@ export const saveLaborTransaction = async (transaction: LaborTransaction): Promi
             date: transaction.date,
             type: transaction.type,
             repayment_method: transaction.repaymentMethod || null,
-            note: transaction.note
+            note: transaction.note,
+            contract_id: transaction.contractId || null
         };
 
         if (transaction.id && isUUID(transaction.id)) {
