@@ -5,9 +5,10 @@ import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useFarm } from '@/context/FarmContext';
-import { LaborType, LaborProfile, LaborAttendance } from '@/types/farm';
+import { LaborType, LaborProfile, LaborAttendance, LaborContract } from '@/types/farm';
 import { LaborModal } from '@/components/LaborModal';
 import { ContractModal } from '@/components/ContractModal';
+import { ContractDetailModal } from '@/components/ContractDetailModal';
 
 const { width } = Dimensions.get('window');
 
@@ -16,7 +17,10 @@ export default function LaborBookScreen() {
     const [activeTab, setActiveTab] = useState<LaborType>('Daily');
     const [showAddModal, setShowAddModal] = useState(false);
     const [showContractModal, setShowContractModal] = useState(false);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [contractStatusFilter, setContractStatusFilter] = useState<'Active' | 'Completed'>('Active');
     const [selectedContractor, setSelectedContractor] = useState<LaborProfile | null>(null);
+    const [selectedContract, setSelectedContract] = useState<LaborContract | null>(null);
     const { 
         laborProfiles, 
         laborContracts, 
@@ -24,7 +28,10 @@ export default function LaborBookScreen() {
         laborAttendance, 
         plots, 
         addLaborProfile,
-        addLaborContract
+        addLaborContract,
+        updateLaborContract,
+        deleteLaborContract,
+        addLaborTransaction
     } = useFarm();
 
     const dailyWorkers = useMemo(() => laborProfiles.filter(p => p.type === 'Daily'), [laborProfiles]);
@@ -32,14 +39,14 @@ export default function LaborBookScreen() {
     const contractors = useMemo(() => laborProfiles.filter(p => p.type === 'Contract'), [laborProfiles]);
 
     const stats = useMemo(() => {
-        // 1. Total Advance Outstanding
-        const advances = laborTransactions
-            .filter(t => (t.type as string) === 'Advance')
+        // 1. Total Staff Advance Outstanding (Excluding Contract Payments)
+        const staffAdvances = laborTransactions
+            .filter(t => t.type === 'Advance')
             .reduce((acc, t) => acc + t.amount, 0);
-        const repayments = laborTransactions
-            .filter(t => (t.type as string) === 'Advance Repayment')
+        const staffRepayments = laborTransactions
+            .filter(t => t.type === 'Advance Repayment')
             .reduce((acc, t) => acc + t.amount, 0);
-        const advanceOutstanding = advances - repayments;
+        const advanceOutstanding = staffAdvances - staffRepayments;
 
         // 2. Active Contract Remaining Balance
         const activeContracts = laborContracts.filter(c => c.status === 'Active');
@@ -190,7 +197,21 @@ export default function LaborBookScreen() {
                 {activeTab === 'Contract' && (
                     <View>
                         <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Active Contracts</Text>
+                            <Text style={styles.sectionTitle}>Contracts</Text>
+                            <View style={styles.miniToggle}>
+                                <TouchableOpacity 
+                                    style={[styles.miniToggleBtn, contractStatusFilter === 'Active' && styles.activeMiniToggle]}
+                                    onPress={() => setContractStatusFilter('Active')}
+                                >
+                                    <Text style={[styles.miniToggleText, contractStatusFilter === 'Active' && styles.activeMiniToggleText]}>Ongoing</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    style={[styles.miniToggleBtn, contractStatusFilter === 'Completed' && styles.activeMiniToggle]}
+                                    onPress={() => setContractStatusFilter('Completed')}
+                                >
+                                    <Text style={[styles.miniToggleText, contractStatusFilter === 'Completed' && styles.activeMiniToggleText]}>Completed</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
                         {contractors.length === 0 ? (
                             <View style={styles.emptyContainer}>
@@ -199,34 +220,67 @@ export default function LaborBookScreen() {
                             </View>
                         ) : (
                             contractors.map(worker => {
-                                const activeContract = laborContracts.find(c => c.contractorId === worker.id && c.status === 'Active');
+                                const filteredContracts = laborContracts.filter(c => 
+                                    c.contractorId === worker.id && 
+                                    c.status === contractStatusFilter
+                                );
+                                
+                                // Always show contractor card in Ongoing tab (so we can see names and create contracts)
+                                // Only hide in Completed tab if they have NO completed contracts
+                                if (contractStatusFilter === 'Completed' && filteredContracts.length === 0) return null;
+
                                 return (
-                                    <TouchableOpacity 
+                                    <View 
                                         key={worker.id} 
                                         style={styles.laborCard}
-                                        onPress={() => router.push({ pathname: '/worker-detail', params: { id: worker.id } })}
                                     >
-                                        <View style={styles.cardHeader}>
+                                        <TouchableOpacity 
+                                            style={styles.cardHeader}
+                                            onPress={() => router.push({ pathname: '/worker-detail', params: { id: worker.id } })}
+                                        >
                                             <Text style={styles.workerName}>{worker.name}</Text>
-                                            {activeContract && (
-                                                <View style={[styles.badge, { backgroundColor: Palette.primary + '20' }]}>
-                                                    <Text style={[styles.badgeText, { color: Palette.primary }]}>Active</Text>
+                                            {filteredContracts.length > 0 && (
+                                                <View style={[styles.badge, { backgroundColor: (contractStatusFilter === 'Active' ? Palette.primary : Palette.success) + '20' }]}>
+                                                    <Text style={[styles.badgeText, { color: contractStatusFilter === 'Active' ? Palette.primary : Palette.success }]}>
+                                                        {filteredContracts.length} {contractStatusFilter}
+                                                    </Text>
                                                 </View>
                                             )}
-                                        </View>
-                                        {activeContract && (
-                                            <View style={styles.contractDetails}>
-                                                <Text style={styles.projectName}>{activeContract.projectName}</Text>
-                                                <View style={styles.progressBarBg}>
-                                                    <View style={[styles.progressBarFill, { width: `${(activeContract.advancePaid / activeContract.totalAmount) * 100}%` }]} />
-                                                </View>
-                                                <Text style={styles.payoutText}>
-                                                    ₹{activeContract.advancePaid.toLocaleString()} paid of ₹{activeContract.totalAmount.toLocaleString()}
-                                                </Text>
+                                        </TouchableOpacity>
+
+                                        {filteredContracts.length > 0 && (
+                                            <View style={styles.contractsList}>
+                                                {filteredContracts.map(contract => (
+                                                    <View key={contract.id} style={styles.contractItem}>
+                                                        <View style={styles.contractItemHeader}>
+                                                            <Text style={styles.projectName}>{contract.projectName}</Text>
+                                                            <TouchableOpacity 
+                                                                style={styles.viewDetailBtn}
+                                                                onPress={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedContract(contract);
+                                                                    setSelectedContractor(worker);
+                                                                    setShowDetailModal(true);
+                                                                }}
+                                                            >
+                                                                <Text style={styles.viewDetailText}>Manage</Text>
+                                                                <Ionicons name="settings-outline" size={14} color={Palette.primary} />
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                        
+                                                        <View style={styles.progressBarBg}>
+                                                            <View style={[styles.progressBarFill, { width: `${(contract.advancePaid / contract.totalAmount) * 100}%` }]} />
+                                                        </View>
+                                                        <Text style={styles.payoutText}>
+                                                            ₹{contract.advancePaid.toLocaleString()} paid of ₹{contract.totalAmount.toLocaleString()}
+                                                        </Text>
+                                                    </View>
+                                                ))}
                                             </View>
                                         )}
+
                                         {worker.phone && (
-                                            <View style={[styles.cardInfoRow, { marginTop: activeContract ? 12 : 4 }]}>
+                                            <View style={[styles.cardInfoRow, { marginTop: filteredContracts.length > 0 ? 12 : 4 }]}>
                                                 <Ionicons name="call-outline" size={14} color={Palette.textSecondary} />
                                                 <Text style={styles.infoLabel}>{worker.phone}</Text>
                                             </View>
@@ -235,18 +289,20 @@ export default function LaborBookScreen() {
                                             <Text style={styles.cardNote} numberOfLines={2}>{worker.notes}</Text>
                                         )}
 
-                                        <TouchableOpacity 
-                                            style={styles.createContractBtn}
-                                            onPress={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedContractor(worker);
-                                                setShowContractModal(true);
-                                            }}
-                                        >
-                                            <Ionicons name="add-circle-outline" size={16} color="white" />
-                                            <Text style={styles.createContractText}>Create Contract</Text>
-                                        </TouchableOpacity>
-                                    </TouchableOpacity>
+                                        {contractStatusFilter === 'Active' && (
+                                            <TouchableOpacity 
+                                                style={styles.createContractBtn}
+                                                onPress={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedContractor(worker);
+                                                    setShowContractModal(true);
+                                                }}
+                                            >
+                                                <Ionicons name="add-circle-outline" size={16} color="white" />
+                                                <Text style={styles.createContractText}>Create Contract</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
                                 );
                             })
                         )}
@@ -271,6 +327,42 @@ export default function LaborBookScreen() {
                 onSave={addLaborContract}
                 contractor={selectedContractor}
                 plots={plots}
+            />
+
+            <ContractDetailModal
+                visible={showDetailModal}
+                onClose={() => setShowDetailModal(false)}
+                contract={selectedContract}
+                contractor={selectedContractor}
+                plots={plots}
+                onUpdate={async (updated) => {
+                    await updateLaborContract(updated);
+                    setSelectedContract(updated);
+                }}
+                onDelete={deleteLaborContract}
+                onRecordPayment={async (cid, amt) => {
+                    if (!selectedContractor || !selectedContract) return;
+                    
+                    // 1. Record the transaction
+                    await addLaborTransaction({
+                        id: '',
+                        workerId: selectedContractor.id,
+                        amount: amt,
+                        date: new Date().toISOString().split('T')[0],
+                        type: 'Contract Payment',
+                        note: `Payment: ${selectedContract.projectName}`
+                    });
+
+                    // 2. Update the contract's cumulative paid amount
+                    const updatedContract = { 
+                        ...selectedContract, 
+                        advancePaid: (selectedContract.advancePaid || 0) + amt 
+                    };
+                    await updateLaborContract(updatedContract);
+                    
+                    // 3. Refresh local state to update the modal UI immediately
+                    setSelectedContract(updatedContract);
+                }}
             />
         </View>
     );
@@ -360,6 +452,34 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit-Bold',
         color: Palette.text,
     },
+    miniToggle: {
+        flexDirection: 'row',
+        backgroundColor: '#F1F5F9',
+        borderRadius: 10,
+        padding: 2,
+    },
+    miniToggleBtn: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+    },
+    activeMiniToggle: {
+        backgroundColor: 'white',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
+    },
+    miniToggleText: {
+        fontSize: 12,
+        fontFamily: 'Outfit-Medium',
+        color: Palette.textSecondary,
+    },
+    activeMiniToggleText: {
+        color: Palette.primary,
+        fontFamily: 'Outfit-Bold',
+    },
     headerAction: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -408,6 +528,23 @@ const styles = StyleSheet.create({
     },
     contractDetails: {
         marginTop: 12,
+    },
+    contractsList: {
+        marginTop: 12,
+        gap: 12,
+    },
+    contractItem: {
+        backgroundColor: '#F8FAFC',
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    contractItemHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
     },
     projectName: {
         fontSize: 14,
@@ -488,5 +625,16 @@ const styles = StyleSheet.create({
         color: 'white',
         fontFamily: 'Outfit-Bold',
         fontSize: 14,
+    },
+    viewDetailBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+        gap: 4,
+    },
+    viewDetailText: {
+        fontSize: 12,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.primary,
     },
 });

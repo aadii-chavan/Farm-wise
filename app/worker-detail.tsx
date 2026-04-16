@@ -10,7 +10,7 @@ import { format, parseISO } from 'date-fns';
 export default function WorkerDetailScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
-    const { laborProfiles, laborTransactions, laborAttendance } = useFarm();
+    const { laborProfiles, laborTransactions, laborAttendance, laborContracts } = useFarm();
     
     const worker = useMemo(() => laborProfiles.find(p => p.id === id), [laborProfiles, id]);
     
@@ -26,24 +26,45 @@ export default function WorkerDetailScreen() {
         if (!worker) return { totalEarned: 0, totalPaid: 0, balance: 0, advanceTotal: 0 };
         
         let totalEarned = 0;
-        attendanceRecords.forEach(a => {
-            if (a.status === 'Present') totalEarned += (worker.baseWage || 0);
-            if (a.status === 'Half-Day') totalEarned += (worker.baseWage || 0) / 2;
-        });
+        let totalPaid = 0;
+        let advanceTotal = 0;
+        let repaidTotal = 0;
 
-        const totalPaid = transactions.filter(t => t.type === 'Weekly Settle' || t.type === 'Annual Installment').reduce((acc, t) => acc + t.amount, 0);
-        const advanceTotal = transactions.filter(t => t.type === 'Advance').reduce((acc, t) => acc + t.amount, 0);
-        const repaidTotal = transactions.filter(t => t.type === 'Advance Repayment').reduce((acc, t) => acc + t.amount, 0);
-        
+        if (worker.type === 'Contract') {
+            // For contractors, earnings = sum of contract project amounts
+            const myContracts = laborContracts.filter(c => c.contractorId === id);
+            totalEarned = myContracts.reduce((acc, c) => acc + c.totalAmount, 0);
+            
+            // Total paid is simply sum of all transactions recorded for them
+            totalPaid = transactions.reduce((acc, t) => acc + t.amount, 0);
+            
+            // For contractors, we don't strictly separate "Advance" vs "Settle" in the same way, 
+            // but we can show advance if explicitly recorded.
+            advanceTotal = transactions.filter(t => t.type === 'Advance').reduce((acc, t) => acc + t.amount, 0);
+            repaidTotal = transactions.filter(t => t.type === 'Advance Repayment').reduce((acc, t) => acc + t.amount, 0);
+        } else {
+            // For Daily/Annual staff
+            attendanceRecords.forEach(a => {
+                if (a.status === 'Present') totalEarned += (worker.baseWage || 0);
+                if (a.status === 'Half-Day') totalEarned += (worker.baseWage || 0) / 2;
+            });
+
+            totalPaid = transactions.filter(t => t.type === 'Weekly Settle' || t.type === 'Annual Installment').reduce((acc, t) => acc + t.amount, 0);
+            advanceTotal = transactions.filter(t => t.type === 'Advance').reduce((acc, t) => acc + t.amount, 0);
+            repaidTotal = transactions.filter(t => t.type === 'Advance Repayment').reduce((acc, t) => acc + t.amount, 0);
+        }
+
         const outstandingAdvance = advanceTotal - repaidTotal;
 
         return {
             totalEarned: Math.round(totalEarned),
             totalPaid: Math.round(totalPaid),
             advanceTotal: Math.round(outstandingAdvance),
-            balance: Math.round(totalEarned - totalPaid - repaidTotal) // Remaining to pay for attendance
+            balance: worker.type === 'Contract' 
+                ? Math.round(totalEarned - totalPaid)
+                : Math.round(totalEarned - totalPaid - repaidTotal)
         };
-    }, [worker, transactions, attendanceRecords]);
+    }, [worker, transactions, attendanceRecords, laborContracts, id]);
 
     if (!worker) return <View style={styles.container}><Text>Worker not found</Text></View>;
 
@@ -67,7 +88,9 @@ export default function WorkerDetailScreen() {
                         <Text style={styles.avatarText}>{worker.name.charAt(0)}</Text>
                     </View>
                     <View style={styles.profileInfo}>
-                        <Text style={styles.workerName}>{worker.name}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.workerName}>{worker.name}</Text>
+                        </View>
                         <Text style={styles.workerType}>{worker.type} Staff • Joined {format(parseISO(worker.startDate), 'MMM d, yyyy')}</Text>
                         {worker.phone && (
                             <TouchableOpacity style={styles.phoneLink}>
@@ -96,7 +119,7 @@ export default function WorkerDetailScreen() {
                         <Text style={[styles.summaryValue, { color: Palette.danger }]}>₹{stats.advanceTotal.toLocaleString()}</Text>
                     </View>
                     <View style={[styles.summaryBox, { backgroundColor: '#F59E0B10' }]}>
-                        <Text style={styles.summaryLabel}>To Pay</Text>
+                        <Text style={styles.summaryLabel}>{worker.type === 'Contract' ? 'Due Amount' : 'To Pay'}</Text>
                         <Text style={[styles.summaryValue, { color: '#F59E0B' }]}>₹{stats.balance.toLocaleString()}</Text>
                     </View>
                 </View>
@@ -104,9 +127,11 @@ export default function WorkerDetailScreen() {
                 {/* History Section */}
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Transaction History</Text>
-                    <TouchableOpacity onPress={() => router.push({ pathname: '/labor-attendance-sheet', params: { type: worker.type } })}>
-                        <Text style={styles.attendanceLink}>View Sheet</Text>
-                    </TouchableOpacity>
+                    {worker.type !== 'Contract' && (
+                        <TouchableOpacity onPress={() => router.push({ pathname: '/labor-attendance-sheet', params: { type: worker.type } })}>
+                            <Text style={styles.attendanceLink}>View Sheet</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {transactions.length === 0 ? (
@@ -120,7 +145,8 @@ export default function WorkerDetailScreen() {
                             <View style={styles.transactionHeader}>
                                 <View style={[styles.typeBadge, 
                                     t.type === 'Advance' ? styles.badgeAdvance : 
-                                    t.type === 'Advance Repayment' ? styles.badgeRepayment : styles.badgeSettle
+                                    t.type === 'Advance Repayment' ? styles.badgeRepayment : 
+                                    t.type === 'Contract Payment' ? styles.badgeContract : styles.badgeSettle
                                 ]}>
                                     <Text style={styles.typeText}>{t.type}</Text>
                                 </View>
@@ -181,6 +207,18 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontFamily: 'Outfit-Bold',
         color: Palette.text,
+    },
+    headFeeBadge: {
+        backgroundColor: '#F59E0B20',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        marginLeft: 10,
+    },
+    headFeeText: {
+        fontSize: 12,
+        fontFamily: 'Outfit-Bold',
+        color: '#F59E0B',
     },
     workerType: {
         fontSize: 13,
@@ -266,6 +304,7 @@ const styles = StyleSheet.create({
     badgeSettle: { backgroundColor: Palette.success + '15' },
     badgeAdvance: { backgroundColor: Palette.danger + '15' },
     badgeRepayment: { backgroundColor: '#F59E0B15' },
+    badgeContract: { backgroundColor: Palette.primary + '15' },
     typeText: {
         fontSize: 10,
         fontFamily: 'Outfit-Bold',

@@ -58,6 +58,8 @@ interface FarmContextType {
   addLaborProfile: (profile: LaborProfile) => Promise<void>;
   saveLaborAttendance: (records: LaborAttendance[]) => Promise<void>;
   addLaborContract: (contract: LaborContract) => Promise<void>;
+  updateLaborContract: (contract: LaborContract) => Promise<void>;
+  deleteLaborContract: (id: string) => Promise<void>;
   addLaborTransaction: (transaction: LaborTransaction) => Promise<void>;
 }
 
@@ -235,6 +237,29 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
 
   const addLaborContract = async (contract: LaborContract) => {
     await Storage.saveLaborContract(contract);
+    
+    // Automatically log the initial advance as a transaction
+    if (contract.advancePaid > 0) {
+      await addLaborTransaction({
+        id: '',
+        workerId: contract.contractorId,
+        amount: contract.advancePaid,
+        date: contract.startDate || new Date().toISOString().split('T')[0],
+        type: 'Contract Payment',
+        note: `Initial Advance: ${contract.projectName}`
+      });
+    } else {
+      await loadData();
+    }
+  };
+
+  const updateLaborContract = async (contract: LaborContract) => {
+    await Storage.saveLaborContract(contract);
+    await loadData();
+  };
+
+  const deleteLaborContract = async (id: string) => {
+    await Storage.deleteLaborContract(id);
     await loadData();
   };
 
@@ -282,6 +307,8 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       addLaborProfile,
       saveLaborAttendance,
       addLaborContract,
+      updateLaborContract,
+      deleteLaborContract,
       addLaborTransaction
     }}>
       {children}

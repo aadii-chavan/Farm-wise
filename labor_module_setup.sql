@@ -79,3 +79,20 @@ CREATE POLICY "Users can manage their own labor contracts" ON public.labor_contr
     FOR ALL USING (auth.uid() = user_id);
 
 CREATE INDEX IF NOT EXISTS idx_labor_contracts_contractor ON public.labor_contracts(contractor_id);
+
+
+-- 8. Update Transaction Types constraint
+-- This allows for the new 'Contract Payment' type used for contractor project tracking
+ALTER TABLE public.labor_transactions 
+DROP CONSTRAINT IF EXISTS labor_transactions_type_check;
+
+ALTER TABLE public.labor_transactions 
+ADD CONSTRAINT labor_transactions_type_check 
+CHECK (type IN (
+  'Weekly Settle', 
+  'Annual Installment', 
+  'Advance', 
+  'Advance Repayment', 
+  'Contract Payment', 
+  'Other'
+));

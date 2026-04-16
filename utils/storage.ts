@@ -763,3 +763,12 @@ export const saveLaborTransaction = async (transaction: LaborTransaction): Promi
     }
 };
 
+
+export const deleteLaborContract = async (id: string): Promise<void> => {
+    try {
+        const { error } = await supabase.from('labor_contracts').delete().eq('id', id);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to delete labor contract', e);
+    }
+};

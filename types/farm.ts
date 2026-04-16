@@ -123,7 +123,7 @@ export interface LaborContract {
   notes?: string;
 }
 
-export type LaborTransactionType = 'Weekly Settle' | 'Annual Installment' | 'Advance' | 'Advance Repayment' | 'Other';
+export type LaborTransactionType = 'Weekly Settle' | 'Annual Installment' | 'Advance' | 'Advance Repayment' | 'Contract Payment' | 'Other';
 
 export interface LaborTransaction {
   id: string;
