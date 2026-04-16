@@ -189,8 +189,15 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteTask = async (id: string) => {
-    await Storage.deleteTask(id);
-    await loadData();
+    // Optimistic Update
+    setTasks(prev => prev.filter(t => t.id !== id));
+    try {
+        await Storage.deleteTask(id);
+    } catch (e) {
+        // Revert on error - this would require storing the deleted task temporarily
+        // For simplicity and better UX, we just refresh if there's an error
+        await loadData();
+    }
   };
 
   const addCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'recurrence', name: string) => {
@@ -199,13 +206,30 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleTaskCompletion = async (taskId: string, date: string) => {
-    const existing = taskCompletions.find(c => c.taskId === taskId && c.completedAt === date);
-    if (existing) {
-        await Storage.deleteTaskCompletion(taskId, date);
+    // Optimistic Update
+    const isAdding = !taskCompletions.some(c => c.taskId === taskId && c.completedAt === date);
+    
+    if (isAdding) {
+        const newRecord = { id: Math.random().toString(), taskId, completedAt: date };
+        setTaskCompletions(prev => [...prev, newRecord]);
+        try {
+            await Storage.saveTaskCompletion(taskId, date);
+        } catch (e) {
+            // Revert on error
+            setTaskCompletions(prev => prev.filter(c => c.id !== newRecord.id));
+        }
     } else {
-        await Storage.saveTaskCompletion(taskId, date);
+        const existing = taskCompletions.find(c => c.taskId === taskId && c.completedAt === date);
+        if (existing) {
+            setTaskCompletions(prev => prev.filter(c => c.id !== existing.id));
+            try {
+                await Storage.deleteTaskCompletion(taskId, date);
+            } catch (e) {
+                // Revert on error
+                setTaskCompletions(prev => [...prev, existing]);
+            }
+        }
     }
-    await loadData();
   };
 
   const refreshAll = async () => {

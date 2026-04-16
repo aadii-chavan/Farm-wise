@@ -526,11 +526,11 @@ export const saveTaskCompletion = async (taskId: string, date: string): Promise<
     try {
         const userId = await getUserId();
         if (!userId) return;
-        const { error } = await supabase.from('task_completions').insert({
+        const { error } = await supabase.from('task_completions').upsert({
             task_id: taskId,
             user_id: userId,
             completed_at: date
-        });
+        }, { onConflict: 'task_id,completed_at' });
         if (error) throw error;
     } catch (e) {
         console.error('Failed to save task completion', e);

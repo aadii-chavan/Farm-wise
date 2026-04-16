@@ -3,21 +3,42 @@ import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { addDays, format, subDays, startOfDay, parse, differenceInCalendarDays, getDate, isAfter } from 'date-fns';
+import { 
+    addDays, 
+    format, 
+    subDays, 
+    startOfDay, 
+    parse, 
+    differenceInCalendarDays, 
+    getDate, 
+    isAfter, 
+    startOfMonth, 
+    endOfMonth, 
+    startOfToday, 
+    startOfWeek, 
+    endOfWeek, 
+    isSameMonth, 
+    isSameDay, 
+    addMonths,
+    subMonths
+} from 'date-fns';
 import { Stack } from 'expo-router';
 import { DeviceEventEmitter, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Task } from '@/types/farm';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function SchedulePage() {
     const { tasks: allTasks, plots, addTask, updateTask, deleteTask, customEntities, addCustomEntity, taskCompletions, toggleTaskCompletion } = useFarm();
-    const today = new Date();
+    const today = startOfToday();
     
     // UI State
     const [selectedDate, setSelectedDate] = useState(today);
+    const [currentMonth, setCurrentMonth] = useState(startOfMonth(today));
     const [showMainCalendar, setShowMainCalendar] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
 
     // Form State
     const [taskTitle, setTaskTitle] = useState('');
@@ -70,34 +91,54 @@ export default function SchedulePage() {
         return false;
     };
 
-    // Filter tasks for selected date (including recurring tasks)
-    const dayTasks = useMemo(() => {
-        const formattedSelectedDate = format(selectedDate, 'yyyy-MM-dd');
+    // Filter tasks for a specific date (including recurring tasks)
+    const getTasksForDate = (date: Date) => {
+        const formattedDate = format(date, 'yyyy-MM-dd');
         return allTasks.filter(t => {
             const taskDateObj = parse(t.date, 'yyyy-MM-dd', new Date());
-            const selectedDateClean = startOfDay(selectedDate);
+            const selectedDateClean = startOfDay(date);
             const taskDateClean = startOfDay(taskDateObj);
 
             if (isAfter(taskDateClean, selectedDateClean)) return false;
 
-            let isVisible = false;
             if (t.recurrence === 'None' || !t.recurrence) {
-                isVisible = formattedSelectedDate === t.date;
+                return formattedDate === t.date;
             } else {
-                isVisible = checkRecurrence(t, selectedDateClean, taskDateClean);
+                return checkRecurrence(t, selectedDateClean, taskDateClean);
             }
+        });
+    };
 
-            if (!isVisible) return false;
-
-            // Check if this specific instance is completed
-            const isDone = taskCompletions.some(c => c.taskId === t.id && c.completedAt === formattedSelectedDate);
-            return { ...t, isCompletedInstance: isDone };
-        }).sort((a, b) => a.time.localeCompare(b.time))
-          .map(t => {
-              const isDone = taskCompletions.some(c => c.taskId === t.id && c.completedAt === formattedSelectedDate);
-              return { ...t, isCompletedInstance: isDone };
-          });
+    // Filter tasks for selected date (including recurring tasks)
+    const dayTasks = useMemo(() => {
+        const formattedSelectedDate = format(selectedDate, 'yyyy-MM-dd');
+        return getTasksForDate(selectedDate)
+            .sort((a, b) => a.time.localeCompare(b.time))
+            .map(t => {
+                const isDone = taskCompletions.some(c => c.taskId === t.id && c.completedAt === formattedSelectedDate);
+                return { ...t, isCompletedInstance: isDone };
+            });
     }, [allTasks, selectedDate, taskCompletions]);
+
+    // Calendar grid calculation
+    const calendarWeeks = useMemo(() => {
+        const monthStart = startOfMonth(currentMonth);
+        const monthEnd = endOfMonth(monthStart);
+        const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+        const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+        const rows = [];
+        let curr = startDate;
+        while (curr <= endDate) {
+            const days = [];
+            for (let i = 0; i < 7; i++) {
+                days.push(curr);
+                curr = addDays(curr, 1);
+            }
+            rows.push(days);
+        }
+        return rows;
+    }, [currentMonth]);
 
     useEffect(() => {
         const sub = DeviceEventEmitter.addListener('FAB_OPEN_TASK_MODAL', () => {
@@ -209,98 +250,185 @@ export default function SchedulePage() {
     return (
         <View style={styles.container}>
             <Stack.Screen options={{ 
-                headerTitle: format(selectedDate, 'MMMM yyyy'),
+                headerTitle: 'Schedule',
                 headerRight: () => (
-                    <Pressable onPress={() => setShowMainCalendar(true)} style={styles.iconButton}>
-                        <Ionicons name="calendar-outline" size={24} color={Palette.text} />
-                    </Pressable>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                         <Pressable onPress={() => { setSelectedDate(today); setCurrentMonth(startOfMonth(today)); }} style={styles.iconButton}>
+                            <Ionicons name="today-outline" size={22} color={Palette.text} />
+                        </Pressable>
+                        <Pressable onPress={() => setShowMainCalendar(true)} style={styles.iconButton}>
+                            <Ionicons name="search-outline" size={22} color={Palette.text} />
+                        </Pressable>
+                    </View>
                 )
             }} />
 
-            <CalendarModal visible={showMainCalendar} initialDate={selectedDate} onClose={() => setShowMainCalendar(false)} onSelectDate={(date) => setSelectedDate(date)} />
+            <CalendarModal visible={showMainCalendar} initialDate={selectedDate} onClose={() => setShowMainCalendar(false)} onSelectDate={(date) => { setSelectedDate(date); setCurrentMonth(startOfMonth(date)); }} />
 
-            <View style={styles.dateStrip}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateStripScroll}>
-                    {Array.from({ length: 14 }).map((_, i) => {
-                        const date = addDays(subDays(today, 3), i);
-                        const isSelected = format(date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
-                        const isToday = format(date, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
-                        return (
-                            <Pressable key={i} style={[styles.dateItem, isSelected && styles.dateItemActive]} onPress={() => setSelectedDate(date)}>
-                                <Text style={[styles.dateDay, isSelected && styles.dateDayActive]}>{format(date, 'EEE')}</Text>
-                                <View style={[styles.dateNumCircle, isSelected && styles.dateNumCircleActive, isToday && !isSelected && styles.dateNumCircleToday]}>
-                                    <Text style={[styles.dateNum, isSelected && styles.dateNumActive, isToday && !isSelected && styles.dateNumToday]}>{format(date, 'd')}</Text>
-                                </View>
+            <View style={styles.calendarSection}>
+                <LinearGradient
+                    colors={['#FFFFFF', '#F8FAFC']}
+                    style={styles.calendarGradient}
+                >
+                    <View style={styles.calendarHeader}>
+                        <View>
+                            <Text style={styles.monthYearText}>{format(currentMonth, 'MMMM yyyy')}</Text>
+                            <Text style={styles.selectedDateSub}>{format(selectedDate, 'EEEE, MMM do')}</Text>
+                        </View>
+                        <View style={styles.navButtons}>
+                            <Pressable onPress={() => setCurrentMonth(subMonths(currentMonth, 1))} style={styles.navBtn}>
+                                <Ionicons name="chevron-back" size={20} color={Palette.text} />
                             </Pressable>
-                        );
-                    })}
-                </ScrollView>
+                            <Pressable onPress={() => setCurrentMonth(addMonths(currentMonth, 1))} style={styles.navBtn}>
+                                <Ionicons name="chevron-forward" size={20} color={Palette.text} />
+                            </Pressable>
+                        </View>
+                    </View>
+
+                    <View style={styles.calendarGrid}>
+                        <View style={styles.weekLabels}>
+                            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                                <Text key={day} style={styles.weekLabelText}>{day}</Text>
+                            ))}
+                        </View>
+                        {calendarWeeks.map((week, idx) => (
+                            <View key={idx} style={styles.calendarRow}>
+                                {week.map(day => {
+                                    const isSelected = isSameDay(day, selectedDate);
+                                    const isToday = isSameDay(day, today);
+                                    const isCurrentMonth = isSameMonth(day, currentMonth);
+                                    const tasksOnDay = getTasksForDate(day);
+                                    
+                                    return (
+                                        <Pressable 
+                                            key={day.toString()} 
+                                            style={[
+                                                styles.calendarDay, 
+                                                isSelected && styles.selectedDay
+                                            ]}
+                                            onPress={() => setSelectedDate(day)}
+                                        >
+                                            <Text style={[
+                                                styles.dayNumber, 
+                                                !isCurrentMonth && styles.otherMonthDay,
+                                                isToday && styles.todayNumber,
+                                                isSelected && styles.selectedDayNumber
+                                            ]}>
+                                                {format(day, 'd')}
+                                            </Text>
+                                            <View style={styles.taskIndicators}>
+                                                {tasksOnDay.length > 0 && (
+                                                    <View style={[
+                                                        styles.starBadge, 
+                                                        { backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : getCategoryColor(tasksOnDay[0].categories[0] || '') + '15' }
+                                                    ]}>
+                                                        <Ionicons 
+                                                            name="star-sharp" 
+                                                            size={10} 
+                                                            color={isSelected ? 'white' : getCategoryColor(tasksOnDay[0].categories[0] || '')} 
+                                                        />
+                                                        {tasksOnDay.length > 1 && (
+                                                            <Text style={[
+                                                                styles.moreTasksLabel,
+                                                                { color: isSelected ? 'white' : '#475569' }
+                                                            ]}>
+                                                                {tasksOnDay.length}
+                                                            </Text>
+                                                        )}
+                                                    </View>
+                                                )}
+                                            </View>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                        ))}
+                    </View>
+                </LinearGradient>
             </View>
 
             <ScrollView style={styles.listContainer} contentContainerStyle={{ padding: 20 }}>
                 {dayTasks.length === 0 ? (
                     <View style={styles.emptyContainer}>
-                        <Ionicons name="clipboard-outline" size={64} color="#CBD5E1" />
-                        <Text style={styles.emptyText}>No tasks for this day</Text>
+                        <View style={styles.emptyIconContainer}>
+                             <Ionicons name="calendar-clear-outline" size={48} color="#CBD5E1" />
+                        </View>
+                        <Text style={styles.emptyText}>Rest Day! No tasks scheduled</Text>
                         <Pressable style={styles.emptyAdd} onPress={() => { resetForm(); setShowModal(true); }}>
-                            <Text style={styles.emptyAddText}>Create new task</Text>
+                            <Ionicons name="add" size={18} color={Palette.primary} />
+                            <Text style={styles.emptyAddText}>Plan a Task</Text>
                         </Pressable>
                     </View>
                 ) : (
                     dayTasks.map((task: any) => (
-                        <View key={task.id} style={[styles.taskCard, task.isCompletedInstance && styles.taskCardCompleted]}>
-                            <Pressable 
-                                style={[styles.checkbox, task.isCompletedInstance && styles.checkboxChecked]}
-                                onPress={() => toggleComplete(task)}
-                            >
-                                {task.isCompletedInstance && <Ionicons name="checkmark" size={18} color="white" />}
-                            </Pressable>
+                        <Pressable 
+                            key={task.id} 
+                            style={[
+                                styles.taskCard, 
+                                task.isCompletedInstance && styles.taskCardCompleted
+                            ]}
+                            onPress={() => { resetForm(task); setShowModal(true); }}
+                        >
+                            {/* Vertical Status Bar */}
+                            <View style={[styles.statusBar, { backgroundColor: getCategoryColor(task.categories[0] || '') }]} />
 
-                            <View style={styles.taskInfo}>
-                                <Text style={[styles.taskTitle, task.isCompletedInstance && styles.taskTitleCompleted]}>
+                            <View style={styles.taskContent}>
+                                <View style={styles.taskHeader}>
+                                    <View style={styles.timeLabelContainer}>
+                                        <Ionicons name="time" size={12} color={Palette.primary} />
+                                        <Text style={styles.timeLabelText}>{task.time}</Text>
+                                    </View>
+                                    <View style={styles.taskActionsHeader}>
+                                         <Pressable 
+                                            style={styles.actionIconBtn}
+                                            onPress={() => handleDelete(task.id)}
+                                        >
+                                            <Ionicons name="trash-outline" size={16} color="#94A3B8" />
+                                        </Pressable>
+                                    </View>
+                                </View>
+
+                                <Text style={[styles.taskTitle, task.isCompletedInstance && styles.taskTitleCompleted]} numberOfLines={2}>
                                     {task.title}
                                 </Text>
-                                <View style={styles.metaRow}>
-                                    <View style={styles.metaItem}>
-                                        <Ionicons name="time-outline" size={14} color="#64748B" />
-                                        <Text style={styles.metaText}>{task.time}</Text>
-                                    </View>
-                                    <View style={styles.metaItem}>
-                                        <Ionicons name="location-outline" size={14} color="#64748B" />
-                                        <Text style={styles.metaText}>{task.plot || 'None'}</Text>
-                                    </View>
-                                    {task.recurrence !== 'None' && (
-                                        <View style={styles.metaItem}>
-                                            <Ionicons name="repeat-outline" size={14} color={Palette.primary} />
-                                            <Text style={[styles.metaText, { color: Palette.primary }]}>{task.recurrence}</Text>
+
+                                <View style={styles.taskMetaFooter}>
+                                    <View style={styles.footerLeft}>
+                                        <View style={styles.plotPill}>
+                                            <Ionicons name="location" size={10} color="#64748B" />
+                                            <Text style={styles.plotText}>{task.plot || 'General'}</Text>
                                         </View>
-                                    )}
-                                </View>
-                                <View style={styles.catRow}>
-                                    {task.categories.map((cat: string) => (
-                                        <View key={cat} style={[styles.catBadge, { backgroundColor: getCategoryColor(cat) + '15' }]}>
-                                            <View style={[styles.catDot, { backgroundColor: getCategoryColor(cat) }]} />
-                                            <Text style={[styles.catText, { color: getCategoryColor(cat) }]}>{cat}</Text>
+                                        {task.recurrence !== 'None' && (
+                                            <View style={[styles.plotPill, { backgroundColor: Palette.primary + '10' }]}>
+                                                <Ionicons name="repeat" size={10} color={Palette.primary} />
+                                                <Text style={[styles.plotText, { color: Palette.primary }]}>{task.recurrence}</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                    
+                                    <View style={styles.footerRight}>
+                                         <View style={styles.badgeList}>
+                                            {task.categories.slice(0, 2).map((cat: string) => (
+                                                <View key={cat} style={[styles.miniBadge, { backgroundColor: getCategoryColor(cat) + '15' }]}>
+                                                    <Text style={[styles.miniBadgeText, { color: getCategoryColor(cat) }]}>{cat}</Text>
+                                                </View>
+                                            ))}
                                         </View>
-                                    ))}
+                                    </View>
                                 </View>
                             </View>
 
-                            <View style={styles.actionButtons}>
-                                <Pressable 
-                                    style={styles.actionBtn}
-                                    onPress={() => { resetForm(task); setShowModal(true); }}
-                                >
-                                    <Ionicons name="pencil" size={20} color="#64748B" />
-                                </Pressable>
-                                <Pressable 
-                                    style={styles.actionBtn}
-                                    onPress={() => handleDelete(task.id)}
-                                >
-                                    <Ionicons name="trash-outline" size={20} color={Palette.danger} />
-                                </Pressable>
-                            </View>
-                        </View>
+                            <Pressable 
+                                style={[styles.completionCircle, task.isCompletedInstance && styles.completionCircleChecked]}
+                                onPress={() => toggleComplete(task)}
+                            >
+                                <Ionicons 
+                                    name={task.isCompletedInstance ? "checkmark-circle" : "ellipse-outline"} 
+                                    size={28} 
+                                    color={task.isCompletedInstance ? Palette.success : '#CBD5E1'} 
+                                />
+                            </Pressable>
+                        </Pressable>
                     ))
                 )}
             </ScrollView>
@@ -431,41 +559,55 @@ export default function SchedulePage() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: 'white' },
-    iconButton: { padding: 8, marginRight: 5 },
-    dateStrip: { backgroundColor: 'white', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-    dateStripScroll: { paddingHorizontal: 16, gap: 10 },
-    dateItem: { width: 45, alignItems: 'center', justifyContent: 'center' },
-    dateItemActive: { opacity: 1 },
-    dateDay: { fontSize: 11, fontFamily: 'Outfit-Medium', color: '#64748B', textTransform: 'uppercase', marginBottom: 6 },
-    dateDayActive: { color: Palette.primary, fontFamily: 'Outfit-Bold' },
-    dateNumCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-    dateNumCircleActive: { backgroundColor: Palette.primary },
-    dateNumCircleToday: { borderWidth: 1, borderColor: Palette.primary },
-    dateNum: { fontSize: 15, fontFamily: 'Outfit-Bold', color: '#1E293B' },
-    dateNumActive: { color: 'white' },
-    dateNumToday: { color: Palette.primary },
-    listContainer: { flex: 1, backgroundColor: '#F8FAFC' },
-    emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100 },
-    emptyText: { fontSize: 16, fontFamily: 'Outfit-Medium', color: '#94A3B8', marginTop: 12 },
-    emptyAdd: { marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: Palette.primary + '15', borderRadius: 20 },
-    emptyAddText: { color: Palette.primary, fontFamily: 'Outfit-Bold' },
-    taskCard: { flexDirection: 'row', backgroundColor: 'white', borderRadius: 20, padding: 16, marginBottom: 12, alignItems: 'center', borderLeftWidth: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-    taskCardCompleted: { opacity: 0.8, backgroundColor: '#F1F5F9' },
-    checkbox: { width: 30, height: 30, borderRadius: 10, borderWidth: 2, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', marginRight: 15, backgroundColor: 'white' },
-    checkboxChecked: { backgroundColor: Palette.success, borderColor: Palette.success },
-    taskInfo: { flex: 1 },
-    taskTitle: { fontSize: 16, fontFamily: 'Outfit-Bold', color: '#1E293B', marginBottom: 6 },
-    taskTitleCompleted: { textDecorationLine: 'line-through', color: '#64748B' },
-    metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 10 },
-    metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    metaText: { fontSize: 12, fontFamily: 'Outfit', color: '#64748B' },
-    catRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-    catBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, gap: 4 },
-    catDot: { width: 6, height: 6, borderRadius: 3 },
-    catText: { fontSize: 11, fontFamily: 'Outfit-Bold' },
-    actionButtons: { flexDirection: 'row', alignItems: 'center', marginLeft: 10 },
-    actionBtn: { padding: 8, marginLeft: 4 },
+    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    iconButton: { padding: 8, marginLeft: 8 },
+    calendarSection: { backgroundColor: 'white', borderBottomLeftRadius: 32, borderBottomRightRadius: 32, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 6, overflow: 'hidden' },
+    calendarGradient: { paddingTop: 8, paddingBottom: 12 },
+    calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 8 },
+    monthYearText: { fontSize: 18, fontFamily: 'Outfit-Bold', color: '#0F172A' },
+    selectedDateSub: { fontSize: 12, fontFamily: 'Outfit-Medium', color: '#64748B' },
+    navButtons: { flexDirection: 'row', gap: 8 },
+    navBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+    calendarGrid: { paddingHorizontal: 16 },
+    weekLabels: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+    weekLabelText: { flex: 1, textAlign: 'center', fontSize: 10, fontFamily: 'Outfit-Bold', color: '#CBD5E1', textTransform: 'uppercase' },
+    calendarRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },
+    calendarDay: { flex: 1, aspectRatio: 1.45, alignItems: 'center', justifyContent: 'center', borderRadius: 10, margin: 1 },
+    selectedDay: { backgroundColor: Palette.primary, shadowColor: Palette.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 },
+    dayNumber: { fontSize: 12, fontFamily: 'Outfit-Bold', color: '#334155' },
+    selectedDayNumber: { color: 'white' },
+    todayNumber: { color: '#F59E0B' },
+    otherMonthDay: { color: '#F1F5F9' },
+    taskIndicators: { marginTop: 2, alignItems: 'center', justifyContent: 'center' },
+    starBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 6 },
+    moreTasksLabel: { fontSize: 8, fontFamily: 'Outfit-Bold' },
+    listContainer: { flex: 1 },
+    emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100, paddingBottom: 120 },
+    emptyIconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    emptyText: { fontSize: 16, fontFamily: 'Outfit-Medium', color: '#64748B' },
+    emptyAdd: { marginTop: 24, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 12, backgroundColor: Palette.primary + '15', borderRadius: 24, gap: 8 },
+    emptyAddText: { color: Palette.primary, fontFamily: 'Outfit-Bold', fontSize: 15 },
+    taskCard: { flexDirection: 'row', backgroundColor: 'white', borderRadius: 24, marginBottom: 16, alignItems: 'stretch', shadowColor: '#0F172A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4, overflow: 'hidden' },
+    taskCardCompleted: { opacity: 0.6 },
+    statusBar: { width: 6 },
+    taskContent: { flex: 1, padding: 16, paddingLeft: 12 },
+    taskHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+    timeLabelContainer: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+    timeLabelText: { fontSize: 11, fontFamily: 'Outfit-Bold', color: '#475569' },
+    taskActionsHeader: { flexDirection: 'row', gap: 8 },
+    actionIconBtn: { padding: 4 },
+    taskTitle: { fontSize: 17, fontFamily: 'Outfit-Bold', color: '#0F172A', marginBottom: 12, lineHeight: 22 },
+    taskTitleCompleted: { textDecorationLine: 'line-through', color: '#94A3B8' },
+    taskMetaFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+    footerLeft: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    footerRight: { alignItems: 'flex-end' },
+    plotPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F8FAFC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+    plotText: { fontSize: 11, fontFamily: 'Outfit-Medium', color: '#64748B' },
+    badgeList: { flexDirection: 'row', gap: 4 },
+    miniBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+    miniBadgeText: { fontSize: 10, fontFamily: 'Outfit-Bold', textTransform: 'uppercase' },
+    completionCircle: { paddingHorizontal: 16, justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#F1F5F9' },
+    completionCircleChecked: { backgroundColor: '#F0FDF4' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.5)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: 'white', borderTopLeftRadius: 32, borderTopRightRadius: 32, maxHeight: '90%', padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
