@@ -4,11 +4,11 @@
     "slug": "farmezy",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/farmezy.png",
+    "icon": "./assets/images/farmezy.jpeg",
     "scheme": "tempapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/farmezy.png",
+      "image": "./assets/images/farmezy.jpeg",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -18,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/farmezy.png",
+        "foregroundImage": "./assets/images/farmezy.jpeg",
         "backgroundColor": "#ffffff"
       },
       "predictiveBackGestureEnabled": false,
@@ -27,7 +27,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/farmezy.png"
+      "favicon": "./assets/images/farmezy.jpeg"
     },
     "plugins": [
       "expo-router"
