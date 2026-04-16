@@ -1,4 +1,4 @@
-import { InventoryItem, Plot, Transaction, GeneralExpense, Task, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction } from '@/types/farm';
+import { InventoryItem, Plot, Transaction, GeneralExpense, Task, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction, RainRecord } from '@/types/farm';
 import { supabase } from './supabase';
 
 // Helper to check if a string is a valid UUID
@@ -786,5 +786,65 @@ export const deleteLaborContract = async (id: string): Promise<void> => {
         if (error) throw error;
     } catch (e) {
         console.error('Failed to delete labor contract', e);
+    }
+};
+
+// Rain Meter
+export const getRainRecords = async (): Promise<RainRecord[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('rain_records')
+            .select('*')
+            .order('date', { ascending: false })
+            .order('time', { ascending: false });
+        
+        if (error) {
+            if (error.code === 'PGRST205') console.warn('Supabase Schema Cache error.');
+            throw error;
+        }
+        return (data || []).map(r => ({
+            id: r.id,
+            date: r.date,
+            time: r.time,
+            amount: Number(r.amount),
+            note: r.note
+        }));
+    } catch (e) {
+        console.error('Failed to load rain records', e);
+        return [];
+    }
+};
+
+export const saveRainRecord = async (record: RainRecord): Promise<void> => {
+    try {
+        const userId = await getUserId();
+        if (!userId) throw new Error('User not authenticated');
+
+        const recordData: any = {
+            user_id: userId,
+            date: record.date,
+            time: record.time,
+            amount: record.amount,
+            note: record.note || null
+        };
+
+        if (record.id && isUUID(record.id)) {
+            recordData.id = record.id;
+        }
+
+        const { error } = await supabase.from('rain_records').upsert(recordData);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to save rain record', e);
+    }
+};
+
+export const deleteRainRecord = async (id: string): Promise<void> => {
+    try {
+        if (!isUUID(id)) return;
+        const { error } = await supabase.from('rain_records').delete().eq('id', id);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to delete rain record', e);
     }
 };

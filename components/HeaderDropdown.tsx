@@ -30,6 +30,7 @@ const MENU_ITEMS = [
     { id: 'inventory', label: 'Inventory', icon: 'cube-outline', route: '/inventory' },
     { id: 'schedule', label: 'Schedule', icon: 'calendar-outline', route: '/schedule' },
     { id: 'labor-book', label: 'Labor Book', icon: 'people-outline', route: '/labor-book' },
+    { id: 'rain-meter', label: 'Rain Meter', icon: 'rainy-outline', route: '/rain-meter' },
     { id: 'general-expenses', label: 'Personal Expenses', icon: 'wallet-outline', route: '/general-expenses' },
 ];
 

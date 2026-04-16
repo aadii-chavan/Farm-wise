@@ -135,3 +135,11 @@ export interface LaborTransaction {
   note?: string;
   contractId?: string;
 }
+
+export interface RainRecord {
+  id: string;
+  date: string;
+  time: string;
+  amount: number;
+  note?: string;
+}

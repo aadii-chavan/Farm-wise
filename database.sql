@@ -305,3 +305,25 @@ do $$ begin
       using ( auth.uid() = user_id );
   end if;
 end $$;
+
+-- 11. Rain Meter Table
+create table if not exists public.rain_records (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  date date not null,
+  time text not null,
+  amount decimal not null,
+  note text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- Enable RLS for Rain Meter
+alter table public.rain_records enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own rain records') then
+    create policy "Users can manage their own rain records" 
+      on public.rain_records for all 
+      using ( auth.uid() = user_id );
+  end if;
+end $$;

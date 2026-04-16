@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { InventoryItem, Plot, Transaction, Task, CustomEntity, GeneralExpense, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction } from '../types/farm';
+import { InventoryItem, Plot, Transaction, Task, CustomEntity, GeneralExpense, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction, RainRecord } from '../types/farm';
 import * as Storage from '../utils/storage';
 import { useAuth } from './AuthContext';
 
@@ -16,6 +16,7 @@ interface FarmContextType {
   laborAttendance: LaborAttendance[];
   laborContracts: LaborContract[];
   laborTransactions: LaborTransaction[];
+  rainRecords: RainRecord[];
   loading: boolean;
   
   // Transactions
@@ -63,6 +64,11 @@ interface FarmContextType {
   updateLaborContract: (contract: LaborContract) => Promise<void>;
   deleteLaborContract: (id: string) => Promise<void>;
   addLaborTransaction: (transaction: LaborTransaction) => Promise<void>;
+  
+  // Rain Meter
+  addRainRecord: (record: RainRecord) => Promise<void>;
+  updateRainRecord: (record: RainRecord) => Promise<void>;
+  deleteRainRecord: (id: string) => Promise<void>;
 }
 
 const FarmContext = createContext<FarmContextType | undefined>(undefined);
@@ -81,6 +87,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const [laborAttendance, setLaborAttendance] = useState<LaborAttendance[]>([]);
   const [laborContracts, setLaborContracts] = useState<LaborContract[]>([]);
   const [laborTransactions, setLaborTransactions] = useState<LaborTransaction[]>([]);
+  const [rainRecords, setRainRecords] = useState<RainRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   const loadData = async () => {
@@ -100,7 +107,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     }
 
     setLoading(true);
-    const [tData, pData, iData, tsData, ceData, geData, tcData, lpData, lcData, ltData, laData] = await Promise.all([
+    const [tData, pData, iData, tsData, ceData, geData, tcData, lpData, lcData, ltData, laData, raData] = await Promise.all([
       Storage.getTransactions(),
       Storage.getPlots(),
       Storage.getInventory(),
@@ -111,7 +118,8 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       Storage.getLaborProfiles(),
       Storage.getLaborContracts(),
       Storage.getLaborTransactions(),
-      Storage.getLaborAttendance()
+      Storage.getLaborAttendance(),
+      Storage.getRainRecords()
     ]);
     setTransactions(tData);
     setPlots(pData);
@@ -124,6 +132,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     setLaborAttendance(laData);
     setLaborContracts(lcData);
     setLaborTransactions(ltData);
+    setRainRecords(raData || []);
     setLoading(false);
   };
 
@@ -308,6 +317,21 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   };
 
+  const addRainRecord = async (record: RainRecord) => {
+    await Storage.saveRainRecord(record);
+    await loadData();
+  };
+
+  const updateRainRecord = async (record: RainRecord) => {
+    await Storage.saveRainRecord(record);
+    await loadData();
+  };
+
+  const deleteRainRecord = async (id: string) => {
+    await Storage.deleteRainRecord(id);
+    await loadData();
+  };
+
   return (
     <FarmContext.Provider value={{ 
       transactions, 
@@ -351,7 +375,11 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       addLaborContract,
       updateLaborContract,
       deleteLaborContract,
-      addLaborTransaction
+      addLaborTransaction,
+      rainRecords,
+      addRainRecord,
+      updateRainRecord,
+      deleteRainRecord
     }}>
       {children}
     </FarmContext.Provider>
