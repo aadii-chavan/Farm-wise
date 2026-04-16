@@ -1,4 +1,4 @@
-import { InventoryItem, Plot, Transaction, GeneralExpense, Task, TaskCompletion } from '@/types/farm';
+import { InventoryItem, Plot, Transaction, GeneralExpense, Task, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction } from '@/types/farm';
 import { supabase } from './supabase';
 
 // Helper to check if a string is a valid UUID
@@ -549,3 +549,208 @@ export const deleteTaskCompletion = async (taskId: string, date: string): Promis
         console.error('Failed to delete task completion', e);
     }
 };
+
+// Labor Profiles
+export const getLaborProfiles = async (): Promise<LaborProfile[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('labor_profiles')
+            .select('*')
+            .order('name');
+        if (error) {
+            if (error.code === 'PGRST205') console.warn('Supabase Schema Cache error. Ensure you ran the SQL in section 10 of database.sql.');
+            throw error;
+        }
+        return (data || []).map(p => ({
+            id: p.id,
+            name: p.name,
+            type: p.type,
+            baseWage: p.base_wage ? Number(p.base_wage) : undefined,
+            phone: p.phone,
+            startDate: p.start_date,
+            isActive: p.is_active,
+            notes: p.notes
+        }));
+    } catch (e) {
+        console.error('Failed to load labor profiles', e);
+        return [];
+    }
+};
+
+export const saveLaborProfile = async (profile: LaborProfile): Promise<void> => {
+    try {
+        const userId = await getUserId();
+        if (!userId) throw new Error('User not authenticated');
+
+        const profileData: any = {
+            user_id: userId,
+            name: profile.name,
+            type: profile.type,
+            base_wage: profile.baseWage,
+            phone: profile.phone,
+            start_date: profile.startDate,
+            is_active: profile.isActive,
+            notes: profile.notes
+        };
+
+        if (profile.id && isUUID(profile.id)) {
+            profileData.id = profile.id;
+        }
+
+        const { error } = await supabase.from('labor_profiles').upsert(profileData);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to save labor profile', e);
+    }
+};
+
+// Labor Attendance
+export const getLaborAttendance = async (date?: string): Promise<LaborAttendance[]> => {
+    try {
+        let query = supabase.from('labor_attendance').select('*');
+        if (date) query = query.eq('date', date);
+        
+        const { data, error } = await query;
+        if (error) {
+            if (error.code === 'PGRST205') console.warn('Supabase Schema Cache error. Ensure you ran the SQL in section 10 of database.sql.');
+            throw error;
+        }
+        return (data || []).map(a => ({
+            id: a.id,
+            workerId: a.worker_id,
+            date: a.date,
+            status: a.status,
+            plotId: a.plot_id
+        }));
+    } catch (e) {
+        console.error('Failed to load labor attendance', e);
+        return [];
+    }
+};
+
+export const saveLaborAttendanceBatch = async (records: LaborAttendance[]): Promise<void> => {
+    try {
+        const userId = await getUserId();
+        if (!userId) throw new Error('User not authenticated');
+
+        const data = records.map(r => ({
+            user_id: userId,
+            worker_id: r.workerId,
+            date: r.date,
+            status: r.status,
+            plot_id: r.plotId && isUUID(r.plotId) ? r.plotId : null
+        }));
+
+        const { error } = await supabase.from('labor_attendance').upsert(data);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to save attendance batch', e);
+    }
+};
+
+// Labor Contracts
+export const getLaborContracts = async (): Promise<LaborContract[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('labor_contracts')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) {
+            if (error.code === 'PGRST205') console.warn('Supabase Schema Cache error. Ensure you ran the SQL in section 10 of database.sql.');
+            throw error;
+        }
+        return (data || []).map(c => ({
+            id: c.id,
+            contractorId: c.contractor_id,
+            projectName: c.project_name,
+            totalAmount: Number(c.total_amount),
+            deadline: c.deadline,
+            advancePaid: Number(c.advance_paid),
+            status: c.status,
+            plotId: c.plot_id,
+            notes: c.notes
+        }));
+    } catch (e) {
+        console.error('Failed to load labor contracts', e);
+        return [];
+    }
+};
+
+export const saveLaborContract = async (contract: LaborContract): Promise<void> => {
+    try {
+        const userId = await getUserId();
+        if (!userId) throw new Error('User not authenticated');
+
+        const contractData: any = {
+            user_id: userId,
+            contractor_id: contract.contractorId,
+            project_name: contract.projectName,
+            total_amount: contract.totalAmount,
+            deadline: contract.deadline,
+            advance_paid: contract.advancePaid,
+            status: contract.status,
+            plot_id: contract.plotId && isUUID(contract.plotId) ? contract.plotId : null,
+            notes: contract.notes
+        };
+
+        if (contract.id && isUUID(contract.id)) {
+            contractData.id = contract.id;
+        }
+
+        const { error } = await supabase.from('labor_contracts').upsert(contractData);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to save labor contract', e);
+    }
+};
+
+// Labor Transactions
+export const getLaborTransactions = async (workerId?: string): Promise<LaborTransaction[]> => {
+    try {
+        let query = supabase.from('labor_transactions').select('*').order('date', { ascending: false });
+        if (workerId) query = query.eq('worker_id', workerId);
+        
+        const { data, error } = await query;
+        if (error) {
+            if (error.code === 'PGRST205') console.warn('Supabase Schema Cache error. Ensure you ran the SQL in section 10 of database.sql.');
+            throw error;
+        }
+        return (data || []).map(t => ({
+            id: t.id,
+            workerId: t.worker_id,
+            amount: Number(t.amount),
+            date: t.date,
+            type: t.type,
+            note: t.note
+        }));
+    } catch (e) {
+        console.error('Failed to load labor transactions', e);
+        return [];
+    }
+};
+
+export const saveLaborTransaction = async (transaction: LaborTransaction): Promise<void> => {
+    try {
+        const userId = await getUserId();
+        if (!userId) throw new Error('User not authenticated');
+
+        const transactionData: any = {
+            user_id: userId,
+            worker_id: transaction.workerId,
+            amount: transaction.amount,
+            date: transaction.date,
+            type: transaction.type,
+            note: transaction.note
+        };
+
+        if (transaction.id && isUUID(transaction.id)) {
+            transactionData.id = transaction.id;
+        }
+
+        const { error } = await supabase.from('labor_transactions').upsert(transactionData);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to save labor transaction', e);
+    }
+};
+

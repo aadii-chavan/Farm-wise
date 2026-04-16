@@ -182,3 +182,124 @@ do $$ begin
       using ( auth.uid() = user_id );
   end if;
 end $$;
+
+-- 9. General Expenses Table
+create table if not exists public.general_expenses (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  title text not null,
+  amount decimal not null,
+  date timestamp with time zone not null,
+  category text not null,
+  note text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- Enable RLS for General Expenses
+alter table public.general_expenses enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own general expenses') then
+    create policy "Users can manage their own general expenses" 
+      on public.general_expenses for all 
+      using ( auth.uid() = user_id );
+  end if;
+end $$;
+
+-- 10. Labor Module Tables
+
+-- Labor Profiles (Workers)
+create table if not exists public.labor_profiles (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  name text not null,
+  type text not null check (type in ('Daily', 'Annual', 'Contract')),
+  base_wage decimal, -- Daily rate or Annual salary
+  phone text,
+  start_date date,
+  is_active boolean default true,
+  notes text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- Enable RLS for Labor Profiles
+alter table public.labor_profiles enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own labor profiles') then
+    create policy "Users can manage their own labor profiles" 
+      on public.labor_profiles for all 
+      using ( auth.uid() = user_id );
+  end if;
+end $$;
+
+-- Labor Attendance
+create table if not exists public.labor_attendance (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  worker_id uuid references public.labor_profiles(id) on delete cascade not null,
+  date date not null,
+  status text not null check (status in ('Present', 'Absent', 'Half-Day')),
+  plot_id uuid references public.plots(id) on delete set null,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- Enable RLS for Labor Attendance
+alter table public.labor_attendance enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own labor attendance') then
+    create policy "Users can manage their own labor attendance" 
+      on public.labor_attendance for all 
+      using ( auth.uid() = user_id );
+  end if;
+end $$;
+
+-- Labor Contracts
+create table if not exists public.labor_contracts (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  contractor_id uuid references public.labor_profiles(id) on delete cascade not null,
+  project_name text not null,
+  total_amount decimal not null,
+  deadline date,
+  advance_paid decimal default 0,
+  status text not null check (status in ('Active', 'Completed', 'Cancelled')) default 'Active',
+  plot_id uuid references public.plots(id) on delete set null,
+  notes text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- Enable RLS for Labor Contracts
+alter table public.labor_contracts enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own labor contracts') then
+    create policy "Users can manage their own labor contracts" 
+      on public.labor_contracts for all 
+      using ( auth.uid() = user_id );
+  end if;
+end $$;
+
+-- Labor Transactions (Payments/Settlements)
+create table if not exists public.labor_transactions (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  worker_id uuid references public.labor_profiles(id) on delete cascade not null,
+  amount decimal not null,
+  date date not null,
+  type text not null check (type in ('Weekly Settle', 'Annual Installment', 'Contract Advance', 'Other')),
+  note text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- Enable RLS for Labor Transactions
+alter table public.labor_transactions enable row level security;
+
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can manage their own labor transactions') then
+    create policy "Users can manage their own labor transactions" 
+      on public.labor_transactions for all 
+      using ( auth.uid() = user_id );
+  end if;
+end $$;

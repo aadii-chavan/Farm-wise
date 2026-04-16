@@ -16,6 +16,7 @@ const ROUTE_TITLES: Record<string, string> = {
     '/shops': 'Shop Ledgers',
     '/schedule': 'Tasks & Calendar',
     '/general-expenses': 'Personal Expenses',
+    '/labor-book': 'Labor Book',
 };
 
 const CustomHeader = ({ title, isOpen, onToggle }: { title: string, isOpen: boolean, onToggle: () => void }) => {
@@ -86,6 +87,7 @@ export default function AppLayout() {
                     <Stack.Screen name="inventory" />
                     <Stack.Screen name="shops" />
                     <Stack.Screen name="schedule" />
+                    <Stack.Screen name="labor-book" />
                     <Stack.Screen name="general-expenses" />
                 </Stack>
             </View>

@@ -82,3 +82,51 @@ export interface TaskCompletion {
   taskId: string;
   completedAt: string; // YYYY-MM-DD
 }
+
+// Labor Module Types
+
+export type LaborType = 'Daily' | 'Annual' | 'Contract';
+
+export interface LaborProfile {
+  id: string;
+  name: string;
+  type: LaborType;
+  baseWage?: number;       // For daily wage rate or annual salary
+  phone?: string;
+  startDate?: string;
+  isActive: boolean;
+  notes?: string;
+}
+
+export type AttendanceStatus = 'Present' | 'Absent' | 'Half-Day';
+
+export interface LaborAttendance {
+  id: string;
+  workerId: string;
+  date: string;
+  status: AttendanceStatus;
+  plotId?: string;
+}
+
+export interface LaborContract {
+  id: string;
+  contractorId: string; // references LaborProfile
+  projectName: string;
+  totalAmount: number;
+  deadline: string;
+  advancePaid: number;
+  status: 'Active' | 'Completed' | 'Cancelled';
+  plotId?: string;
+  notes?: string;
+}
+
+export type LaborTransactionType = 'Weekly Settle' | 'Annual Installment' | 'Contract Advance' | 'Other';
+
+export interface LaborTransaction {
+  id: string;
+  workerId: string;
+  amount: number;
+  date: string;
+  type: LaborTransactionType;
+  note?: string;
+}

@@ -9,7 +9,7 @@ export default function FloatingActionButton() {
   const pathname = usePathname();
 
   // Hide the global FAB on pages that have their own custom add logic or are isolated silos
-  if (pathname === '/general-expenses') {
+  if (pathname === '/general-expenses' || pathname === '/labor-book') {
     return null;
   }
 
