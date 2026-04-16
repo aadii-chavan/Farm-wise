@@ -54,7 +54,7 @@ export default function AttendanceSheetScreen() {
     
     const [payingWorker, setPayingWorker] = useState<{ worker: LaborProfile, amount: number } | null>(null);
     const [editAmount, setEditAmount] = useState('');
-    const [paymentType, setPaymentType] = useState<'Weekly Settle' | 'Advance' | 'Advance Repayment'>('Weekly Settle');
+    const [paymentType, setPaymentType] = useState<'Weekly Settle' | 'Advance' | 'Advance Repayment' | 'Annual Installment' | 'Salary Deduction'>('Weekly Settle');
     const [paymentNote, setPaymentNote] = useState('');
     const [repaymentMethod, setRepaymentMethod] = useState<'Cash' | 'Wage Income'>('Cash');
     const [isPaying, setIsPaying] = useState(false);
@@ -89,6 +89,19 @@ export default function AttendanceSheetScreen() {
     React.useEffect(() => {
         setLocalAttendance(laborAttendance);
     }, [laborAttendance]);
+
+    // Reset payment type based on sheet type when opening modal
+    useEffect(() => {
+        if (payingWorker) {
+            if (sheetType === 'Annual') {
+                setPaymentType('Salary Deduction');
+                setEditAmount(String(payingWorker.amount));
+            } else {
+                setPaymentType('Weekly Settle');
+                setEditAmount(String(payingWorker.amount));
+            }
+        }
+    }, [payingWorker, sheetType]);
 
     const getAttendance = (workerId: string, date: Date) => {
         const dateStr = format(date, 'yyyy-MM-dd');
@@ -162,7 +175,7 @@ export default function AttendanceSheetScreen() {
                 date: new Date().toISOString().split('T')[0],
                 type: paymentType as any,
                 repaymentMethod: paymentType === 'Advance Repayment' ? repaymentMethod : undefined,
-                note: paymentNote.trim() || `${paymentType} for period ${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`
+                note: paymentNote.trim() || `${paymentType === 'Weekly Settle' || paymentType === 'Annual Installment' ? (sheetType === 'Annual' ? 'Salary Installment' : 'Weekly Settle') : paymentType} for period ${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`
             });
             Alert.alert('Success', 'Transaction recorded successfully');
             setPayingWorker(null);
@@ -386,7 +399,16 @@ export default function AttendanceSheetScreen() {
                                                t.type === 'Advance Repayment' && t.repaymentMethod === 'Wage Income';
                                     }).reduce((acc, t) => acc + t.amount, 0);
 
-                                    const netPayout = Math.round(grossWages - periodPayments - wageRepayments);
+                                    const periodDeductions = workerTransactions.filter(t => {
+                                        const dateStr = t.date;
+                                        const startStr = format(startDate, 'yyyy-MM-dd');
+                                        const endStr = format(endDate, 'yyyy-MM-dd');
+                                        return dateStr >= startStr && dateStr <= endStr && t.type === 'Salary Deduction';
+                                    }).reduce((acc, t) => acc + t.amount, 0);
+
+                                    const netPayout = sheetType === 'Daily' 
+                                        ? Math.round(grossWages - periodPayments - wageRepayments)
+                                        : Math.round(grossWages - periodDeductions);
 
                                     // Total advance for the icon
                                     const totalAdv = workerTransactions
@@ -533,8 +555,8 @@ export default function AttendanceSheetScreen() {
 
                         <View style={styles.financialSummary}>
                             <View style={styles.summaryItem}>
-                                <Text style={styles.summaryLabel}>Wages Due</Text>
-                                <Text style={[styles.summaryValue, { color: Palette.success }]}>₹{payingWorker?.amount.toLocaleString()}</Text>
+                                <Text style={styles.summaryLabel}>{sheetType === 'Annual' ? 'Amount to Cut' : 'Wages Due'}</Text>
+                                <Text style={[styles.summaryValue, { color: sheetType === 'Annual' ? Palette.danger : Palette.success }]}>₹{payingWorker?.amount.toLocaleString()}</Text>
                             </View>
                             <View style={styles.summaryDivider} />
                             <View style={styles.summaryItem}>
@@ -544,13 +566,16 @@ export default function AttendanceSheetScreen() {
                         </View>
 
                         <View style={styles.typeSelectorSmall}>
-                            {(['Weekly Settle', 'Advance', 'Advance Repayment'] as const).map((t) => (
+                            {(sheetType === 'Daily' ? 
+                                (['Weekly Settle', 'Advance', 'Advance Repayment'] as const) :
+                                (['Annual Installment', 'Salary Deduction'] as const)
+                            ).map((t) => (
                                 <TouchableOpacity 
                                     key={t}
                                     style={[styles.typeBtnSmall, paymentType === t && styles.activeTypeBtnSmall]}
                                     onPress={() => {
                                         setPaymentType(t);
-                                        if (t === 'Weekly Settle') {
+                                        if (t === 'Salary Deduction' || (t === 'Weekly Settle' && sheetType === 'Daily')) {
                                             setEditAmount(String(payingWorker?.amount || ''));
                                         } else {
                                             setEditAmount('');
@@ -558,7 +583,10 @@ export default function AttendanceSheetScreen() {
                                     }}
                                 >
                                     <Text style={[styles.typeTextSmall, paymentType === t && styles.activeTypeTextSmall]}>
-                                        {t === 'Weekly Settle' ? 'Settle Wages' : t === 'Advance' ? 'Give Advance' : 'Repayment'}
+                                        {t === 'Weekly Settle' ? 'Settle Wages' : 
+                                         t === 'Annual Installment' ? 'Payment / Installment' :
+                                         t === 'Advance' ? 'Give Advance' : 
+                                         t === 'Salary Deduction' ? 'Apply Deduction' : 'Repayment'}
                                     </Text>
                                 </TouchableOpacity>
                             ))}
@@ -572,12 +600,14 @@ export default function AttendanceSheetScreen() {
                                     value={editAmount}
                                     onChangeText={setEditAmount}
                                     keyboardType="numeric"
-                                    placeholder={paymentType === 'Weekly Settle' ? String(payingWorker?.amount || '0') : "0"}
+                                    placeholder={ (paymentType === 'Salary Deduction' || (paymentType === 'Weekly Settle' && sheetType === 'Daily')) ? String(payingWorker?.amount || '0') : "0"}
                                     placeholderTextColor={Palette.textSecondary + '40'}
                                 />
                             </View>
                             <Text style={styles.paymentPeriod}>
-                                {paymentType === 'Weekly Settle' ? `Calculated for selected period` : 
+                                {paymentType === 'Salary Deduction' ? 'Penalty deduction for absences' :
+                                 paymentType === 'Annual Installment' ? 'New payout or installment amount' :
+                                 paymentType === 'Weekly Settle' ? `Calculated amount for period` : 
                                  paymentType === 'Advance' ? 'New advance amount to record' : 'Amount being repaid by worker'}
                             </Text>
                         </View>
@@ -598,7 +628,7 @@ export default function AttendanceSheetScreen() {
                                                 color={repaymentMethod === m ? 'white' : Palette.textSecondary} 
                                             />
                                             <Text style={[styles.methodText, repaymentMethod === m && styles.activeMethodText]}>
-                                                {m}
+                                                {m === 'Wage Income' ? (sheetType === 'Annual' ? 'Salary Cut' : 'Wage Income') : m}
                                             </Text>
                                         </TouchableOpacity>
                                     ))}

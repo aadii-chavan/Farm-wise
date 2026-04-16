@@ -96,3 +96,19 @@ CHECK (type IN (
   'Contract Payment', 
   'Other'
 ));
+
+-- 9. Add 'Salary Deduction' to transaction types
+ALTER TABLE public.labor_transactions 
+DROP CONSTRAINT IF EXISTS labor_transactions_type_check;
+
+ALTER TABLE public.labor_transactions 
+ADD CONSTRAINT labor_transactions_type_check 
+CHECK (type IN (
+  'Weekly Settle', 
+  'Annual Installment', 
+  'Advance', 
+  'Advance Repayment', 
+  'Salary Deduction',
+  'Contract Payment', 
+  'Other'
+));
