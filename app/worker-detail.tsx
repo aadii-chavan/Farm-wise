@@ -1,16 +1,22 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert } from 'react-native';
 import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useFarm } from '@/context/FarmContext';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { format, parseISO } from 'date-fns';
+import { LaborModal } from '@/components/LaborModal';
+import { LaborTransactionModal } from '@/components/LaborTransactionModal';
+import { LaborProfile, LaborTransaction } from '@/types/farm';
 
 export default function WorkerDetailScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
-    const { laborProfiles, laborTransactions, laborAttendance, laborContracts } = useFarm();
+    const { laborProfiles, laborTransactions, laborAttendance, laborContracts, updateLaborProfile, deleteLaborProfile, addLaborTransaction } = useFarm();
+    
+    const [isEditModalVisible, setIsEditModalVisible] = React.useState(false);
+    const [isPayModalVisible, setIsPayModalVisible] = React.useState(false);
     
     const worker = useMemo(() => laborProfiles.find(p => p.id === id), [laborProfiles, id]);
     
@@ -48,11 +54,19 @@ export default function WorkerDetailScreen() {
             const deductions = transactions.filter(t => t.type === 'Salary Deduction').reduce((acc, t) => acc + t.amount, 0);
             const totalPaid = transactions.filter(t => t.type === 'Annual Installment' || t.type === 'Advance').reduce((acc, t) => acc + t.amount, 0);
             
+            const dailyWage = totalSalary / 365;
+            let totalPenaltyIncurred = 0;
+            attendanceRecords.forEach(a => {
+                if (a.status === 'Absent') totalPenaltyIncurred += dailyWage;
+                if (a.status === 'Half-Day') totalPenaltyIncurred += dailyWage / 2;
+            });
+
             return {
                 l1: 'Total Salary', v1: totalSalary,
                 l2: 'Total Paid', v2: totalPaid,
                 l3: 'Deductions', v3: deductions,
-                l4: 'To Pay', v4: totalSalary - totalPaid - deductions
+                l4: 'To Pay', v4: totalSalary - totalPaid - deductions,
+                remainingToCut: totalPenaltyIncurred - deductions
             };
         } else {
             // Daily staff
@@ -76,12 +90,40 @@ export default function WorkerDetailScreen() {
 
     if (!worker) return <View style={styles.container}><Text>Worker not found</Text></View>;
 
+    const handleDelete = () => {
+        Alert.alert(
+            'Delete Profile',
+            'Are you sure you want to delete this profile? All historical data will be preserved but the worker will no longer appear in active lists.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Delete', 
+                    style: 'destructive',
+                    onPress: async () => {
+                        await deleteLaborProfile(worker.id);
+                        router.back();
+                    }
+                }
+            ]
+        );
+    };
+
     return (
         <View style={styles.container}>
             <Stack.Screen options={{ 
                 headerShown: true, 
                 title: worker.name,
                 headerTitleStyle: { fontFamily: 'Outfit-Bold' },
+                headerRight: () => (
+                    <View style={{ flexDirection: 'row', marginRight: 8, gap: 12 }}>
+                        <TouchableOpacity onPress={() => setIsEditModalVisible(true)}>
+                            <Ionicons name="pencil-outline" size={22} color={Palette.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handleDelete}>
+                            <Ionicons name="trash-outline" size={22} color={Palette.danger} />
+                        </TouchableOpacity>
+                    </View>
+                ),
                 headerLeft: () => (
                     <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 8 }}>
                         <Ionicons name="arrow-back" size={24} color={Palette.text} />
@@ -107,6 +149,15 @@ export default function WorkerDetailScreen() {
                             </TouchableOpacity>
                         )}
                     </View>
+                    {worker.type !== 'Contract' && (
+                        <TouchableOpacity 
+                            style={styles.payButton}
+                            onPress={() => setIsPayModalVisible(true)}
+                        >
+                            <Ionicons name="card-outline" size={20} color="white" />
+                            <Text style={styles.payButtonText}>+ Pay</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 <View style={styles.summaryRow}>
@@ -168,6 +219,28 @@ export default function WorkerDetailScreen() {
                     ))
                 )}
             </ScrollView>
+
+            <LaborModal
+                visible={isEditModalVisible}
+                onClose={() => setIsEditModalVisible(false)}
+                onSave={async (updated) => {
+                    await updateLaborProfile(updated);
+                    setIsEditModalVisible(false);
+                }}
+                worker={worker}
+            />
+
+            <LaborTransactionModal
+                visible={isPayModalVisible}
+                onClose={() => setIsPayModalVisible(false)}
+                onSave={async (transaction) => {
+                    await addLaborTransaction(transaction);
+                    setIsPayModalVisible(false);
+                }}
+                worker={worker}
+                advancePending={worker.type === 'Annual' ? 0 : (stats.l3 === 'Adv. Balance' ? stats.v3 : 0)}
+                wagesDue={worker.type === 'Annual' ? (stats.remainingToCut || 0) : (stats.l4 === 'To Pay' ? stats.v4 : 0)}
+            />
         </View>
     );
 }
@@ -210,6 +283,25 @@ const styles = StyleSheet.create({
     },
     profileInfo: {
         flex: 1,
+    },
+    payButton: {
+        backgroundColor: Palette.primary,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        shadowColor: Palette.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    payButtonText: {
+        color: 'white',
+        fontFamily: 'Outfit-Bold',
+        fontSize: 14,
     },
     workerName: {
         fontSize: 20,

@@ -56,6 +56,8 @@ interface FarmContextType {
 
   // Labor Module
   addLaborProfile: (profile: LaborProfile) => Promise<void>;
+  updateLaborProfile: (profile: LaborProfile) => Promise<void>;
+  deleteLaborProfile: (id: string) => Promise<void>;
   saveLaborAttendance: (records: LaborAttendance[]) => Promise<void>;
   addLaborContract: (contract: LaborContract) => Promise<void>;
   updateLaborContract: (contract: LaborContract) => Promise<void>;
@@ -230,6 +232,19 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   };
 
+  const updateLaborProfile = async (profile: LaborProfile) => {
+    await Storage.saveLaborProfile(profile);
+    await loadData();
+  };
+
+  const deleteLaborProfile = async (id: string) => {
+    const profile = laborProfiles.find(p => p.id === id);
+    if (profile) {
+      await Storage.saveLaborProfile({ ...profile, isActive: false });
+      await loadData();
+    }
+  };
+
   const saveLaborAttendance = async (records: LaborAttendance[]) => {
     await Storage.saveLaborAttendanceBatch(records);
     await loadData();
@@ -305,6 +320,8 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       laborContracts,
       laborTransactions,
       addLaborProfile,
+      updateLaborProfile,
+      deleteLaborProfile,
       saveLaborAttendance,
       addLaborContract,
       updateLaborContract,

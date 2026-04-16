@@ -34,54 +34,34 @@ export default function LaborBookScreen() {
         addLaborTransaction
     } = useFarm();
 
-    const dailyWorkers = useMemo(() => laborProfiles.filter(p => p.type === 'Daily'), [laborProfiles]);
-    const annualStaff = useMemo(() => laborProfiles.filter(p => p.type === 'Annual'), [laborProfiles]);
-    const contractors = useMemo(() => laborProfiles.filter(p => p.type === 'Contract'), [laborProfiles]);
+    const dailyWorkers = useMemo(() => laborProfiles.filter(p => p.type === 'Daily' && p.isActive !== false), [laborProfiles]);
+    const annualStaff = useMemo(() => laborProfiles.filter(p => p.type === 'Annual' && p.isActive !== false), [laborProfiles]);
+    const contractors = useMemo(() => laborProfiles.filter(p => p.type === 'Contract' && p.isActive !== false), [laborProfiles]);
 
-    const stats = useMemo(() => {
-        // 1. Total Staff Advance Outstanding (Excluding Contract Payments)
-        const staffAdvances = laborTransactions
-            .filter(t => t.type === 'Advance')
-            .reduce((acc, t) => acc + t.amount, 0);
-        const staffRepayments = laborTransactions
-            .filter(t => t.type === 'Advance Repayment')
-            .reduce((acc, t) => acc + t.amount, 0);
-        const advanceOutstanding = staffAdvances - staffRepayments;
-
-        // 2. Active Contract Remaining Balance
-        const activeContracts = laborContracts.filter(c => c.status === 'Active');
-        const contractObligation = activeContracts.reduce((acc, c) => acc + (c.totalAmount - c.advancePaid), 0);
-
-        // 3. Today's Labor Strength
-        const todayStr = new Date().toISOString().split('T')[0];
-        const todayAttendance = laborAttendance.filter(a => a.date === todayStr && a.status === 'Present').length;
-
-        return {
-            advanceOutstanding,
-            contractObligation,
-            todayAttendance,
-            activeContracts: activeContracts.length
-        };
-    }, [laborProfiles, laborContracts, laborTransactions, laborAttendance]);
 
     return (
         <View style={styles.container}>
-            {/* Header Stats */}
-            <View style={styles.statsOverview}>
-                <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Advances</Text>
-                    <Text style={[styles.statValue, { color: Palette.danger }]}>₹{stats.advanceOutstanding.toLocaleString()}</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Contract Bal.</Text>
-                    <Text style={[styles.statValue, { color: Palette.primary }]}>₹{stats.contractObligation.toLocaleString()}</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Today Present</Text>
-                    <Text style={styles.statValue}>{stats.todayAttendance}</Text>
-                </View>
+            {/* Quick Actions */}
+            <View style={styles.quickActions}>
+                <TouchableOpacity 
+                    style={styles.actionCard}
+                    onPress={() => router.push('/labor-attendance-record')}
+                >
+                    <View style={[styles.actionIcon, { backgroundColor: Palette.primary + '15' }]}>
+                        <Ionicons name="calendar-outline" size={24} color={Palette.primary} />
+                    </View>
+                    <Text style={styles.actionLabel}>Attendance Record</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    style={styles.actionCard}
+                    onPress={() => router.push('/labor-transactions')}
+                >
+                    <View style={[styles.actionIcon, { backgroundColor: Palette.success + '15' }]}>
+                        <Ionicons name="receipt-outline" size={24} color={Palette.success} />
+                    </View>
+                    <Text style={styles.actionLabel}>Transactions</Text>
+                </TouchableOpacity>
             </View>
 
             {/* Tab Navigation */}
@@ -373,38 +353,38 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#F8FAFC',
     },
-    statsOverview: {
+    quickActions: {
         flexDirection: 'row',
-        backgroundColor: 'white',
         margin: 20,
-        padding: 20,
-        borderRadius: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 15,
-        elevation: 5,
-        alignItems: 'center',
+        gap: 12,
     },
-    statBox: {
+    actionCard: {
         flex: 1,
+        backgroundColor: 'white',
+        padding: 16,
+        borderRadius: 20,
         alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
     },
-    statLabel: {
+    actionIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 10,
+    },
+    actionLabel: {
         fontSize: 12,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-        marginBottom: 4,
-    },
-    statValue: {
-        fontSize: 20,
         fontFamily: 'Outfit-Bold',
         color: Palette.text,
-    },
-    statDivider: {
-        width: 1,
-        height: 30,
-        backgroundColor: '#F1F5F9',
+        textAlign: 'center',
     },
     tabContainer: {
         flexDirection: 'row',
