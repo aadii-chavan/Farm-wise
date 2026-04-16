@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { InventoryItem, Plot, Transaction, Task, CustomEntity, GeneralExpense, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction, RainRecord } from '../types/farm';
+import { InventoryItem, Plot, Transaction, Task, CustomEntity, GeneralExpense, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction, RainRecord, WorkbookTemplate, WorkbookEntry } from '../types/farm';
 import * as Storage from '../utils/storage';
 import { useAuth } from './AuthContext';
 
@@ -44,7 +44,7 @@ interface FarmContextType {
   refreshTasks: () => Promise<void>;
   
   // Custom Entities
-  addCustomEntity: (type: 'category' | 'shop' | 'general_category' | 'recurrence', name: string) => Promise<void>;
+  addCustomEntity: (type: 'category' | 'shop' | 'general_category' | 'recurrence' | 'workbook_category', name: string) => Promise<void>;
 
   toggleTaskCompletion: (taskId: string, date: string) => Promise<void>;
 
@@ -69,6 +69,13 @@ interface FarmContextType {
   addRainRecord: (record: RainRecord) => Promise<void>;
   updateRainRecord: (record: RainRecord) => Promise<void>;
   deleteRainRecord: (id: string) => Promise<void>;
+
+  // Workbook
+  getWorkbookTemplate: (plotId: string) => Promise<WorkbookTemplate | null>;
+  saveWorkbookTemplate: (template: Partial<WorkbookTemplate>) => Promise<void>;
+  getWorkbookEntries: (plotId: string) => Promise<WorkbookEntry[]>;
+  saveWorkbookEntry: (entry: Partial<WorkbookEntry>) => Promise<void>;
+  deleteWorkbookEntry: (id: string) => Promise<void>;
 }
 
 const FarmContext = createContext<FarmContextType | undefined>(undefined);
@@ -209,7 +216,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'recurrence', name: string) => {
+  const addCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'recurrence' | 'workbook_category', name: string) => {
     await Storage.saveCustomEntity(type, name);
     await loadData();
   };
@@ -352,6 +359,29 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Workbook methods (On-demand, doesn't use global state)
+  const getWorkbookTemplate = async (plotId: string) => {
+    return await Storage.getWorkbookTemplate(plotId);
+  };
+
+  const saveWorkbookTemplate = async (template: Partial<WorkbookTemplate>) => {
+    await Storage.saveWorkbookTemplate(template);
+  };
+
+  const getWorkbookEntries = async (plotId: string) => {
+    return await Storage.getWorkbookEntries(plotId);
+  };
+
+  const saveWorkbookEntry = async (entry: Partial<WorkbookEntry>) => {
+    await Storage.saveWorkbookEntry(entry);
+    // Note: We don't refresh the whole app state here because 
+    // workbook entries aren't in the global state.
+  };
+
+  const deleteWorkbookEntry = async (id: string) => {
+    await Storage.deleteWorkbookEntry(id);
+  };
+
   return (
     <FarmContext.Provider value={{ 
       transactions, 
@@ -399,7 +429,12 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       rainRecords,
       addRainRecord,
       updateRainRecord,
-      deleteRainRecord
+      deleteRainRecord,
+      getWorkbookTemplate,
+      saveWorkbookTemplate,
+      getWorkbookEntries,
+      saveWorkbookEntry,
+      deleteWorkbookEntry
     }}>
       {children}
     </FarmContext.Provider>

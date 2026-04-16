@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, Pressable, StyleSheet, View } from 'react-native';
+import { WorkbookSection } from '@/components/WorkbookSection';
 
 export default function PlotDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -215,19 +216,18 @@ export default function PlotDetailScreen() {
                   </ScrollView>
               </>
           ) : (
-              <View style={styles.emptyContainer}>
-                  <Ionicons name="book-outline" size={48} color={Palette.textSecondary + '40'} />
-                  <Text style={styles.emptyText}>WorkBook coming soon...</Text>
-              </View>
+              <WorkbookSection plotId={id as string} />
           )}
       </View>
 
-      <Pressable 
-        style={styles.fab} 
-        onPress={() => router.push({ pathname: '/add', params: { plotId: plot.id } })}
-      >
-        <Ionicons name="add" size={32} color="white" />
-      </Pressable>
+      {activeTab === 'History' && (
+        <Pressable 
+          style={styles.fab} 
+          onPress={() => router.push({ pathname: '/add', params: { plotId: plot.id } })}
+        >
+          <Ionicons name="add" size={32} color="white" />
+        </Pressable>
+      )}
 
       <FilterModal
         visible={showFilterModal}

@@ -1,4 +1,4 @@
-import { InventoryItem, Plot, Transaction, GeneralExpense, Task, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction, RainRecord } from '@/types/farm';
+import { InventoryItem, Plot, Transaction, GeneralExpense, Task, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction, RainRecord, WorkbookTemplate, WorkbookEntry, WorkbookColumn } from '@/types/farm';
 import { supabase } from './supabase';
 
 // Helper to check if a string is a valid UUID
@@ -429,7 +429,7 @@ export const getCustomEntities = async (): Promise<any[]> => {
     }
 };
 
-export const saveCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'recurrence', name: string): Promise<void> => {
+export const saveCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'recurrence' | 'workbook_category', name: string): Promise<void> => {
     try {
         const userId = await getUserId();
         if (!userId || !name.trim()) return;
@@ -846,5 +846,101 @@ export const deleteRainRecord = async (id: string): Promise<void> => {
         if (error) throw error;
     } catch (e) {
         console.error('Failed to delete rain record', e);
+    }
+};
+
+// Workbook
+export const getWorkbookTemplate = async (plotId: string): Promise<WorkbookTemplate | null> => {
+    try {
+        if (!isUUID(plotId)) return null;
+        const { data, error } = await supabase
+            .from('workbook_templates')
+            .select('*')
+            .eq('plot_id', plotId)
+            .maybeSingle();
+        
+        if (error) throw error;
+        if (!data) return null;
+
+        return {
+            id: data.id,
+            plotId: data.plot_id,
+            columns: data.columns,
+            updatedAt: data.updated_at
+        };
+    } catch (e) {
+        console.error('Failed to load workbook template', e);
+        return null;
+    }
+};
+
+export const saveWorkbookTemplate = async (template: Partial<WorkbookTemplate>): Promise<void> => {
+    try {
+        const userId = await getUserId();
+        if (!userId || !template.plotId) throw new Error('User not authenticated or missing plot ID');
+
+        const { error } = await supabase.from('workbook_templates').upsert({
+            ...(template.id ? { id: template.id } : {}),
+            user_id: userId,
+            plot_id: template.plotId,
+            columns: template.columns,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'plot_id' });
+
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to save workbook template', e);
+    }
+};
+
+export const getWorkbookEntries = async (plotId: string): Promise<WorkbookEntry[]> => {
+    try {
+        if (!isUUID(plotId)) return [];
+        const { data, error } = await supabase
+            .from('workbook_entries')
+            .select('*')
+            .eq('plot_id', plotId)
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        return (data || []).map(e => ({
+            id: e.id,
+            plotId: e.plot_id,
+            data: e.data,
+            createdAt: e.created_at,
+            updatedAt: e.updated_at
+        }));
+    } catch (e) {
+        console.error('Failed to load workbook entries', e);
+        return [];
+    }
+};
+
+export const saveWorkbookEntry = async (entry: Partial<WorkbookEntry>): Promise<void> => {
+    try {
+        const userId = await getUserId();
+        if (!userId || !entry.plotId) throw new Error('User not authenticated or missing plot ID');
+
+        const { error } = await supabase.from('workbook_entries').upsert({
+            ...(entry.id ? { id: entry.id } : {}),
+            user_id: userId,
+            plot_id: entry.plotId,
+            data: entry.data,
+            updated_at: new Date().toISOString()
+        });
+
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to save workbook entry', e);
+    }
+};
+
+export const deleteWorkbookEntry = async (id: string): Promise<void> => {
+    try {
+        if (!isUUID(id)) return;
+        const { error } = await supabase.from('workbook_entries').delete().eq('id', id);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Failed to delete workbook entry', e);
     }
 };

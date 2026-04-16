@@ -64,7 +64,7 @@ export interface Task {
 
 export interface CustomEntity {
   id: string;
-  entityType: 'category' | 'shop' | 'general_category' | 'recurrence';
+  entityType: 'category' | 'shop' | 'general_category' | 'recurrence' | 'workbook_category';
   name: string;
 }
 
@@ -142,4 +142,30 @@ export interface RainRecord {
   time: string;
   amount: number;
   note?: string;
+}
+
+// Workbook Module Types
+export type WorkbookColumnType = 'text' | 'number' | 'date' | 'time' | 'phone' | 'note' | 'category';
+
+export interface WorkbookColumn {
+  id: string;
+  name: string;
+  type: WorkbookColumnType;
+  required: boolean;
+  order: number;
+}
+
+export interface WorkbookTemplate {
+  id: string;
+  plotId: string;
+  columns: WorkbookColumn[];
+  updatedAt: string;
+}
+
+export interface WorkbookEntry {
+  id: string;
+  plotId: string;
+  data: Record<string, any>; // Keys are column IDs
+  createdAt: string;
+  updatedAt: string;
 }
