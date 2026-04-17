@@ -231,6 +231,17 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
         try {
             await Storage.saveTaskCompletion(taskId, date);
             
+            // Auto-adjust Task Date if it was missed (scheduled date < completion date)
+            if (task && task.date < date) {
+                try {
+                    await Storage.updateTask({ ...task, date: date });
+                    // Refresh tasks in state to reflect the move
+                    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, date: date } : t));
+                } catch (err) {
+                    console.error('Failed to auto-adjust task date:', err);
+                }
+            }
+            
             // Sync to Workbook if enabled (wrapped in its own try/catch to prevent revert)
             try {
                 if (task?.syncToWorkbook && task.plot) {

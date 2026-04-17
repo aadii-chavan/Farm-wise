@@ -78,14 +78,34 @@ export default function SchedulePage() {
         return allTasks.filter(t => t.date === formattedDate);
     };
 
-    // Filter tasks for selected date (including recurring tasks)
+    // Filter tasks for selected date (including overdue tasks if today)
     const dayTasks = useMemo(() => {
         const formattedSelectedDate = format(selectedDate, 'yyyy-MM-dd');
-        return getTasksForDate(selectedDate)
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+        const isTodaySelected = formattedSelectedDate === todayStr;
+
+        // Normal tasks for this date
+        let currentDayTasks = allTasks.filter(t => t.date === formattedSelectedDate);
+
+        // If today is selected, also add missed tasks (scheduled in past and not completed)
+        if (isTodaySelected) {
+            const overdueTasks = allTasks.filter(t => {
+                // Must be in the past
+                if (t.date >= todayStr) return false;
+                
+                // Must not be completed
+                const hasBeenDone = taskCompletions.some(c => c.taskId === t.id);
+                return !hasBeenDone && !t.completed;
+            });
+            currentDayTasks = [...currentDayTasks, ...overdueTasks];
+        }
+
+        return currentDayTasks
             .sort((a, b) => a.time.localeCompare(b.time))
             .map(t => {
                 const isDone = taskCompletions.some(c => c.taskId === t.id && c.completedAt === formattedSelectedDate);
-                return { ...t, isCompletedInstance: isDone };
+                const isOverdue = t.date < formattedSelectedDate;
+                return { ...t, isCompletedInstance: isDone, isOverdue };
             });
     }, [allTasks, selectedDate, taskCompletions]);
 
@@ -357,9 +377,16 @@ export default function SchedulePage() {
                                     </View>
                                 </View>
 
-                                <Text style={[styles.taskTitle, task.isCompletedInstance && styles.taskTitleCompleted]} numberOfLines={2}>
-                                    {task.title}
-                                </Text>
+                                <View style={styles.titleRow}>
+                                    <Text style={[styles.taskTitle, task.isCompletedInstance && styles.taskTitleCompleted]} numberOfLines={2}>
+                                        {task.title}
+                                    </Text>
+                                    {task.isOverdue && !task.isCompletedInstance && (
+                                        <View style={styles.overdueBadge}>
+                                            <Text style={styles.overdueText}>MISSED</Text>
+                                        </View>
+                                    )}
+                                </View>
 
                                 <View style={styles.taskMetaFooter}>
                                     <View style={styles.footerLeft}>
@@ -626,7 +653,30 @@ const styles = StyleSheet.create({
     timeLabelText: { fontSize: 11, fontFamily: 'Outfit-Bold', color: '#475569' },
     taskActionsHeader: { flexDirection: 'row', gap: 8 },
     actionIconBtn: { padding: 4 },
-    taskTitle: { fontSize: 17, fontFamily: 'Outfit-Bold', color: '#0F172A', marginBottom: 12, lineHeight: 22 },
+    taskTitle: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+    },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        gap: 8,
+    },
+    overdueBadge: {
+        backgroundColor: '#FEF2F2',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        borderWidth: 0.5,
+        borderColor: '#EF4444',
+    },
+    overdueText: {
+        fontSize: 10,
+        fontFamily: 'Outfit-Bold',
+        color: '#EF4444',
+    },
     taskTitleCompleted: { textDecorationLine: 'line-through', color: '#94A3B8' },
     taskMetaFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
     footerLeft: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
