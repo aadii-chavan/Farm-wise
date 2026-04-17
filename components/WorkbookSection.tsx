@@ -69,6 +69,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   // Form State
   const [newEntryData, setNewEntryData] = useState<Record<string, any>>({});
   const [editingColumns, setEditingColumns] = useState<WorkbookColumn[]>([]);
+  const [editingSortBy, setEditingSortBy] = useState<string | undefined>();
+  const [editingSortOrder, setEditingSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Derived State
   const workbookCategories = useMemo(() => {
@@ -112,7 +114,9 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     const tpl: Partial<WorkbookTemplate> = {
       id: template?.id,
       plotId,
-      columns: editingColumns
+      columns: editingColumns,
+      sortBy: editingSortBy,
+      sortOrder: editingSortOrder
     };
 
     await saveWorkbookTemplate(tpl);
@@ -237,6 +241,28 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
 
     const sortedColumns = [...template.columns].sort((a,b) => a.order - b.order);
 
+    const sortedEntries = [...entries].sort((a, b) => {
+      if (!template.sortBy) return 0;
+      
+      const valA = a.data[template.sortBy];
+      const valB = b.data[template.sortBy];
+      
+      if (valA === undefined && valB === undefined) return 0;
+      if (valA === undefined) return 1;
+      if (valB === undefined) return -1;
+      
+      const col = template.columns.find(c => c.id === template.sortBy);
+      let comparison = 0;
+      
+      if (col?.type === 'number') {
+        comparison = (parseFloat(valA) || 0) - (parseFloat(valB) || 0);
+      } else {
+        comparison = String(valA).localeCompare(String(valB));
+      }
+      
+      return template.sortOrder === 'desc' ? -comparison : comparison;
+    });
+
     return (
       <View style={{ flex: 1 }}>
         <View style={styles.header}>
@@ -248,6 +274,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
             style={styles.manageButton}
             onPress={() => {
               setEditingColumns(template.columns);
+              setEditingSortBy(template.sortBy);
+              setEditingSortOrder(template.sortOrder || 'desc');
               setShowTemplateModal(true);
             }}
           >
@@ -286,7 +314,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                   <Text style={styles.noEntriesSub}>Use the button below to add your first row</Text>
                 </View>
               ) : (
-                entries.map((entry, index) => (
+                sortedEntries.map((entry, index) => (
                   <Pressable 
                     key={entry.id} 
                     style={[styles.tableRow, index % 2 === 1 && { backgroundColor: Palette.primary + '05' }]}
@@ -302,7 +330,9 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                             !entry.data[col.id] && { color: Palette.textSecondary + '40' }
                           ]} 
                         >
-                          {entry.data[col.id] || '—'}
+                          {col.type === 'date' && entry.data[col.id]
+                            ? (entry.data[col.id].includes('-') ? format(new Date(entry.data[col.id]), 'dd/MM/yy') : entry.data[col.id])
+                            : entry.data[col.id] || '—'}
                         </Text>
                       </View>
                     ))}
@@ -357,6 +387,61 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
           </View>
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {/* Sorting Configuration */}
+            <View style={styles.sortingConfigCard}>
+                <View style={styles.sortHeaderRow}>
+                    <Ionicons name="swap-vertical" size={18} color={Palette.primary} />
+                    <Text style={styles.sortingTitle}>Table Ordering</Text>
+                </View>
+                
+                <View style={styles.sortControlGroup}>
+                    <Text style={styles.sortSubLabel}>Sort Records By</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortChipList} contentContainerStyle={{ paddingRight: 20 }}>
+                        <TouchableOpacity 
+                            style={[styles.sortChip, !editingSortBy && styles.activeSortChip]}
+                            onPress={() => setEditingSortBy(undefined)}
+                        >
+                            <Text style={[styles.sortChipText, !editingSortBy && styles.activeSortChipText]}>Entry Date</Text>
+                        </TouchableOpacity>
+                        {editingColumns.filter(c => c.name.trim()).map(col => (
+                            <TouchableOpacity 
+                                key={col.id}
+                                style={[styles.sortChip, editingSortBy === col.id && styles.activeSortChip]}
+                                onPress={() => setEditingSortBy(col.id)}
+                            >
+                                <Text style={[styles.sortChipText, editingSortBy === col.id && styles.activeSortChipText]}>{col.name}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+
+                <View style={styles.sortControlGroup}>
+                    <Text style={styles.sortSubLabel}>Direction</Text>
+                    <View style={styles.orderToggleGroup}>
+                        <TouchableOpacity 
+                            style={[styles.orderToggleBtn, editingSortOrder === 'asc' && styles.activeOrderToggleBtn]}
+                            onPress={() => setEditingSortOrder('asc')}
+                        >
+                            <Ionicons name="arrow-up" size={16} color={editingSortOrder === 'asc' ? 'white' : Palette.textSecondary} />
+                            <Text style={[styles.orderToggleText, editingSortOrder === 'asc' && styles.activeOrderToggleText]}>Ascending</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                            style={[styles.orderToggleBtn, editingSortOrder === 'desc' && styles.activeOrderToggleBtn]}
+                            onPress={() => setEditingSortOrder('desc')}
+                        >
+                            <Ionicons name="arrow-down" size={16} color={editingSortOrder === 'desc' ? 'white' : Palette.textSecondary} />
+                            <Text style={[styles.orderToggleText, editingSortOrder === 'desc' && styles.activeOrderToggleText]}>Descending</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+
+            <View style={styles.sectionDivider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>Columns</Text>
+                <View style={styles.dividerLine} />
+            </View>
+
             {editingColumns.map((col, index) => (
               <View key={col.id} style={styles.columnEditorCard}>
                 <View style={styles.columnEditorHeader}>
@@ -481,7 +566,9 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                         onPress={() => setShowDatePicker({ active: true, colId: col.id })}
                       >
                         <Text style={[styles.datePickerText, !newEntryData[col.id] && { color: Palette.textSecondary + '60' }]}>
-                          {newEntryData[col.id] || 'Choose Date'}
+                          {newEntryData[col.id] 
+                            ? (newEntryData[col.id].includes('-') ? format(new Date(newEntryData[col.id]), 'dd/MM/yy') : newEntryData[col.id]) 
+                            : 'Choose Date'}
                         </Text>
                         <Ionicons name="calendar" size={18} color={Palette.primary} />
                       </TouchableOpacity>
@@ -592,7 +679,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
         onClose={() => setShowDatePicker(null)}
         onSelectDate={(date) => {
           if (showDatePicker) {
-            setNewEntryData({ ...newEntryData, [showDatePicker.colId]: format(date, 'yyyy-MM-dd') });
+            setNewEntryData({ ...newEntryData, [showDatePicker.colId]: format(date, 'dd/MM/yy') });
             setShowDatePicker(null);
           }
         }}
@@ -1191,5 +1278,115 @@ const styles = StyleSheet.create({
       fontSize: 14,
       fontFamily: 'Outfit-Bold',
       color: Palette.primary,
+  },
+  // Sorting UI Styles
+  sortingConfigCard: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  sortHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  sortingTitle: {
+    fontSize: 16,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.text,
+    marginLeft: 10,
+  },
+  sortControlGroup: {
+    marginBottom: 18,
+  },
+  sortSubLabel: {
+    fontSize: 12,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.textSecondary,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sortChipList: {
+    flexDirection: 'row',
+  },
+  sortChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  activeSortChip: {
+    backgroundColor: Palette.primary + '15',
+    borderColor: Palette.primary,
+  },
+  sortChipText: {
+    fontSize: 13,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.textSecondary,
+  },
+  activeSortChipText: {
+    color: Palette.primary,
+  },
+  orderToggleGroup: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  orderToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  activeOrderToggleBtn: {
+    backgroundColor: Palette.primary,
+    borderColor: Palette.primary,
+  },
+  orderToggleText: {
+    fontSize: 13,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.textSecondary,
+    marginLeft: 8,
+  },
+  activeOrderToggleText: {
+    color: 'white',
+  },
+  sectionDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Palette.border,
+  },
+  dividerText: {
+    paddingHorizontal: 16,
+    fontSize: 12,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.textSecondary + '60',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });

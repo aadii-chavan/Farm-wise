@@ -159,6 +159,8 @@ export interface WorkbookTemplate {
   id: string;
   plotId: string;
   columns: WorkbookColumn[];
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
   updatedAt: string;
 }
 

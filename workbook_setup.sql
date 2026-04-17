@@ -8,6 +8,8 @@ create table if not exists public.workbook_templates (
   user_id uuid references auth.users(id) on delete cascade not null,
   plot_id uuid references public.plots(id) on delete cascade not null,
   columns jsonb not null default '[]'::jsonb,
+  sort_by text, -- Column ID to sort by
+  sort_order text check (sort_order in ('asc', 'desc')) default 'desc',
   created_at timestamp with time zone default timezone('utc'::text, now()),
   updated_at timestamp with time zone default timezone('utc'::text, now()),
   unique(plot_id) -- One template per plot

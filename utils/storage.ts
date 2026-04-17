@@ -866,6 +866,8 @@ export const getWorkbookTemplate = async (plotId: string): Promise<WorkbookTempl
             id: data.id,
             plotId: data.plot_id,
             columns: data.columns,
+            sortBy: data.sort_by,
+            sortOrder: data.sort_order,
             updatedAt: data.updated_at
         };
     } catch (e) {
@@ -884,6 +886,8 @@ export const saveWorkbookTemplate = async (template: Partial<WorkbookTemplate>):
             user_id: userId,
             plot_id: template.plotId,
             columns: template.columns,
+            sort_by: template.sortBy,
+            sort_order: template.sortOrder,
             updated_at: new Date().toISOString()
         }, { onConflict: 'plot_id' });
 
