@@ -95,75 +95,65 @@ export default function LaborAnalyticsScreen() {
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ 
-                title: 'Labor Analytics',
-                headerTitleStyle: { fontFamily: 'Outfit-Bold' },
-                headerLeft: () => (
-                    <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 8 }}>
-                        <Ionicons name="arrow-back" size={24} color={Palette.text} />
+            <Stack.Screen options={{ headerShown: false }} />
+            
+            <View style={styles.header}>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="chevron-back" size={24} color={Palette.text} />
                     </TouchableOpacity>
-                )
-            }} />
+                    <Text style={styles.headerTitle}>Labor Insights</Text>
+                    <View style={{ width: 40 }} />
+                </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Filters */}
-                <View style={styles.filterSection}>
-                    <View style={styles.dateRangeRow}>
-                        <TouchableOpacity 
-                            style={styles.dateBtn} 
-                            onPress={() => setShowStartPicker(true)}
-                        >
-                            <Text style={styles.dateBtnLabel}>From</Text>
-                            <Text style={styles.dateBtnValue}>{format(startDate, 'MMM d, yyyy')}</Text>
+                <View style={styles.filterBar}>
+                    <View style={styles.dateRow}>
+                        <TouchableOpacity style={styles.dateSelector} onPress={() => setShowStartPicker(true)}>
+                            <Text style={styles.dateLabel}>From</Text>
+                            <Text style={styles.dateValue}>{format(startDate, 'dd MMM')}</Text>
                         </TouchableOpacity>
-                        <Ionicons name="arrow-forward" size={16} color={Palette.textSecondary} />
-                        <TouchableOpacity 
-                            style={styles.dateBtn} 
-                            onPress={() => setShowEndPicker(true)}
-                        >
-                            <Text style={styles.dateBtnLabel}>To</Text>
-                            <Text style={styles.dateBtnValue}>{format(endDate, 'MMM d, yyyy')}</Text>
+                        <View style={styles.dateDivider} />
+                        <TouchableOpacity style={styles.dateSelector} onPress={() => setShowEndPicker(true)}>
+                            <Text style={styles.dateLabel}>To</Text>
+                            <Text style={styles.dateValue}>{format(endDate, 'dd MMM')}</Text>
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeFilterRow}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillScroll}>
                         <TouchableOpacity 
-                            style={[styles.typePill, !filterLaborType && styles.activeTypePill]}
+                            style={[styles.typePill, !filterLaborType && styles.activePill]}
                             onPress={() => setFilterLaborType(null)}
                         >
-                            <Text style={[styles.typePillText, !filterLaborType && styles.activeTypePillText]}>All Types</Text>
+                            <Text style={[styles.pillText, !filterLaborType && styles.activePillText]}>All staff</Text>
                         </TouchableOpacity>
                         {['Daily', 'Annual', 'Contract'].map(type => (
                             <TouchableOpacity 
                                 key={type}
-                                style={[styles.typePill, filterLaborType === type && styles.activeTypePill]}
+                                style={[styles.typePill, filterLaborType === type && styles.activePill]}
                                 onPress={() => setFilterLaborType(type)}
                             >
-                                <Text style={[styles.typePillText, filterLaborType === type && styles.activeTypePillText]}>{type}</Text>
+                                <Text style={[styles.pillText, filterLaborType === type && styles.activePillText]}>{type}</Text>
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
                 </View>
+            </View>
 
-                {/* Summary Cards */}
-                <View style={styles.summaryContainer}>
-                    <View style={[styles.mainSummaryCard, { backgroundColor: Palette.primary }]}>
-                        <Text style={styles.mainSummaryLabel}>Total Net Payout</Text>
-                        <Text style={styles.mainSummaryValue}>₹{stats.netPayout.toLocaleString()}</Text>
-                        <View style={styles.mainSummaryDecoration}>
-                            <Ionicons name="wallet-outline" size={80} color="white" style={{ opacity: 0.1 }} />
-                        </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                {/* Stats Grid */}
+                <View style={styles.statsGrid}>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabel}>Net Payout</Text>
+                        <Text style={styles.statValue}>₹{stats.netPayout.toLocaleString()}</Text>
                     </View>
-                    
-                    <View style={styles.subSummaryRow}>
-                        <View style={styles.subSummaryCard}>
-                            <Text style={styles.subSummaryLabel}>Total Advance</Text>
-                            <Text style={[styles.subSummaryValue, { color: Palette.danger }]}>₹{stats.totalAdvance.toLocaleString()}</Text>
-                        </View>
-                        <View style={styles.subSummaryCard}>
-                            <Text style={styles.subSummaryLabel}>Credits (Repay/Deduct)</Text>
-                            <Text style={[styles.subSummaryValue, { color: Palette.success }]}>₹{stats.totalRepayment.toLocaleString()}</Text>
-                        </View>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabel}>Total Paid</Text>
+                        <Text style={[styles.statValue, { color: Palette.danger }]}>₹{stats.totalPaid.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabel}>Credits</Text>
+                        <Text style={[styles.statValue, { color: Palette.success }]}>₹{stats.totalRepayment.toLocaleString()}</Text>
                     </View>
                 </View>
 
@@ -241,149 +231,155 @@ export default function LaborAnalyticsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#FFFFFF',
     },
-    filterSection: {
+    header: {
         backgroundColor: 'white',
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        paddingTop: 50,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
     },
-    dateRangeRow: {
+    headerTop: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 16,
+        marginBottom: 20,
     },
-    dateBtn: {
-        flex: 1,
+    backBtn: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: '#F8FAFC',
-        padding: 10,
         borderRadius: 12,
-        marginHorizontal: 4,
     },
-    dateBtnLabel: {
-        fontSize: 10,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-        textTransform: 'uppercase',
-        marginBottom: 4,
-    },
-    dateBtnValue: {
-        fontSize: 13,
+    headerTitle: {
+        fontSize: 18,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: '#1e293b',
     },
-    typeFilterRow: {
+    filterBar: {
+        gap: 16,
+    },
+    dateRow: {
+        flexDirection: 'row',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 16,
+        padding: 4,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    dateSelector: {
+        flex: 1,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+    },
+    dateDivider: {
+        width: 1,
+        backgroundColor: '#E2E8F0',
+        marginVertical: 10,
+    },
+    dateLabel: {
+        fontSize: 9,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+    },
+    dateValue: {
+        fontSize: 14,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+    },
+    pillScroll: {
         flexDirection: 'row',
     },
     typePill: {
         paddingHorizontal: 16,
         paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#F1F5F9',
+        borderRadius: 12,
+        backgroundColor: '#F8FAFC',
         marginRight: 8,
         borderWidth: 1,
         borderColor: '#F1F5F9',
     },
-    activeTypePill: {
-        backgroundColor: Palette.primary + '15',
+    activePill: {
+        backgroundColor: Palette.primary,
         borderColor: Palette.primary,
     },
-    typePillText: {
+    pillText: {
         fontSize: 12,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-    },
-    activeTypePillText: {
-        color: Palette.primary,
         fontFamily: 'Outfit-Bold',
+        color: '#64748B',
     },
-    summaryContainer: {
-        padding: 20,
-    },
-    mainSummaryCard: {
-        borderRadius: 24,
-        padding: 24,
-        overflow: 'hidden',
-        marginBottom: 16,
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-    },
-    mainSummaryLabel: {
+    activePillText: {
         color: 'white',
-        opacity: 0.8,
-        fontSize: 14,
-        fontFamily: 'Outfit-Medium',
     },
-    mainSummaryValue: {
-        color: 'white',
-        fontSize: 32,
-        fontFamily: 'Outfit-Bold',
-        marginTop: 8,
+    scrollContent: {
+        paddingHorizontal: 20,
+        paddingBottom: 40,
     },
-    mainSummaryDecoration: {
-        position: 'absolute',
-        bottom: -20,
-        right: -20,
-    },
-    subSummaryRow: {
+    statsGrid: {
         flexDirection: 'row',
-        gap: 12,
+        gap: 10,
+        marginTop: 20,
+        marginBottom: 24,
     },
-    subSummaryCard: {
+    statCard: {
         flex: 1,
-        backgroundColor: 'white',
+        backgroundColor: '#F8FAFC',
+        padding: 12,
         borderRadius: 20,
-        padding: 16,
         borderWidth: 1,
         borderColor: '#F1F5F9',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 80,
     },
-    subSummaryLabel: {
-        fontSize: 12,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit-Medium',
-    },
-    subSummaryValue: {
-        fontSize: 18,
+    statLabel: {
+        fontSize: 10,
         fontFamily: 'Outfit-Bold',
-        marginTop: 4,
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 4,
+    },
+    statValue: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
     },
     sectionCard: {
         backgroundColor: 'white',
-        marginHorizontal: 20,
-        marginBottom: 16,
         borderRadius: 24,
-        padding: 20,
+        padding: 24,
+        marginBottom: 16,
         borderWidth: 1,
         borderColor: '#F1F5F9',
     },
     sectionTitle: {
         fontSize: 16,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: '#1e293b',
         marginBottom: 20,
     },
     breakdownItem: {
-        marginBottom: 16,
+        marginBottom: 20,
     },
     breakdownHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'baseline',
         marginBottom: 8,
     },
     breakdownLabel: {
         fontSize: 14,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.text,
+        fontFamily: 'Outfit-Bold',
+        color: '#475569',
     },
     breakdownAmount: {
         fontSize: 14,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: '#1e293b',
     },
     progressBarBg: {
         height: 6,
@@ -396,16 +392,16 @@ const styles = StyleSheet.create({
         borderRadius: 3,
     },
     breakdownPercent: {
-        fontSize: 11,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-        marginTop: 4,
+        fontSize: 10,
+        color: '#94A3B8',
+        fontFamily: 'Outfit-Medium',
+        marginTop: 6,
         textAlign: 'right',
     },
     emptyText: {
         textAlign: 'center',
         paddingVertical: 20,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
+        color: '#94A3B8',
+        fontFamily: 'Outfit-Medium',
     }
 });

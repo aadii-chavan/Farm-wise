@@ -31,37 +31,37 @@ export default function LaborAttendanceRecordScreen() {
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ 
-                title: 'Attendance Record',
-                headerTitleStyle: { fontFamily: 'Outfit-Bold' },
-                headerLeft: () => (
-                    <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 8 }}>
-                        <Ionicons name="arrow-back" size={24} color={Palette.text} />
-                    </TouchableOpacity>
-                )
-            }} />
+            <Stack.Screen options={{ headerShown: false }} />
 
             <View style={styles.header}>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="chevron-back" size={24} color={Palette.text} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Attendance Log</Text>
+                    <View style={{ width: 40 }} />
+                </View>
+
                 <TouchableOpacity 
                     style={styles.dateSelector}
                     onPress={() => setShowDatePicker(true)}
                 >
-                    <Ionicons name="calendar-outline" size={20} color={Palette.primary} />
+                    <Ionicons name="calendar-outline" size={18} color={Palette.primary} />
                     <Text style={styles.dateText}>{format(selectedDate, 'MMMM d, yyyy')}</Text>
-                    <Ionicons name="chevron-down" size={16} color={Palette.textSecondary} />
+                    <Ionicons name="chevron-down" size={14} color="#94A3B8" />
                 </TouchableOpacity>
             </View>
 
             <View style={styles.statsRow}>
-                <View style={[styles.statCard, { backgroundColor: Palette.success + '10' }]}>
+                <View style={styles.statCard}>
                     <Text style={[styles.statValue, { color: Palette.success }]}>{stats.present}</Text>
                     <Text style={styles.statLabel}>Present</Text>
                 </View>
-                <View style={[styles.statCard, { backgroundColor: '#F59E0B10' }]}>
+                <View style={styles.statCard}>
                     <Text style={[styles.statValue, { color: '#F59E0B' }]}>{stats.halfDay}</Text>
                     <Text style={styles.statLabel}>Half Day</Text>
                 </View>
-                <View style={[styles.statCard, { backgroundColor: Palette.danger + '10' }]}>
+                <View style={styles.statCard}>
                     <Text style={[styles.statValue, { color: Palette.danger }]}>{stats.absent}</Text>
                     <Text style={styles.statLabel}>Absent</Text>
                 </View>
@@ -118,13 +118,34 @@ export default function LaborAttendanceRecordScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#FFFFFF',
     },
     header: {
-        padding: 20,
         backgroundColor: 'white',
+        paddingTop: 50,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
         borderBottomWidth: 1,
         borderBottomColor: '#F1F5F9',
+    },
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 20,
+    },
+    backBtn: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+    },
+    headerTitle: {
+        fontSize: 18,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
     },
     dateSelector: {
         flexDirection: 'row',
@@ -132,55 +153,64 @@ const styles = StyleSheet.create({
         backgroundColor: '#F8FAFC',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: 14,
         gap: 10,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
     },
     dateText: {
         flex: 1,
         fontFamily: 'Outfit-Bold',
-        fontSize: 16,
-        color: Palette.text,
+        fontSize: 14,
+        color: '#1e293b',
     },
     statsRow: {
         flexDirection: 'row',
-        padding: 20,
-        gap: 12,
+        paddingHorizontal: 20,
+        paddingTop: 24,
+        gap: 10,
     },
     statCard: {
         flex: 1,
-        padding: 16,
-        borderRadius: 16,
+        backgroundColor: '#F8FAFC',
+        padding: 12,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
         alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 80,
     },
     statValue: {
-        fontSize: 20,
+        fontSize: 18,
         fontFamily: 'Outfit-Bold',
     },
     statLabel: {
-        fontSize: 12,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
+        fontSize: 10,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
         marginTop: 4,
     },
     listContent: {
         paddingHorizontal: 20,
+        paddingVertical: 24,
         paddingBottom: 40,
     },
     sectionTitle: {
         fontSize: 14,
         fontFamily: 'Outfit-Bold',
-        color: Palette.textSecondary,
-        textTransform: 'uppercase',
+        color: '#1e293b',
         marginBottom: 16,
-        letterSpacing: 0.5,
     },
     attendanceCard: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: 'white',
-        borderRadius: 16,
+        borderRadius: 20,
         padding: 16,
-        marginBottom: 10,
+        marginBottom: 12,
         borderWidth: 1,
         borderColor: '#F1F5F9',
     },
@@ -190,12 +220,12 @@ const styles = StyleSheet.create({
     workerName: {
         fontSize: 15,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: '#1e293b',
     },
     workerType: {
         fontSize: 12,
-        fontFamily: 'Outfit',
-        color: Palette.textSecondary,
+        fontFamily: 'Outfit-Medium',
+        color: '#94A3B8',
         marginTop: 2,
     },
     statusBadge: {
@@ -222,8 +252,8 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         fontSize: 14,
-        fontFamily: 'Outfit',
-        color: Palette.textSecondary,
+        fontFamily: 'Outfit-Medium',
+        color: '#94A3B8',
         textAlign: 'center',
         marginBottom: 20,
     },
