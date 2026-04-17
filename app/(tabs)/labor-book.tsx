@@ -344,8 +344,8 @@ const styles = StyleSheet.create({
     },
     topHeader: {
         backgroundColor: 'white',
-        paddingTop: 60,
-        paddingBottom: 12,
+        paddingTop: 10,
+        paddingBottom: 10,
         paddingHorizontal: 20,
     },
     headerTitleRow: {
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     quickGrid: {
         flexDirection: 'row',
         gap: 10,
-        marginBottom: 24,
+        marginBottom: 16,
     },
     gridItem: {
         flex: 1,

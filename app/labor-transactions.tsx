@@ -60,12 +60,13 @@ export default function LaborTransactionsScreen() {
 
     return (
         <View style={styles.container}>
+            <Stack.Screen options={{ headerShown: false }} />
             <View style={styles.header}>
                 <View style={styles.headerTop}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                         <Ionicons name="chevron-back" size={24} color={Palette.text} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Labor Ledger</Text>
+                    <Text style={styles.headerTitle}>Transaction Ledger</Text>
                     <TouchableOpacity 
                         onPress={() => setShowFilters(!showFilters)} 
                         style={[styles.filterToggle, showFilters && styles.activeFilterToggle]}
@@ -91,20 +92,17 @@ export default function LaborTransactionsScreen() {
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 {/* Stats Grid */}
                 <View style={styles.statsGrid}>
-                    <View style={styles.statCardMain}>
-                        <View style={styles.statIconContainer}>
-                            <Ionicons name="wallet-outline" size={20} color={Palette.primary} />
-                        </View>
+                    <View style={styles.statCard}>
                         <Text style={styles.statLabel}>Net Payout</Text>
                         <Text style={styles.statValue}>₹{stats.total.toLocaleString()}</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={styles.statLabelSmall}>Total Paid</Text>
-                        <Text style={[styles.statValueSmall, { color: Palette.danger }]}>₹{stats.payouts.toLocaleString()}</Text>
+                        <Text style={styles.statLabel}>Total Paid</Text>
+                        <Text style={[styles.statValue, { color: Palette.danger }]}>₹{stats.payouts.toLocaleString()}</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={styles.statLabelSmall}>Credits</Text>
-                        <Text style={[styles.statValueSmall, { color: Palette.success }]}>₹{stats.credits.toLocaleString()}</Text>
+                        <Text style={styles.statLabel}>Credits</Text>
+                        <Text style={[styles.statValue, { color: Palette.success }]}>₹{stats.credits.toLocaleString()}</Text>
                     </View>
                 </View>
 
@@ -222,7 +220,7 @@ const styles = StyleSheet.create({
     },
     header: {
         backgroundColor: 'white',
-        paddingTop: 60,
+        paddingTop: 50,
         paddingBottom: 20,
     },
     headerTop: {
@@ -285,56 +283,29 @@ const styles = StyleSheet.create({
         gap: 12,
         marginBottom: 24,
     },
-    statCardMain: {
-        flex: 1.5,
-        backgroundColor: '#F8FAFC',
-        padding: 16,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-    },
     statCard: {
         flex: 1,
         backgroundColor: '#F8FAFC',
-        padding: 16,
+        padding: 12,
         borderRadius: 20,
         borderWidth: 1,
         borderColor: '#F1F5F9',
         justifyContent: 'center',
-    },
-    statIconContainer: {
-        width: 32,
-        height: 32,
-        backgroundColor: 'white',
-        borderRadius: 8,
         alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 12,
+        minHeight: 80,
     },
     statLabel: {
-        fontSize: 11,
-        fontFamily: 'Outfit-Bold',
-        color: '#64748B',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    statLabelSmall: {
         fontSize: 10,
         fontFamily: 'Outfit-Bold',
         color: '#94A3B8',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
-        marginBottom: 6,
+        marginBottom: 4,
     },
     statValue: {
-        fontSize: 22,
-        fontFamily: 'Outfit-Bold',
-        color: '#1e293b',
-        marginTop: 4,
-    },
-    statValueSmall: {
         fontSize: 16,
         fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
     },
     advancedFilters: {
         backgroundColor: '#F8FAFC',
