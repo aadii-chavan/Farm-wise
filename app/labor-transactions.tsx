@@ -5,7 +5,7 @@ import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useFarm } from '@/context/FarmContext';
 import { Stack, useRouter } from 'expo-router';
-import { format, isWithinInterval, startOfMonth, endOfMonth } from 'date-fns';
+import { format, isWithinInterval, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { CalendarModal } from '@/components/CalendarModal';
 
 const { width } = Dimensions.get('window');
@@ -17,8 +17,8 @@ export default function LaborTransactionsScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterType, setFilterType] = useState<string | null>(null);
     const [laborTypeFilter, setLaborTypeFilter] = useState<string | null>(null);
-    const [startDate, setStartDate] = useState(startOfMonth(new Date()));
-    const [endDate, setEndDate] = useState(endOfMonth(new Date()));
+    const [startDate, setStartDate] = useState(startOfMonth(subDays(new Date(), 30)));
+    const [endDate, setEndDate] = useState(new Date());
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
@@ -45,180 +45,148 @@ export default function LaborTransactionsScreen() {
     }, [sortedTransactions, searchQuery, filterType, laborTypeFilter, startDate, endDate, laborProfiles]);
 
     const stats = useMemo(() => {
-        const total = filteredTransactions.reduce((acc, t) => {
-            const isExpense = ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Other'].includes(t.type);
-            return acc + (isExpense ? t.amount : -t.amount);
-        }, 0);
-        return { total };
+        const payouts = filteredTransactions
+            .filter(t => ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Other'].includes(t.type))
+            .reduce((acc, t) => acc + t.amount, 0);
+        
+        const credits = filteredTransactions
+            .filter(t => ['Advance Repayment', 'Salary Deduction'].includes(t.type))
+            .reduce((acc, t) => acc + t.amount, 0);
+
+        return { payouts, credits, total: payouts - credits };
     }, [filteredTransactions]);
 
     const transactionTypes = Array.from(new Set(laborTransactions.map(t => t.type)));
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ 
-                title: 'Transactions',
-                headerTitleStyle: { fontFamily: 'Outfit-Bold' },
-                headerLeft: () => (
-                    <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 8 }}>
-                        <Ionicons name="arrow-back" size={24} color={Palette.text} />
+            <View style={styles.header}>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="chevron-back" size={24} color={Palette.text} />
                     </TouchableOpacity>
-                ),
-                headerRight: () => (
+                    <Text style={styles.headerTitle}>Labor Ledger</Text>
                     <TouchableOpacity 
                         onPress={() => setShowFilters(!showFilters)} 
-                        style={[styles.headerIconBtn, showFilters && styles.activeHeaderIconBtn]}
+                        style={[styles.filterToggle, showFilters && styles.activeFilterToggle]}
                     >
-                        <Ionicons name="funnel-outline" size={20} color={showFilters ? 'white' : Palette.primary} />
+                        <Ionicons name="options-outline" size={20} color={showFilters ? 'white' : Palette.primary} />
                     </TouchableOpacity>
-                )
-            }} />
-
-            <View style={styles.searchContainer}>
-                <View style={styles.searchBar}>
-                    <Ionicons name="search" size={20} color={Palette.textSecondary} />
-                    <TextInput 
-                        style={styles.searchInput}
-                        placeholder="Search name, type or notes..."
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        placeholderTextColor={Palette.textSecondary + '70'}
-                    />
                 </View>
-            </View>
 
-            {showFilters && (
-                <View style={styles.filterSection}>
-                    <Text style={styles.filterTitle}>Advanced Filters</Text>
-                    
-                    <View style={styles.dateRangeRow}>
-                        <TouchableOpacity style={styles.datePicker} onPress={() => setShowStartPicker(true)}>
-                            <Text style={styles.dateLabel}>From</Text>
-                            <Text style={styles.dateValue}>{format(startDate, 'MMM d, yy')}</Text>
-                        </TouchableOpacity>
-                        <View style={styles.dateConnector} />
-                        <TouchableOpacity style={styles.datePicker} onPress={() => setShowEndPicker(true)}>
-                            <Text style={styles.dateLabel}>To</Text>
-                            <Text style={styles.dateValue}>{format(endDate, 'MMM d, yy')}</Text>
-                        </TouchableOpacity>
+                <View style={styles.searchBarContainer}>
+                    <View style={styles.searchBar}>
+                        <Ionicons name="search" size={18} color="#94A3B8" />
+                        <TextInput 
+                            style={styles.searchInput}
+                            placeholder="Search by name, type or note..."
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholderTextColor="#94A3B8"
+                        />
                     </View>
-
-                    <Text style={styles.subFilterTitle}>Labor Type</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsRow}>
-                        <TouchableOpacity 
-                            style={[styles.pill, !laborTypeFilter && styles.activePill]}
-                            onPress={() => setLaborTypeFilter(null)}
-                        >
-                            <Text style={[styles.pillText, !laborTypeFilter && styles.activePillText]}>All Staff</Text>
-                        </TouchableOpacity>
-                        {['Daily', 'Annual', 'Contract'].map(type => (
-                            <TouchableOpacity 
-                                key={type}
-                                style={[styles.pill, laborTypeFilter === type && styles.activePill]}
-                                onPress={() => setLaborTypeFilter(type)}
-                            >
-                                <Text style={[styles.pillText, laborTypeFilter === type && styles.activePillText]}>{type}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-
-                    <Text style={styles.subFilterTitle}>Transaction Type</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsRow}>
-                        <TouchableOpacity 
-                            style={[styles.pill, !filterType && styles.activePill]}
-                            onPress={() => setFilterType(null)}
-                        >
-                            <Text style={[styles.pillText, !filterType && styles.activePillText]}>All Types</Text>
-                        </TouchableOpacity>
-                        {transactionTypes.map(type => (
-                            <TouchableOpacity 
-                                key={type}
-                                style={[styles.pill, filterType === type && styles.activePill]}
-                                onPress={() => setFilterType(type)}
-                            >
-                                <Text style={[styles.pillText, filterType === type && styles.activePillText]}>{type}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
-            )}
-
-            <View style={styles.summaryBar}>
-                <View>
-                    <Text style={styles.summaryLabel}>Total Net Payout</Text>
-                    <Text style={styles.summaryValue}>₹{stats.total.toLocaleString()}</Text>
-                </View>
-                <View style={styles.countBadge}>
-                    <Text style={styles.countText}>{filteredTransactions.length} items</Text>
                 </View>
             </View>
 
-            <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                {/* Stats Grid */}
+                <View style={styles.statsGrid}>
+                    <View style={styles.statCardMain}>
+                        <View style={styles.statIconContainer}>
+                            <Ionicons name="wallet-outline" size={20} color={Palette.primary} />
+                        </View>
+                        <Text style={styles.statLabel}>Net Payout</Text>
+                        <Text style={styles.statValue}>₹{stats.total.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabelSmall}>Total Paid</Text>
+                        <Text style={[styles.statValueSmall, { color: Palette.danger }]}>₹{stats.payouts.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabelSmall}>Credits</Text>
+                        <Text style={[styles.statValueSmall, { color: Palette.success }]}>₹{stats.credits.toLocaleString()}</Text>
+                    </View>
+                </View>
+
+                {showFilters && (
+                    <View style={styles.advancedFilters}>
+                        <View style={styles.filterGroup}>
+                            <Text style={styles.filterGroupLabel}>Transaction Period</Text>
+                            <View style={styles.dateRow}>
+                                <TouchableOpacity style={styles.dateControl} onPress={() => setShowStartPicker(true)}>
+                                    <Text style={styles.dateControlLabel}>From</Text>
+                                    <Text style={styles.dateControlValue}>{format(startDate, 'dd MMM yy')}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.dateControl} onPress={() => setShowEndPicker(true)}>
+                                    <Text style={styles.dateControlLabel}>To</Text>
+                                    <Text style={styles.dateControlValue}>{format(endDate, 'dd MMM yy')}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <View style={styles.filterGroup}>
+                            <Text style={styles.filterGroupLabel}>Filter by Staff Type</Text>
+                            <View style={styles.pillsRow}>
+                                {['All', 'Daily', 'Annual', 'Contract'].map(type => (
+                                    <TouchableOpacity 
+                                        key={type}
+                                        style={[styles.typePill, (type === 'All' ? !laborTypeFilter : laborTypeFilter === type) && styles.activePill]}
+                                        onPress={() => setLaborTypeFilter(type === 'All' ? null : type)}
+                                    >
+                                        <Text style={[styles.pillText, (type === 'All' ? !laborTypeFilter : laborTypeFilter === type) && styles.activePillText]}>{type}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+                    </View>
+                )}
+
+                <View style={styles.listHeader}>
+                    <Text style={styles.listTitle}>Transaction History</Text>
+                    <View style={styles.itemCountBadge}>
+                        <Text style={styles.itemCountText}>{filteredTransactions.length} Items</Text>
+                    </View>
+                </View>
+
                 {filteredTransactions.length === 0 ? (
                     <View style={styles.emptyContainer}>
-                        <View style={styles.emptyIconContainer}>
-                            <Ionicons name="receipt-outline" size={48} color={Palette.textSecondary + '40'} />
-                        </View>
-                        <Text style={styles.emptyText}>No transactions found for these filters.</Text>
-                        <TouchableOpacity 
-                            style={styles.resetBtn}
-                            onPress={() => {
-                                setFilterType(null);
-                                setLaborTypeFilter(null);
-                                setSearchQuery('');
-                                setStartDate(startOfMonth(new Date()));
-                                setEndDate(endOfMonth(new Date()));
-                            }}
-                        >
-                            <Text style={styles.resetBtnText}>Reset Filters</Text>
-                        </TouchableOpacity>
+                        <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
+                        <Text style={styles.emptyText}>No matching records found</Text>
                     </View>
                 ) : (
-                    filteredTransactions.map((transaction) => {
+                    filteredTransactions.map((transaction, index) => {
                         const worker = laborProfiles.find(p => p.id === transaction.workerId);
-                        const isExpense = ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Other'].includes(transaction.type);
+                        const isPayout = ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Other'].includes(transaction.type);
                         
                         return (
-                            <View key={transaction.id} style={styles.transactionCard}>
-                                <View style={styles.cardHeader}>
-                                    <View style={[styles.iconContainer, { backgroundColor: (isExpense ? Palette.danger : Palette.success) + '10' }]}>
-                                        <Ionicons 
-                                            name={isExpense ? "arrow-up-circle" : "arrow-down-circle"} 
-                                            size={24} 
-                                            color={isExpense ? Palette.danger : Palette.success} 
-                                        />
-                                    </View>
-                                    <View style={styles.headerInfo}>
-                                        <View style={styles.nameRow}>
-                                            <Text style={styles.workerName}>{worker?.name || 'Unknown Worker'}</Text>
-                                            <View style={styles.laborTypeBadge}>
-                                                <Text style={styles.laborTypeText}>{worker?.type}</Text>
+                            <View key={transaction.id} style={styles.transactionItem}>
+                                <View style={styles.transactionMain}>
+                                    <View style={[styles.indicator, { backgroundColor: isPayout ? Palette.danger : Palette.success }]} />
+                                    <View style={styles.transactionInfo}>
+                                        <View style={styles.workerRow}>
+                                            <Text style={styles.workerNameText}>{worker?.name || 'Unknown'}</Text>
+                                            <View style={styles.staffBadge}>
+                                                <Text style={styles.staffBadgeText}>{worker?.type}</Text>
                                             </View>
                                         </View>
-                                        <Text style={styles.dateText}>{format(new Date(transaction.date), 'MMMM d, yyyy')}</Text>
+                                        <View style={styles.typeRow}>
+                                            <Text style={styles.typeLabelText}>{transaction.type}</Text>
+                                            <Text style={styles.bullet}>•</Text>
+                                            <Text style={styles.dateLabelText}>{format(new Date(transaction.date), 'dd MMM yyyy')}</Text>
+                                        </View>
                                     </View>
-                                    <View style={styles.amountContainer}>
-                                        <Text style={[styles.amount, { color: isExpense ? Palette.danger : Palette.success }]}>
-                                            {isExpense ? '-' : '+'}₹{transaction.amount.toLocaleString()}
+                                    <View style={styles.amountArea}>
+                                        <Text style={[styles.amountText, { color: isPayout ? '#1e293b' : Palette.success }]}>
+                                            {isPayout ? '-' : '+'}₹{transaction.amount.toLocaleString()}
                                         </Text>
                                     </View>
                                 </View>
-                                
-                                <View style={styles.cardDivider} />
-                                
-                                <View style={styles.cardDetails}>
-                                    <View style={styles.typeTag}>
-                                        <Ionicons name="pricetag-outline" size={12} color={Palette.textSecondary} />
-                                        <Text style={styles.typeTagText}>{transaction.type}</Text>
+                                {transaction.note && (
+                                    <View style={styles.noteContainer}>
+                                        <Text style={styles.noteLabel}>NOTE:</Text>
+                                        <Text style={styles.noteContent}>{transaction.note}</Text>
                                     </View>
-                                    
-                                    {transaction.note && (
-                                        <View style={styles.noteBox}>
-                                            <Ionicons name="chatbox-ellipses-outline" size={14} color={Palette.textSecondary} style={{ marginTop: 2 }} />
-                                            <Text style={styles.noteText}>{transaction.note}</Text>
-                                        </View>
-                                    )}
-                                </View>
+                                )}
                             </View>
                         );
                     })
@@ -250,281 +218,312 @@ export default function LaborTransactionsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8F9FD',
+        backgroundColor: '#FFFFFF',
     },
-    headerIconBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: Palette.primary + '10',
+    header: {
+        backgroundColor: 'white',
+        paddingTop: 60,
+        paddingBottom: 20,
+    },
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        justifyContent: 'space-between',
+        marginBottom: 20,
+    },
+    backBtn: {
+        width: 40,
+        height: 40,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
     },
-    activeHeaderIconBtn: {
+    headerTitle: {
+        fontSize: 20,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+    },
+    filterToggle: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F0F9FF',
+        borderRadius: 12,
+    },
+    activeFilterToggle: {
         backgroundColor: Palette.primary,
     },
-    searchContainer: {
-        padding: 20,
-        backgroundColor: 'white',
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+    searchBarContainer: {
+        paddingHorizontal: 20,
     },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F8F9FD',
+        backgroundColor: '#F8FAFC',
         paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 14,
+        paddingVertical: 12,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#EDF2F7',
+        borderColor: '#F1F5F9',
     },
     searchInput: {
         flex: 1,
-        marginLeft: 12,
-        fontFamily: 'Outfit-Regular',
-        fontSize: 15,
-        color: Palette.text,
-    },
-    filterSection: {
-        backgroundColor: 'white',
-        padding: 20,
-        paddingTop: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
-    },
-    filterTitle: {
-        fontSize: 14,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-        marginBottom: 16,
-    },
-    subFilterTitle: {
-        fontSize: 12,
+        marginLeft: 10,
         fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-        marginTop: 16,
-        marginBottom: 10,
+        fontSize: 14,
+        color: '#1e293b',
+    },
+    scrollContent: {
+        paddingHorizontal: 20,
+        paddingBottom: 40,
+    },
+    statsGrid: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 24,
+    },
+    statCardMain: {
+        flex: 1.5,
+        backgroundColor: '#F8FAFC',
+        padding: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    statCard: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+        padding: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        justifyContent: 'center',
+    },
+    statIconContainer: {
+        width: 32,
+        height: 32,
+        backgroundColor: 'white',
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+    statLabel: {
+        fontSize: 11,
+        fontFamily: 'Outfit-Bold',
+        color: '#64748B',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    statLabelSmall: {
+        fontSize: 10,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+        marginBottom: 6,
     },
-    dateRangeRow: {
+    statValue: {
+        fontSize: 22,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+        marginTop: 4,
+    },
+    statValueSmall: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+    },
+    advancedFilters: {
+        backgroundColor: '#F8FAFC',
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    filterGroup: {
+        marginBottom: 20,
+    },
+    filterGroupLabel: {
+        fontSize: 12,
+        fontFamily: 'Outfit-Bold',
+        color: '#64748B',
+        marginBottom: 12,
+        textTransform: 'uppercase',
+    },
+    dateRow: {
         flexDirection: 'row',
-        alignItems: 'center',
         gap: 12,
     },
-    datePicker: {
+    dateControl: {
         flex: 1,
-        backgroundColor: '#F8F9FD',
+        backgroundColor: 'white',
         padding: 12,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#EDF2F7',
+        borderColor: '#F1F5F9',
     },
-    dateLabel: {
-        fontSize: 10,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-        marginBottom: 4,
-    },
-    dateValue: {
-        fontSize: 14,
+    dateControlLabel: {
+        fontSize: 9,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        marginBottom: 2,
     },
-    dateConnector: {
-        width: 10,
-        height: 2,
-        backgroundColor: '#E2E8F0',
+    dateControlValue: {
+        fontSize: 13,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
     },
     pillsRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
     },
-    pill: {
+    typePill: {
         paddingHorizontal: 16,
         paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#F1F5F9',
-        marginRight: 8,
+        borderRadius: 12,
+        backgroundColor: 'white',
         borderWidth: 1,
         borderColor: '#F1F5F9',
     },
     activePill: {
-        backgroundColor: Palette.primary + '10',
+        backgroundColor: Palette.primary,
         borderColor: Palette.primary,
     },
     pillText: {
         fontSize: 12,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
+        fontFamily: 'Outfit-Bold',
+        color: '#64748B',
     },
     activePillText: {
-        color: Palette.primary,
-        fontFamily: 'Outfit-Bold',
+        color: 'white',
     },
-    summaryBar: {
+    listHeader: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+        justifyContent: 'space-between',
+        marginBottom: 16,
     },
-    summaryLabel: {
-        fontSize: 12,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-    },
-    summaryValue: {
-        fontSize: 20,
+    listTitle: {
+        fontSize: 16,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: '#1e293b',
     },
-    countBadge: {
-        backgroundColor: '#E2E8F0',
+    itemCountBadge: {
+        backgroundColor: '#F1F5F9',
         paddingHorizontal: 10,
         paddingVertical: 4,
-        borderRadius: 12,
+        borderRadius: 8,
     },
-    countText: {
+    itemCountText: {
         fontSize: 11,
         fontFamily: 'Outfit-Bold',
-        color: Palette.textSecondary,
+        color: '#64748B',
     },
-    listContent: {
-        paddingHorizontal: 20,
-        paddingBottom: 40,
-    },
-    transactionCard: {
+    transactionItem: {
         backgroundColor: 'white',
         borderRadius: 20,
         padding: 16,
-        marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 10,
-        elevation: 3,
+        marginBottom: 12,
         borderWidth: 1,
-        borderColor: 'rgba(241, 245, 249, 0.8)',
+        borderColor: '#F1F5F9',
     },
-    cardHeader: {
+    transactionMain: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-    iconContainer: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
+    indicator: {
+        width: 4,
+        height: 32,
+        borderRadius: 2,
+        marginRight: 16,
     },
-    headerInfo: {
+    transactionInfo: {
         flex: 1,
-        marginLeft: 14,
     },
-    nameRow: {
+    workerRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+        marginBottom: 4,
     },
-    workerName: {
+    workerNameText: {
         fontSize: 15,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: '#1e293b',
     },
-    laborTypeBadge: {
-        backgroundColor: '#F1F5F9',
+    staffBadge: {
+        backgroundColor: '#F8FAFC',
         paddingHorizontal: 6,
         paddingVertical: 2,
-        borderRadius: 6,
+        borderRadius: 4,
     },
-    laborTypeText: {
+    staffBadgeText: {
         fontSize: 9,
         fontFamily: 'Outfit-Bold',
-        color: Palette.textSecondary,
+        color: '#94A3B8',
         textTransform: 'uppercase',
     },
-    dateText: {
-        fontSize: 12,
-        fontFamily: 'Outfit-Regular',
-        color: Palette.textSecondary,
-        marginTop: 2,
-    },
-    amountContainer: {
-        alignItems: 'flex-end',
-    },
-    amount: {
-        fontSize: 17,
-        fontFamily: 'Outfit-Bold',
-    },
-    cardDivider: {
-        height: 1,
-        backgroundColor: '#F8F9FD',
-        marginVertical: 12,
-    },
-    cardDetails: {
-        gap: 10,
-    },
-    typeTag: {
+    typeRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
     },
-    typeTagText: {
+    typeLabelText: {
         fontSize: 12,
         fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
+        color: '#64748B',
     },
-    noteBox: {
+    bullet: {
+        fontSize: 12,
+        color: '#CBD5E1',
+    },
+    dateLabelText: {
+        fontSize: 11,
+        fontFamily: 'Outfit-Medium',
+        color: '#94A3B8',
+    },
+    amountArea: {
+        alignItems: 'flex-end',
+    },
+    amountText: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+    },
+    noteContainer: {
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F8FAFC',
         flexDirection: 'row',
-        backgroundColor: '#F8F9FD',
-        padding: 10,
-        borderRadius: 10,
-        gap: 8,
+        gap: 6,
     },
-    noteText: {
+    noteLabel: {
+        fontSize: 9,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        marginTop: 2,
+    },
+    noteContent: {
         flex: 1,
-        fontSize: 13,
-        fontFamily: 'Outfit-Regular',
-        color: Palette.textSecondary,
-        lineHeight: 18,
+        fontSize: 12,
+        fontFamily: 'Outfit-Medium',
+        color: '#64748B',
+        lineHeight: 16,
     },
     emptyContainer: {
+        paddingVertical: 60,
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 80,
-    },
-    emptyIconContainer: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: 'white',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.05,
-        shadowRadius: 20,
     },
     emptyText: {
+        marginTop: 12,
         fontSize: 14,
         fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-        textAlign: 'center',
-        marginBottom: 24,
-        width: 200,
-    },
-    resetBtn: {
-        backgroundColor: Palette.primary,
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 14,
-    },
-    resetBtnText: {
-        color: 'white',
-        fontFamily: 'Outfit-Bold',
-        fontSize: 14,
+        color: '#94A3B8',
     },
 });
