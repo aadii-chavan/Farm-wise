@@ -316,7 +316,6 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
             <KeyboardAvoidingView 
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.modalRoot}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
                 <View style={styles.modalContainer}>
                     <View style={styles.modalHeader}>
@@ -329,7 +328,12 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                         </TouchableOpacity>
                     </View>
 
-                    <ScrollView style={styles.formContent} keyboardShouldPersistTaps="handled">
+                    <ScrollView 
+                        style={styles.formContent} 
+                        contentContainerStyle={styles.formContentContainer}
+                        keyboardShouldPersistTaps="handled"
+                        showsVerticalScrollIndicator={false}
+                    >
                         <View style={styles.formRow}>
                             <View style={[styles.formGroup, { flex: 1.5, marginRight: 12 }]}>
                                 <Text style={styles.label}>Date *</Text>
@@ -580,7 +584,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    maxHeight: '85%',
+    height: '90%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.1,
@@ -609,7 +613,11 @@ const styles = StyleSheet.create({
       padding: 4,
   },
   formContent: {
+    flexGrow: 1,
+  },
+  formContentContainer: {
     padding: 24,
+    paddingBottom: 40,
   },
   formRow: {
     flexDirection: 'row',
