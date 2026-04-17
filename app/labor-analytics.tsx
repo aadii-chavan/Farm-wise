@@ -33,19 +33,21 @@ export default function LaborAnalyticsScreen() {
     }, [laborTransactions, laborProfiles, startDate, endDate, filterLaborType]);
 
     const stats = useMemo(() => {
-        const totalPaid = filteredTransactions
-            .filter(t => t.type === 'Weekly Settle' || t.type === 'Annual Installment' || t.type === 'Contract Payment')
+        const payouts = filteredTransactions
+            .filter(t => ['Weekly Settle', 'Annual Installment', 'Contract Payment', 'Advance', 'Other'].includes(t.type))
             .reduce((acc, t) => acc + t.amount, 0);
         
         const totalAdvance = filteredTransactions
             .filter(t => t.type === 'Advance')
             .reduce((acc, t) => acc + t.amount, 0);
         
-        const totalRepayment = filteredTransactions
-            .filter(t => t.type === 'Advance Repayment')
+        const totalCredits = filteredTransactions
+            .filter(t => t.type === 'Advance Repayment' || t.type === 'Salary Deduction')
             .reduce((acc, t) => acc + t.amount, 0);
 
-        return { totalPaid, totalAdvance, totalRepayment };
+        const netPayout = payouts - totalCredits;
+
+        return { totalPaid: payouts, totalAdvance, totalRepayment: totalCredits, netPayout };
     }, [filteredTransactions]);
 
     const typeData = useMemo(() => {
@@ -58,7 +60,8 @@ export default function LaborAnalyticsScreen() {
         filteredTransactions.forEach(t => {
             const worker = laborProfiles.find(p => p.id === t.workerId);
             if (worker && data[worker.type] !== undefined) {
-                data[worker.type] += t.amount;
+                const isExpense = ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Other'].includes(t.type);
+                data[worker.type] += (isExpense ? t.amount : -t.amount);
             }
         });
 
@@ -75,7 +78,8 @@ export default function LaborAnalyticsScreen() {
     const transactionTypeData = useMemo(() => {
         const data: Record<string, number> = {};
         filteredTransactions.forEach(t => {
-            data[t.type] = (data[t.type] || 0) + t.amount;
+            const isExpense = ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Other'].includes(t.type);
+            data[t.type] = (data[t.type] || 0) + (isExpense ? t.amount : -t.amount);
         });
 
         const total = Object.values(data).reduce((acc, v) => acc + v, 0);
@@ -144,8 +148,8 @@ export default function LaborAnalyticsScreen() {
                 {/* Summary Cards */}
                 <View style={styles.summaryContainer}>
                     <View style={[styles.mainSummaryCard, { backgroundColor: Palette.primary }]}>
-                        <Text style={styles.mainSummaryLabel}>Total Payouts</Text>
-                        <Text style={styles.mainSummaryValue}>₹{stats.totalPaid.toLocaleString()}</Text>
+                        <Text style={styles.mainSummaryLabel}>Total Net Payout</Text>
+                        <Text style={styles.mainSummaryValue}>₹{stats.netPayout.toLocaleString()}</Text>
                         <View style={styles.mainSummaryDecoration}>
                             <Ionicons name="wallet-outline" size={80} color="white" style={{ opacity: 0.1 }} />
                         </View>
@@ -157,7 +161,7 @@ export default function LaborAnalyticsScreen() {
                             <Text style={[styles.subSummaryValue, { color: Palette.danger }]}>₹{stats.totalAdvance.toLocaleString()}</Text>
                         </View>
                         <View style={styles.subSummaryCard}>
-                            <Text style={styles.subSummaryLabel}>Total Repay</Text>
+                            <Text style={styles.subSummaryLabel}>Credits (Repay/Deduct)</Text>
                             <Text style={[styles.subSummaryValue, { color: Palette.success }]}>₹{stats.totalRepayment.toLocaleString()}</Text>
                         </View>
                     </View>

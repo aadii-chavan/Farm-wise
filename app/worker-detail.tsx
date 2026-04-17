@@ -39,7 +39,13 @@ export default function WorkerDetailScreen() {
         if (worker.type === 'Contract') {
             const myContracts = laborContracts.filter(c => c.contractorId === id);
             totalEarned = myContracts.reduce((acc, c) => acc + c.totalAmount, 0);
-            totalPaid = transactions.reduce((acc, t) => acc + t.amount, 0);
+            
+            // For contracts, net paid is sum(payouts) - sum(repayments)
+            totalPaid = transactions.reduce((acc, t) => {
+                const isExpense = ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Other'].includes(t.type);
+                return acc + (isExpense ? t.amount : -t.amount);
+            }, 0);
+
             advanceTotal = transactions.filter(t => t.type === 'Advance').reduce((acc, t) => acc + t.amount, 0);
             repaidTotal = transactions.filter(t => t.type === 'Advance Repayment').reduce((acc, t) => acc + t.amount, 0);
 
@@ -75,15 +81,16 @@ export default function WorkerDetailScreen() {
                 if (a.status === 'Half-Day') totalEarned += (worker.baseWage || 0) / 2;
             });
 
-            totalPaid = transactions.filter(t => t.type === 'Weekly Settle').reduce((acc, t) => acc + t.amount, 0);
+            totalPaid = transactions.filter(t => ['Weekly Settle', 'Other'].includes(t.type)).reduce((acc, t) => acc + t.amount, 0);
             advanceTotal = transactions.filter(t => t.type === 'Advance').reduce((acc, t) => acc + t.amount, 0);
             repaidTotal = transactions.filter(t => t.type === 'Advance Repayment').reduce((acc, t) => acc + t.amount, 0);
+            const advBalance = advanceTotal - repaidTotal;
 
             return {
                 l1: 'Total Earned', v1: totalEarned,
                 l2: 'Total Paid', v2: totalPaid,
-                l3: 'Adv. Balance', v3: advanceTotal - repaidTotal,
-                l4: 'To Pay', v4: totalEarned - totalPaid - repaidTotal
+                l3: 'Adv. Balance', v3: advBalance,
+                l4: 'To Pay', v4: totalEarned - totalPaid - advBalance
             };
         }
     }, [worker, transactions, attendanceRecords, laborContracts, id]);

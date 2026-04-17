@@ -46,7 +46,7 @@ export default function LaborTransactionsScreen() {
 
     const stats = useMemo(() => {
         const total = filteredTransactions.reduce((acc, t) => {
-            const isExpense = ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Salary Deduction'].includes(t.type);
+            const isExpense = ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Other'].includes(t.type);
             return acc + (isExpense ? t.amount : -t.amount);
         }, 0);
         return { total };
@@ -176,7 +176,7 @@ export default function LaborTransactionsScreen() {
                 ) : (
                     filteredTransactions.map((transaction) => {
                         const worker = laborProfiles.find(p => p.id === transaction.workerId);
-                        const isExpense = ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Salary Deduction'].includes(transaction.type);
+                        const isExpense = ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Other'].includes(transaction.type);
                         
                         return (
                             <View key={transaction.id} style={styles.transactionCard}>
