@@ -19,7 +19,8 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
-import { format, parse, addDays, differenceInDays, isValid } from 'date-fns';
+import { useAuth } from '@/context/AuthContext';
+import { format, parse, addDays, differenceInDays, isValid, parseISO } from 'date-fns';
 import { CalendarModal } from './CalendarModal';
 
 interface WorkbookSectionProps {
@@ -49,6 +50,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     deleteWorkbookEntry,
     rainRecords
   } = useFarm();
+  const { user } = useAuth();
   
   const { width: screenWidth } = useWindowDimensions();
   const [entries, setEntries] = useState<any[]>([]);
@@ -216,16 +218,24 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
 
   const handleDownloadPDF = async () => {
     try {
-        const plotName = "Farm Wise Plot"; // Ideal would be to pass plot name too
+        const userName = user?.user_metadata?.full_name || user?.email || 'Farmer';
+        
+        // Calculate Stats
+        const totalActivities = sortedEntries.length;
+        const latestEntry = sortedEntries[sortedEntries.length - 1];
+        const dateRange = sortedEntries.length > 0 ? 
+            `${format(parse(sortedEntries[0].data.date, sortedEntries[0].data.date.includes('-') ? 'yyyy-MM-dd' : 'dd/MM/yy', new Date()), 'dd MMM')} - ${format(parse(sortedEntries[sortedEntries.length-1].data.date, sortedEntries[sortedEntries.length-1].data.date.includes('-') ? 'yyyy-MM-dd' : 'dd/MM/yy', new Date()), 'dd MMM yyyy')}` : 
+            'All Time';
+
         const tableRows = sortedEntries.map((entry, index) => `
             <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${index + 1}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${entry.data.date && entry.data.date.includes('-') ? format(parse(entry.data.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yy') : entry.data.date}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${entry.data.daysPast}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${entry.data.category}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${entry.data.description}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #2563eb;">${entry.data.rain || '-'} mm</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${entry.data.note || '-'}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 13px; color: #64748b;">${index + 1}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600;">${entry.data.date && entry.data.date.includes('-') ? format(parse(entry.data.date, 'yyyy-MM-dd', new Date()), 'dd MMM yy') : entry.data.date}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 13px; color: #1e293b; font-weight: 700;">Day ${entry.data.daysPast}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 800; color: ${CATEGORY_STYLES[entry.data.category]?.color || '#1e293b'}; font-size: 13px;">${entry.data.category}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #334155; line-height: 1.4;">${entry.data.description}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #2563eb; font-weight: 700; font-size: 13px;">${entry.data.rain ? `${entry.data.rain} mm` : '-'}</td>
+                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 11px; color: #64748b; font-style: italic;">${entry.data.note || '-'}</td>
             </tr>
         `).join('');
 
@@ -233,44 +243,93 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
             <html>
                 <head>
                     <style>
-                        body { font-family: 'Helvetica', sans-serif; padding: 20px; color: #1e293b; }
-                        .header { border-bottom: 2px solid #006d5b; padding-bottom: 10px; margin-bottom: 20px; }
-                        h1 { color: #006d5b; margin: 0; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
-                        th { background-color: #006d5b; color: white; padding: 12px 10px; text-align: left; text-transform: uppercase; }
-                        .footer { margin-top: 30px; font-size: 10px; color: #94a3b8; text-align: center; }
+                        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }
+                        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 4px solid #006d5b; padding-bottom: 25px; margin-bottom: 35px; }
+                        .logo-container { flex: 1; }
+                        .logo-text { font-size: 38px; font-weight: 900; color: #006d5b; letter-spacing: -1.5px; margin: 0; }
+                        .logo-sub { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin-top: -5px; }
+                        .report-meta { text-align: right; flex: 1; }
+                        .report-title { font-size: 26px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+                        .user-info { font-size: 15px; color: #475569; margin-top: 8px; }
+                        
+                        .stats-grid { display: flex; gap: 20px; margin-bottom: 35px; }
+                        .stat-card { flex: 1; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: center; }
+                        .stat-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+                        .stat-value { font-size: 24px; font-weight: 900; color: #006d5b; }
+                        
+                        .table-container { border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+                        table { width: 100%; border-collapse: collapse; background: white; }
+                        th { background-color: #006d5b; color: white; text-align: left; padding: 16px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+                        
+                        .footer { margin-top: 60px; padding-top: 30px; border-top: 2px solid #f1f5f9; text-align: center; }
+                        .footer-brand { font-size: 18px; font-weight: 800; color: #006d5b; margin-bottom: 5px; }
+                        .footer-tagline { font-size: 13px; color: #64748b; font-weight: 500; }
+                        .disclaimer { font-size: 11px; color: #94a3b8; margin-top: 20px; font-style: italic; max-width: 80%; margin-left: auto; margin-right: auto; }
                     </style>
                 </head>
                 <body>
                     <div class="header">
-                        <h1>Farm Wise: Workbook Report</h1>
-                        <p>Plot Activity Log | Generated on ${format(new Date(), 'dd MMM yyyy')}</p>
+                        <div class="logo-container">
+                            <h1 class="logo-text">FarmEzy</h1>
+                            <p class="logo-sub">Smart Agriculture</p>
+                        </div>
+                        <div class="report-meta">
+                            <h2 class="report-title">Workbook Ledger</h2>
+                            <div class="user-info">Prepared for: <b>${userName}</b></div>
+                            <div style="font-size: 12px; color: #94a3b8; margin-top: 5px;">Period: ${dateRange}</div>
+                        </div>
                     </div>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Sr.</th>
-                                <th>Date</th>
-                                <th>Days</th>
-                                <th>Activity</th>
-                                <th>Description</th>
-                                <th>Rain</th>
-                                <th>Note</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tableRows}
-                        </tbody>
-                    </table>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Activities</div>
+                            <div class="stat-value">${totalActivities}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Latest Activity</div>
+                            <div class="stat-value" style="font-size: 18px;">${latestEntry ? latestEntry.data.category : 'N/A'}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Last Date</div>
+                            <div class="stat-value" style="font-size: 18px;">${latestEntry ? latestEntry.data.date : 'N/A'}</div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="text-align: center; width: 40px;">Sr.</th>
+                                    <th style="width: 90px;">Date</th>
+                                    <th style="text-align: center; width: 60px;">Day</th>
+                                    <th style="width: 100px;">Activity</th>
+                                    <th>Description</th>
+                                    <th style="text-align: center; width: 70px;">Rain</th>
+                                    <th>Observations</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+
                     <div class="footer">
-                        <p>Farm Wise - Professional Agricultural Management</p>
+                        <div class="footer-brand">FarmEzy</div>
+                        <div class="footer-tagline">Your Digital Partner in Modern Agriculture</div>
+                        <p class="disclaimer">
+                            This Workbook Ledger is a system-generated document based on data provided by the user. 
+                            It is intended for agricultural planning and historical reference. FarmEzy is not liable for 
+                            any discrepancies in manual data entry.
+                        </p>
+                        <p style="font-size: 10px; color: #cbd5e1; margin-top: 15px;">Generated on: ${format(new Date(), 'dd MMMM yyyy, hh:mm a')}</p>
                     </div>
                 </body>
             </html>
         `;
 
         const { uri } = await Print.printToFileAsync({ html });
-        await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf', dialogTitle: 'Workbook Report' });
+        await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf', dialogTitle: 'Share Workbook Ledger' });
     } catch (e) {
         Alert.alert("Error", "Failed to generate PDF");
     }
