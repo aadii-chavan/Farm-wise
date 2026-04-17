@@ -155,6 +155,12 @@ export default function WorkerDetailScreen() {
                                 <Text style={styles.phoneText}>{worker.phone}</Text>
                             </TouchableOpacity>
                         )}
+                        {worker.notes && (
+                            <View style={styles.notesSection}>
+                                <Text style={styles.notesLabel}>PERSONAL NOTE</Text>
+                                <Text style={styles.notesText}>{worker.notes}</Text>
+                            </View>
+                        )}
                     </View>
                     {worker.type !== 'Contract' && (
                         <TouchableOpacity 
@@ -448,5 +454,25 @@ const styles = StyleSheet.create({
         color: Palette.textSecondary,
         fontFamily: 'Outfit',
         fontSize: 14,
-    }
+    },
+    notesSection: {
+        marginTop: 16,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+    },
+    notesLabel: {
+        fontSize: 9,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 4,
+    },
+    notesText: {
+        fontSize: 13,
+        fontFamily: 'Outfit-Medium',
+        color: '#64748B',
+        lineHeight: 18,
+    },
 });

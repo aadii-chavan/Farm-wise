@@ -41,95 +41,92 @@ export default function LaborBookScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Quick Actions */}
-            <View style={styles.quickActions}>
-                <TouchableOpacity 
-                    style={styles.actionCard}
-                    onPress={() => router.push('/labor-attendance-record')}
-                >
-                    <View style={[styles.actionIcon, { backgroundColor: Palette.primary + '15' }]}>
-                        <Ionicons name="calendar-outline" size={24} color={Palette.primary} />
-                    </View>
-                    <Text style={styles.actionLabel}>Attendance Record</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                    style={styles.actionCard}
-                    onPress={() => router.push('/labor-transactions')}
-                >
-                    <View style={[styles.actionIcon, { backgroundColor: Palette.success + '15' }]}>
-                        <Ionicons name="receipt-outline" size={24} color={Palette.success} />
-                    </View>
-                    <Text style={styles.actionLabel}>Transactions</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                    style={styles.actionCard}
-                    onPress={() => router.push('/labor-analytics')}
-                >
-                    <View style={[styles.actionIcon, { backgroundColor: '#F59E0B' + '15' }]}>
-                        <Ionicons name="bar-chart-outline" size={24} color="#F59E0B" />
-                    </View>
-                    <Text style={styles.actionLabel}>Analytics</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Tab Navigation */}
-            <View style={styles.tabContainer}>
-                {(['Daily', 'Annual', 'Contract'] as LaborType[]).map((tab) => (
-                    <Pressable
-                        key={tab}
-                        style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
-                        onPress={() => setActiveTab(tab)}
+            <View style={styles.topHeader}>
+                {/* Quick Access Grid */}
+                <View style={styles.quickGrid}>
+                    <TouchableOpacity 
+                        style={[styles.gridItem, { backgroundColor: Palette.primary + '08' }]}
+                        onPress={() => router.push('/labor-attendance-record')}
                     >
-                        <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-                            {tab === 'Daily' ? 'Daily Wage' : tab === 'Annual' ? 'Annual Staff' : 'Contractors'}
-                        </Text>
-                    </Pressable>
-                ))}
+                        <Ionicons name="calendar" size={20} color={Palette.primary} />
+                        <Text style={[styles.gridLabel, { color: Palette.primary }]}>Attendance</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        style={[styles.gridItem, { backgroundColor: Palette.success + '08' }]}
+                        onPress={() => router.push('/labor-transactions')}
+                    >
+                        <Ionicons name="receipt" size={20} color={Palette.success} />
+                        <Text style={[styles.gridLabel, { color: Palette.success }]}>Transactions</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        style={[styles.gridItem, { backgroundColor: '#F59E0B' + '08' }]}
+                        onPress={() => router.push('/labor-analytics')}
+                    >
+                        <Ionicons name="bar-chart" size={20} color="#F59E0B" />
+                        <Text style={[styles.gridLabel, { color: '#F59E0B' }]}>Analytics</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Tab Switcher */}
+                <View style={styles.tabBar}>
+                    {(['Daily', 'Annual', 'Contract'] as LaborType[]).map((tab) => (
+                        <TouchableOpacity
+                            key={tab}
+                            style={[styles.tabItem, activeTab === tab && styles.activeTabItem]}
+                            onPress={() => setActiveTab(tab)}
+                        >
+                            <Text style={[styles.tabItemText, activeTab === tab && styles.activeTabItemText]}>
+                                {tab === 'Daily' ? 'Daily Wage' : tab === 'Annual' ? 'Annual' : 'Contractors'}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 {activeTab === 'Daily' && (
                     <View>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Daily Wage Workers</Text>
-                            <Pressable 
-                                style={styles.headerAction} 
+                        <View style={styles.listHeader}>
+                            <Text style={styles.listTitle}>Staff Directory</Text>
+                            <TouchableOpacity 
+                                style={styles.sheetBtn} 
                                 onPress={() => router.push({ pathname: '/labor-attendance-sheet', params: { type: 'Daily' } })}
                             >
-                                <Ionicons name="grid-outline" size={18} color={Palette.primary} />
-                                <Text style={styles.headerActionText}>Attendance Sheet</Text>
-                            </Pressable>
+                                <Ionicons name="grid-outline" size={14} color="white" />
+                                <Text style={styles.sheetBtnText}>Attendance Sheet</Text>
+                            </TouchableOpacity>
                         </View>
                         {dailyWorkers.length === 0 ? (
-                            <View style={styles.emptyContainer}>
-                                <Ionicons name="people-outline" size={48} color={Palette.textSecondary + '40'} />
-                                <Text style={styles.emptyText}>No daily wage workers added yet.</Text>
+                            <View style={styles.emptyCard}>
+                                <Ionicons name="people-outline" size={40} color="#94A3B8" />
+                                <Text style={styles.emptyCardText}>No daily staff found</Text>
                             </View>
                         ) : (
                             dailyWorkers.map(worker => (
                                 <TouchableOpacity 
                                     key={worker.id} 
-                                    style={styles.laborCard}
+                                    style={styles.profileCard}
                                     onPress={() => router.push({ pathname: '/worker-detail', params: { id: worker.id } })}
                                 >
-                                    <View style={styles.cardHeader}>
-                                        <Text style={styles.workerName}>{worker.name}</Text>
-                                        <View style={styles.badge}>
-                                            <Text style={styles.badgeText}>₹{worker.baseWage}/Day</Text>
+                                    <View style={styles.profileMain}>
+                                        <View style={styles.avatar}>
+                                            <Text style={styles.avatarText}>{worker.name.charAt(0)}</Text>
                                         </View>
+                                        <View style={styles.profileInfo}>
+                                            <Text style={styles.profileName}>{worker.name}</Text>
+                                            <View style={styles.profileMeta}>
+                                                <Ionicons name="wallet-outline" size={12} color="#64748B" />
+                                                <Text style={styles.profileMetaText}>₹{worker.baseWage}/day</Text>
+                                            </View>
+                                            {worker.notes && (
+                                                <Text style={styles.workerNote} numberOfLines={1}>{worker.notes}</Text>
+                                            )}
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
                                     </View>
-                                    {worker.phone && (
-                                        <View style={styles.cardInfoRow}>
-                                            <Ionicons name="call-outline" size={14} color={Palette.textSecondary} />
-                                            <Text style={styles.infoLabel}>{worker.phone}</Text>
-                                        </View>
-                                    )}
-                                    {worker.notes && (
-                                        <Text style={styles.cardNote} numberOfLines={2}>{worker.notes}</Text>
-                                    )}
-                                    </TouchableOpacity>
+                                </TouchableOpacity>
                             ))
                         )}
                     </View>
@@ -137,48 +134,45 @@ export default function LaborBookScreen() {
 
                 {activeTab === 'Annual' && (
                     <View>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Annual Tenure Staff</Text>
-                            <Pressable 
-                                style={styles.headerAction} 
+                        <View style={styles.listHeader}>
+                            <Text style={styles.listTitle}>Fixed Staff</Text>
+                            <TouchableOpacity 
+                                style={styles.sheetBtn} 
                                 onPress={() => router.push({ pathname: '/labor-attendance-sheet', params: { type: 'Annual' } })}
                             >
-                                <Ionicons name="grid-outline" size={18} color={Palette.primary} />
-                                <Text style={styles.headerActionText}>Attendance Sheet</Text>
-                            </Pressable>
+                                <Ionicons name="grid-outline" size={14} color="white" />
+                                <Text style={styles.sheetBtnText}>Attendance Sheet</Text>
+                            </TouchableOpacity>
                         </View>
                         {annualStaff.length === 0 ? (
-                            <View style={styles.emptyContainer}>
-                                <Ionicons name="briefcase-outline" size={48} color={Palette.textSecondary + '40'} />
-                                <Text style={styles.emptyText}>No annual tenure staff added yet.</Text>
+                            <View style={styles.emptyCard}>
+                                <Ionicons name="briefcase-outline" size={40} color="#94A3B8" />
+                                <Text style={styles.emptyCardText}>No annual staff found</Text>
                             </View>
                         ) : (
                             annualStaff.map(worker => (
                                 <TouchableOpacity 
                                     key={worker.id} 
-                                    style={styles.laborCard}
+                                    style={styles.profileCard}
                                     onPress={() => router.push({ pathname: '/worker-detail', params: { id: worker.id } })}
                                 >
-                                    <View style={styles.cardHeader}>
-                                        <Text style={styles.workerName}>{worker.name}</Text>
-                                        <View style={[styles.badge, { backgroundColor: Palette.success + '20' }]}>
-                                            <Text style={[styles.badgeText, { color: Palette.success }]}>₹{(worker.baseWage || 0).toLocaleString()}/Yr</Text>
+                                    <View style={styles.profileMain}>
+                                        <View style={[styles.avatar, { backgroundColor: Palette.success + '10' }]}>
+                                            <Text style={[styles.avatarText, { color: Palette.success }]}>{worker.name.charAt(0)}</Text>
                                         </View>
+                                        <View style={styles.profileInfo}>
+                                            <Text style={styles.profileName}>{worker.name}</Text>
+                                            <View style={styles.profileMeta}>
+                                                <Ionicons name="cash-outline" size={12} color="#64748B" />
+                                                <Text style={styles.profileMetaText}>₹{(worker.baseWage || 0).toLocaleString()} Annual</Text>
+                                            </View>
+                                            {worker.notes && (
+                                                <Text style={styles.workerNote} numberOfLines={1}>{worker.notes}</Text>
+                                            )}
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
                                     </View>
-                                    <View style={styles.cardInfoRow}>
-                                        <Text style={styles.infoLabel}>Daily Cost: ₹{Math.round((worker.baseWage || 0) / 365)}</Text>
-                                        {worker.phone && (
-                                            <>
-                                                <Text style={[styles.infoLabel, { marginHorizontal: 8 }]}>|</Text>
-                                                <Ionicons name="call-outline" size={12} color={Palette.textSecondary} />
-                                                <Text style={styles.infoLabel}>{worker.phone}</Text>
-                                            </>
-                                        )}
-                                    </View>
-                                    {worker.notes && (
-                                        <Text style={styles.cardNote} numberOfLines={2}>{worker.notes}</Text>
-                                    )}
-                                    </TouchableOpacity>
+                                </TouchableOpacity>
                             ))
                         )}
                     </View>
@@ -186,27 +180,28 @@ export default function LaborBookScreen() {
 
                 {activeTab === 'Contract' && (
                     <View>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Contracts</Text>
-                            <View style={styles.miniToggle}>
+                        <View style={styles.listHeader}>
+                            <Text style={styles.listTitle}>Project Contracts</Text>
+                            <View style={styles.filterPillGroup}>
                                 <TouchableOpacity 
-                                    style={[styles.miniToggleBtn, contractStatusFilter === 'Active' && styles.activeMiniToggle]}
+                                    style={[styles.filterPill, contractStatusFilter === 'Active' && styles.activeFilterPill]}
                                     onPress={() => setContractStatusFilter('Active')}
                                 >
-                                    <Text style={[styles.miniToggleText, contractStatusFilter === 'Active' && styles.activeMiniToggleText]}>Ongoing</Text>
+                                    <Text style={[styles.filterPillText, contractStatusFilter === 'Active' && styles.activeFilterPillText]}>Active</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity 
-                                    style={[styles.miniToggleBtn, contractStatusFilter === 'Completed' && styles.activeMiniToggle]}
+                                    style={[styles.filterPill, contractStatusFilter === 'Completed' && styles.activeFilterPill]}
                                     onPress={() => setContractStatusFilter('Completed')}
                                 >
-                                    <Text style={[styles.miniToggleText, contractStatusFilter === 'Completed' && styles.activeMiniToggleText]}>Completed</Text>
+                                    <Text style={[styles.filterPillText, contractStatusFilter === 'Completed' && styles.activeFilterPillText]}>Done</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
+                        
                         {contractors.length === 0 ? (
-                            <View style={styles.emptyContainer}>
-                                <Ionicons name="document-text-outline" size={48} color={Palette.textSecondary + '40'} />
-                                <Text style={styles.emptyText}>No contractor labor added yet.</Text>
+                            <View style={styles.emptyCard}>
+                                <Ionicons name="document-text-outline" size={40} color="#94A3B8" />
+                                <Text style={styles.emptyCardText}>No contractors found</Text>
                             </View>
                         ) : (
                             contractors.map(worker => {
@@ -215,81 +210,64 @@ export default function LaborBookScreen() {
                                     c.status === contractStatusFilter
                                 );
                                 
-                                // Always show contractor card in Ongoing tab (so we can see names and create contracts)
-                                // Only hide in Completed tab if they have NO completed contracts
                                 if (contractStatusFilter === 'Completed' && filteredContracts.length === 0) return null;
 
                                 return (
-                                    <View 
-                                        key={worker.id} 
-                                        style={styles.laborCard}
-                                    >
+                                    <View key={worker.id} style={styles.contractorBlock}>
                                         <TouchableOpacity 
-                                            style={styles.cardHeader}
+                                            style={styles.contractorHead}
                                             onPress={() => router.push({ pathname: '/worker-detail', params: { id: worker.id } })}
                                         >
-                                            <Text style={styles.workerName}>{worker.name}</Text>
-                                            {filteredContracts.length > 0 && (
-                                                <View style={[styles.badge, { backgroundColor: (contractStatusFilter === 'Active' ? Palette.primary : Palette.success) + '20' }]}>
-                                                    <Text style={[styles.badgeText, { color: contractStatusFilter === 'Active' ? Palette.primary : Palette.success }]}>
-                                                        {filteredContracts.length} {contractStatusFilter}
-                                                    </Text>
-                                                </View>
-                                            )}
+                                            <View style={styles.contractorInfo}>
+                                                <Text style={styles.contractorName}>{worker.name}</Text>
+                                                <Text style={styles.contractorSub}>Contractor</Text>
+                                                {worker.notes && (
+                                                    <Text style={[styles.workerNote, { marginTop: 4 }]} numberOfLines={1}>{worker.notes}</Text>
+                                                )}
+                                            </View>
+                                            <Ionicons name="arrow-forward-circle-outline" size={24} color={Palette.primary} />
                                         </TouchableOpacity>
 
-                                        {filteredContracts.length > 0 && (
-                                            <View style={styles.contractsList}>
+                                        {filteredContracts.length > 0 ? (
+                                            <View style={styles.contractsStack}>
                                                 {filteredContracts.map(contract => (
-                                                    <View key={contract.id} style={styles.contractItem}>
-                                                        <View style={styles.contractItemHeader}>
-                                                            <Text style={styles.projectName}>{contract.projectName}</Text>
+                                                    <View key={contract.id} style={styles.contractDetailCard}>
+                                                        <View style={styles.contractTopRow}>
+                                                            <Text style={styles.projectNameText}>{contract.projectName}</Text>
                                                             <TouchableOpacity 
-                                                                style={styles.viewDetailBtn}
-                                                                onPress={(e) => {
-                                                                    e.stopPropagation();
+                                                                style={styles.manageIconBtn}
+                                                                onPress={() => {
                                                                     setSelectedContract(contract);
                                                                     setSelectedContractor(worker);
                                                                     setShowDetailModal(true);
                                                                 }}
                                                             >
-                                                                <Text style={styles.viewDetailText}>Manage</Text>
-                                                                <Ionicons name="settings-outline" size={14} color={Palette.primary} />
+                                                                <Ionicons name="ellipsis-vertical" size={16} color="#64748B" />
                                                             </TouchableOpacity>
                                                         </View>
                                                         
-                                                        <View style={styles.progressBarBg}>
-                                                            <View style={[styles.progressBarFill, { width: `${(contract.advancePaid / contract.totalAmount) * 100}%` }]} />
+                                                        <View style={styles.progressSection}>
+                                                            <View style={styles.progressTrack}>
+                                                                <View style={[styles.progressIndicator, { width: `${Math.min((contract.advancePaid / contract.totalAmount) * 100, 100)}%` }]} />
+                                                            </View>
+                                                            <View style={styles.progressLabels}>
+                                                                <Text style={styles.progressVal}>₹{contract.advancePaid.toLocaleString()}</Text>
+                                                                <Text style={styles.progressTotal}>of ₹{contract.totalAmount.toLocaleString()}</Text>
+                                                            </View>
                                                         </View>
-                                                        <Text style={styles.payoutText}>
-                                                            ₹{contract.advancePaid.toLocaleString()} paid of ₹{contract.totalAmount.toLocaleString()}
-                                                        </Text>
                                                     </View>
                                                 ))}
                                             </View>
-                                        )}
-
-                                        {worker.phone && (
-                                            <View style={[styles.cardInfoRow, { marginTop: filteredContracts.length > 0 ? 12 : 4 }]}>
-                                                <Ionicons name="call-outline" size={14} color={Palette.textSecondary} />
-                                                <Text style={styles.infoLabel}>{worker.phone}</Text>
-                                            </View>
-                                        )}
-                                        {worker.notes && (
-                                            <Text style={styles.cardNote} numberOfLines={2}>{worker.notes}</Text>
-                                        )}
-
-                                        {contractStatusFilter === 'Active' && (
+                                        ) : (
                                             <TouchableOpacity 
-                                                style={styles.createContractBtn}
-                                                onPress={(e) => {
-                                                    e.stopPropagation();
+                                                style={styles.ghostAddBtn}
+                                                onPress={() => {
                                                     setSelectedContractor(worker);
                                                     setShowContractModal(true);
                                                 }}
                                             >
-                                                <Ionicons name="add-circle-outline" size={16} color="white" />
-                                                <Text style={styles.createContractText}>Create Contract</Text>
+                                                <Ionicons name="add" size={16} color="#94A3B8" />
+                                                <Text style={styles.ghostAddText}>Create new contract</Text>
                                             </TouchableOpacity>
                                         )}
                                     </View>
@@ -362,57 +340,81 @@ export default function LaborBookScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#FFFFFF',
     },
-    quickActions: {
-        flexDirection: 'row',
-        margin: 20,
-        gap: 12,
-    },
-    actionCard: {
-        flex: 1,
+    topHeader: {
         backgroundColor: 'white',
-        padding: 12,
-        borderRadius: 20,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        minWidth: (width - 64) / 3,
+        paddingTop: 60,
+        paddingBottom: 12,
+        paddingHorizontal: 20,
     },
-    actionIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 8,
-    },
-    actionLabel: {
-        fontSize: 10,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-        textAlign: 'center',
-    },
-    tabContainer: {
+    headerTitleRow: {
         flexDirection: 'row',
-        backgroundColor: '#F1F5F9',
-        marginHorizontal: 20,
-        padding: 4,
-        borderRadius: 12,
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 20,
     },
-    tabButton: {
+    mainTitle: {
+        fontSize: 26,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+    },
+    headerStats: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    headerStatItem: {
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    headerStatValue: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.primary,
+    },
+    headerStatLabel: {
+        fontSize: 9,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+    },
+    quickGrid: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 24,
+    },
+    gridItem: {
+        flex: 1,
+        height: 70,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+    },
+    gridLabel: {
+        fontSize: 10,
+        fontFamily: 'Outfit-Bold',
+    },
+    tabBar: {
+        flexDirection: 'row',
+        backgroundColor: '#F8FAFC',
+        padding: 4,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    tabItem: {
         flex: 1,
         paddingVertical: 10,
         alignItems: 'center',
-        borderRadius: 8,
+        borderRadius: 10,
     },
-    activeTabButton: {
+    activeTabItem: {
         backgroundColor: 'white',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
@@ -420,12 +422,12 @@ const styles = StyleSheet.create({
         shadowRadius: 5,
         elevation: 2,
     },
-    tabText: {
+    tabItemText: {
+        fontSize: 13,
         fontFamily: 'Outfit-Medium',
-        fontSize: 14,
-        color: Palette.textSecondary,
+        color: '#64748B',
     },
-    activeTabText: {
+    activeTabItemText: {
         color: Palette.primary,
         fontFamily: 'Outfit-Bold',
     },
@@ -433,29 +435,89 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 100,
     },
-    sectionHeader: {
+    listHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        marginTop: 24,
         marginBottom: 16,
     },
-    sectionTitle: {
+    listTitle: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+    },
+    sheetBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Palette.primary,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        gap: 6,
+    },
+    sheetBtnText: {
+        color: 'white',
+        fontSize: 11,
+        fontFamily: 'Outfit-Bold',
+    },
+    profileCard: {
+        backgroundColor: 'white',
+        borderRadius: 20,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    profileMain: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    avatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 15,
+        backgroundColor: Palette.primary + '10',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 16,
+    },
+    avatarText: {
         fontSize: 18,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: Palette.primary,
     },
-    miniToggle: {
+    profileInfo: {
+        flex: 1,
+    },
+    profileName: {
+        fontSize: 15,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+        marginBottom: 2,
+    },
+    profileMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    profileMetaText: {
+        fontSize: 12,
+        fontFamily: 'Outfit-Medium',
+        color: '#64748B',
+    },
+    filterPillGroup: {
         flexDirection: 'row',
         backgroundColor: '#F1F5F9',
         borderRadius: 10,
         padding: 2,
     },
-    miniToggleBtn: {
+    filterPill: {
         paddingHorizontal: 12,
-        paddingVertical: 6,
+        paddingVertical: 4,
         borderRadius: 8,
     },
-    activeMiniToggle: {
+    activeFilterPill: {
         backgroundColor: 'white',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
@@ -463,128 +525,136 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
         elevation: 2,
     },
-    miniToggleText: {
-        fontSize: 12,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-    },
-    activeMiniToggleText: {
-        color: Palette.primary,
+    filterPillText: {
+        fontSize: 11,
         fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
     },
-    headerAction: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: Palette.primary + '10',
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 20,
-    },
-    headerActionText: {
+    activeFilterPillText: {
         color: Palette.primary,
-        fontFamily: 'Outfit-Bold',
-        fontSize: 12,
-        marginLeft: 6,
     },
-    laborCard: {
+    contractorBlock: {
         backgroundColor: 'white',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 20,
         borderWidth: 1,
         borderColor: '#F1F5F9',
     },
-    cardHeader: {
+    contractorHead: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 20,
     },
-    workerName: {
-        fontSize: 16,
+    contractorInfo: {
+        flex: 1,
+    },
+    contractorName: {
+        fontSize: 18,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: '#1e293b',
     },
-    badge: {
-        backgroundColor: '#F1F5F9',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    badgeText: {
+    contractorSub: {
         fontSize: 12,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        fontFamily: 'Outfit-Medium',
+        color: '#94A3B8',
     },
-    cardInfoRow: {
-        marginTop: 8,
-    },
-    contractDetails: {
-        marginTop: 12,
-    },
-    contractsList: {
-        marginTop: 12,
+    contractsStack: {
         gap: 12,
     },
-    contractItem: {
+    contractDetailCard: {
         backgroundColor: '#F8FAFC',
-        padding: 12,
-        borderRadius: 12,
+        borderRadius: 16,
+        padding: 16,
         borderWidth: 1,
         borderColor: '#F1F5F9',
     },
-    contractItemHeader: {
+    contractTopRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 12,
     },
-    projectName: {
+    projectNameText: {
         fontSize: 14,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-        marginBottom: 8,
+        fontFamily: 'Outfit-Bold',
+        color: '#475569',
     },
-    progressBarBg: {
+    manageIconBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        backgroundColor: 'white',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    progressSection: {
+        gap: 8,
+    },
+    progressTrack: {
         height: 6,
-        backgroundColor: '#F1F5F9',
+        backgroundColor: '#E2E8F0',
         borderRadius: 3,
         overflow: 'hidden',
     },
-    progressBarFill: {
+    progressIndicator: {
         height: '100%',
         backgroundColor: Palette.primary,
     },
-    payoutText: {
-        fontSize: 11,
-        fontFamily: 'Outfit',
-        color: Palette.textSecondary,
-        marginTop: 6,
+    progressLabels: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        gap: 4,
     },
-    infoLabel: {
+    progressVal: {
         fontSize: 13,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-        marginLeft: 4,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
     },
-    cardNote: {
-        fontSize: 12,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-        marginTop: 8,
-        paddingTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
-        fontStyle: 'italic',
+    progressTotal: {
+        fontSize: 11,
+        fontFamily: 'Outfit-Medium',
+        color: '#94A3B8',
     },
-    emptyContainer: {
+    workerNote: {
+        fontSize: 11,
+        fontFamily: 'Outfit-Medium',
+        color: '#94A3B8',
+        marginTop: 2,
+    },
+    ghostAddBtn: {
+        flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 40,
+        justifyContent: 'center',
+        paddingVertical: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderStyle: 'dashed',
+        gap: 8,
     },
-    emptyText: {
-        fontSize: 14,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
+    ghostAddText: {
+        fontSize: 13,
+        fontFamily: 'Outfit-Medium',
+        color: '#94A3B8',
+    },
+    emptyCard: {
+        paddingVertical: 40,
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        borderStyle: 'dashed',
+    },
+    emptyCardText: {
         marginTop: 12,
+        fontSize: 13,
+        fontFamily: 'Outfit-Medium',
+        color: '#94A3B8',
     },
     fab: {
         position: 'absolute',
@@ -592,41 +662,14 @@ const styles = StyleSheet.create({
         bottom: 24,
         width: 60,
         height: 60,
-        borderRadius: 30,
+        borderRadius: 22,
         backgroundColor: Palette.primary,
         alignItems: 'center',
         justifyContent: 'center',
         elevation: 8,
         shadowColor: Palette.primary,
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.3,
-        shadowRadius: 8,
-        zIndex: 999,
-    },
-    createContractBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: Palette.primary,
-        paddingVertical: 10,
-        borderRadius: 12,
-        marginTop: 12,
-        gap: 8,
-    },
-    createContractText: {
-        color: 'white',
-        fontFamily: 'Outfit-Bold',
-        fontSize: 14,
-    },
-    viewDetailBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 8,
-        gap: 4,
-    },
-    viewDetailText: {
-        fontSize: 12,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.primary,
+        shadowRadius: 12,
     },
 });
