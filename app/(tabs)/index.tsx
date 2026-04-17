@@ -10,13 +10,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { format, isSameDay, isSameMonth } from 'date-fns';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
+import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
 
 
 export default function Dashboard() {
-  const { transactions, plots, inventory, refreshAll } = useFarm();
+  const { transactions, plots, inventory, loading, refreshAll } = useFarm();
   const { signOut } = useAuth();
   const router = useRouter();
 
@@ -129,6 +130,10 @@ export default function Dashboard() {
     setSeasonStart(selectedDate);
     Storage.setSeasonStartDate(selectedDate);
   };
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <>
