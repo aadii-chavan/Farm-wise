@@ -14,7 +14,9 @@ import {
   useWindowDimensions,
   Pressable
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
 import { format, parse, addDays, differenceInDays, isValid } from 'date-fns';
@@ -26,6 +28,19 @@ interface WorkbookSectionProps {
 
 // Categories for the new inbuilt table
 const WORKBOOK_CATEGORIES = ['Sowing', 'Fertilizer', 'Pesticide', 'Irrigation', 'Harvesting', 'Pruning', 'Plantation', 'Weeding', 'Tillage', 'Other'];
+
+const CATEGORY_STYLES: Record<string, { color: string, icon: string }> = {
+  'Sowing': { color: '#4CAF50', icon: 'seed-outline' },
+  'Fertilizer': { color: '#FF9800', icon: 'flask-outline' },
+  'Pesticide': { color: '#F44336', icon: 'bug-outline' },
+  'Irrigation': { color: '#2196F3', icon: 'water-outline' },
+  'Harvesting': { color: '#9C27B0', icon: 'food-apple-outline' },
+  'Pruning': { color: '#795548', icon: 'content-cut' },
+  'Plantation': { color: '#009688', icon: 'tree-outline' },
+  'Weeding': { color: '#E91E63', icon: 'grass' },
+  'Tillage': { color: '#607D8B', icon: 'shovel' },
+  'Other': { color: '#9E9E9E', icon: 'dots-horizontal' }
+};
 
 export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   const { 
@@ -199,6 +214,68 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     ]);
   };
 
+  const handleDownloadPDF = async () => {
+    try {
+        const plotName = "Farm Wise Plot"; // Ideal would be to pass plot name too
+        const tableRows = sortedEntries.map((entry, index) => `
+            <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${index + 1}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${entry.data.date && entry.data.date.includes('-') ? format(parse(entry.data.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yy') : entry.data.date}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center;">${entry.data.daysPast}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${entry.data.category}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${entry.data.description}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #2563eb;">${entry.data.rain || '-'} mm</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${entry.data.note || '-'}</td>
+            </tr>
+        `).join('');
+
+        const html = `
+            <html>
+                <head>
+                    <style>
+                        body { font-family: 'Helvetica', sans-serif; padding: 20px; color: #1e293b; }
+                        .header { border-bottom: 2px solid #006d5b; padding-bottom: 10px; margin-bottom: 20px; }
+                        h1 { color: #006d5b; margin: 0; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+                        th { background-color: #006d5b; color: white; padding: 12px 10px; text-align: left; text-transform: uppercase; }
+                        .footer { margin-top: 30px; font-size: 10px; color: #94a3b8; text-align: center; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>Farm Wise: Workbook Report</h1>
+                        <p>Plot Activity Log | Generated on ${format(new Date(), 'dd MMM yyyy')}</p>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Sr.</th>
+                                <th>Date</th>
+                                <th>Days</th>
+                                <th>Activity</th>
+                                <th>Description</th>
+                                <th>Rain</th>
+                                <th>Note</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                    <div class="footer">
+                        <p>Farm Wise - Professional Agricultural Management</p>
+                    </div>
+                </body>
+            </html>
+        `;
+
+        const { uri } = await Print.printToFileAsync({ html });
+        await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf', dialogTitle: 'Workbook Report' });
+    } catch (e) {
+        Alert.alert("Error", "Failed to generate PDF");
+    }
+  };
+
   // Sort entries for the table (Earliest to Latest)
   const sortedEntries = useMemo(() => {
     return [...entries].sort((a, b) => {
@@ -229,30 +306,38 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
             <Text style={styles.title}>Workbook</Text>
             <Text style={styles.subtitle}>Daily logs & tracking</Text>
         </View>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => openEntryModal()}
-        >
-          <Ionicons name="add" size={24} color="white" />
-          <Text style={styles.addButtonText}>Add Entry</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity 
+              style={styles.downloadButton}
+              onPress={handleDownloadPDF}
+            >
+              <Ionicons name="cloud-download-outline" size={22} color={Palette.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.addButton}
+              onPress={() => openEntryModal()}
+            >
+              <Ionicons name="add" size={18} color="white" />
+              <Text style={styles.addButtonText}>Add</Text>
+            </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
         <View style={styles.table}>
           {/* Table Header */}
           <View style={styles.tableHeader}>
-            <View style={[styles.headerCell, { width: 50 }]}>
+            <View style={[styles.headerCell, { width: 40 }]}>
               <Text style={styles.headerText}>Sr.</Text>
+            </View>
+            <View style={[styles.headerCell, { width: 70 }]}>
+              <Text style={styles.headerText}>Day</Text>
             </View>
             <View style={[styles.headerCell, { width: 100 }]}>
               <Text style={styles.headerText}>Date</Text>
             </View>
-            <View style={[styles.headerCell, { width: 80 }]}>
-              <Text style={styles.headerText}>Days</Text>
-            </View>
-            <View style={[styles.headerCell, { width: 120 }]}>
-              <Text style={styles.headerText}>Category</Text>
+            <View style={[styles.headerCell, { width: 130 }]}>
+              <Text style={styles.headerText}>Activity</Text>
             </View>
             <View style={[styles.headerCell, { width: 200 }]}>
               <Text style={styles.headerText}>Description</Text>
@@ -260,60 +345,74 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
             <View style={[styles.headerCell, { width: 70 }]}>
               <Text style={styles.headerText}>Rain</Text>
             </View>
-            <View style={[styles.headerCell, { width: 150 }]}>
-              <Text style={styles.headerText}>Note</Text>
+            <View style={[styles.headerCell, { width: 130 }]}>
+              <Text style={styles.headerText}>Observations</Text>
             </View>
             <View style={[styles.headerCell, { width: 80 }]}>
-              <Text style={styles.headerText}>Actions</Text>
+                <Text style={styles.headerText}>Actions</Text>
             </View>
           </View>
 
           {/* Table Body */}
           {sortedEntries.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="journal-outline" size={48} color={Palette.textSecondary + '20'} />
-              <Text style={styles.emptyText}>No entries recorded for this plot.</Text>
+              <Ionicons name="journal-outline" size={48} color="#94a3b830" />
+              <Text style={styles.emptyText}>No workbook records found</Text>
+              <Text style={styles.emptySubtext}>Entries will appear here as you log activities.</Text>
             </View>
           ) : (
-            sortedEntries.map((entry, index) => (
-              <View key={entry.id} style={styles.tableRow}>
-                <View style={[styles.cell, { width: 50 }]}>
-                  <Text style={styles.cellText}>{index + 1}</Text>
-                </View>
-                <View style={[styles.cell, { width: 100 }]}>
-                  <Text style={styles.cellText}>
-                    {entry.data.date && entry.data.date.includes('-') 
-                      ? format(parse(entry.data.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yy')
-                      : entry.data.date}
-                  </Text>
-                </View>
-                <View style={[styles.cell, { width: 80 }]}>
-                  <Text style={styles.cellText}>{entry.data.daysPast}</Text>
-                </View>
-                <View style={[styles.cell, { width: 120 }]}>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryBadgeText}>{entry.data.category}</Text>
+            sortedEntries.map((entry, index) => {
+              const catStyle = CATEGORY_STYLES[entry.data.category] || CATEGORY_STYLES['Other'];
+              return (
+                <Pressable 
+                  key={entry.id} 
+                  style={({ pressed }) => [
+                    styles.tableRow, 
+                    pressed && { backgroundColor: '#F8FAFC' }
+                  ]}
+                  onPress={() => openEntryModal(entry)}
+                >
+                  <View style={[styles.cell, { width: 40 }]}>
+                    <Text style={styles.srText}>{index + 1}</Text>
                   </View>
-                </View>
-                <View style={[styles.cell, { width: 200 }]}>
-                  <Text style={styles.cellText} numberOfLines={2}>{entry.data.description}</Text>
-                </View>
-                <View style={[styles.cell, { width: 70 }]}>
-                  <Text style={styles.cellText}>{entry.data.rain ? `${entry.data.rain}mm` : '-'}</Text>
-                </View>
-                <View style={[styles.cell, { width: 150 }]}>
-                  <Text style={styles.cellText} numberOfLines={1}>{entry.data.note || '-'}</Text>
-                </View>
-                <View style={[styles.cell, { width: 80, flexDirection: 'row', gap: 12 }]}>
-                  <TouchableOpacity onPress={() => openEntryModal(entry)}>
-                    <Ionicons name="create-outline" size={18} color={Palette.primary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDeleteEntry(entry.id)}>
-                    <Ionicons name="trash-outline" size={18} color={Palette.danger} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))
+                  <View style={[styles.cell, { width: 70 }]}>
+                    <Text style={styles.dayText}>{entry.data.daysPast}</Text>
+                  </View>
+                  <View style={[styles.cell, { width: 100 }]}>
+                    <Text style={styles.dateText}>
+                      {entry.data.date && entry.data.date.includes('-') 
+                        ? format(parse(entry.data.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yy')
+                        : entry.data.date}
+                    </Text>
+                  </View>
+                  <View style={[styles.cell, { width: 130 }]}>
+                    <View style={styles.categoryRow}>
+                      <View style={[styles.categoryIndicator, { backgroundColor: catStyle.color }]} />
+                      <Text style={styles.categoryText}>{entry.data.category}</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.cell, { width: 200 }]}>
+                    <Text style={styles.descText} numberOfLines={2}>{entry.data.description}</Text>
+                  </View>
+                  <View style={[styles.cell, { width: 70 }]}>
+                    <Text style={[styles.rainValue, !entry.data.rain && { color: '#CBD5E1' }]}>
+                      {entry.data.rain ? `${entry.data.rain}mm` : '-'}
+                    </Text>
+                  </View>
+                  <View style={[styles.cell, { width: 130 }]}>
+                    <Text style={styles.noteText} numberOfLines={2}>{entry.data.note || '-'}</Text>
+                  </View>
+                  <View style={[styles.cell, { width: 80, flexDirection: 'row', gap: 12 }]}>
+                    <TouchableOpacity onPress={() => openEntryModal(entry)}>
+                        <Ionicons name="pencil" size={16} color={Palette.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteEntry(entry.id)}>
+                        <Ionicons name="trash-outline" size={16} color={Palette.danger} />
+                    </TouchableOpacity>
+                  </View>
+                </Pressable>
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -469,15 +568,10 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    padding: 20,
     backgroundColor: 'white',
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 2,
-    marginVertical: 10,
+    borderRadius: 24,
+    marginVertical: 12,
   },
   header: {
     flexDirection: 'row',
@@ -499,7 +593,7 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.primary,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
     gap: 6,
@@ -509,55 +603,111 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit-Bold',
     fontSize: 14,
   },
-  table: {
+  downloadButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    borderRadius: 16,
-    overflow: 'hidden',
+    borderColor: '#E2E8F0',
+  },
+  srText: {
+    fontSize: 13,
+    fontFamily: 'Outfit',
+    color: '#94A3B8',
+  },
+  table: {
+    backgroundColor: 'white',
+    width: '100%',
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#F8FAFC',
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   headerCell: {
-    padding: 14,
+    paddingHorizontal: 12,
     justifyContent: 'center',
   },
   headerText: {
     fontSize: 11,
     fontFamily: 'Outfit-Bold',
-    color: Palette.textSecondary,
+    color: '#94A3B8',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   tableRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    backgroundColor: 'white',
+    borderBottomColor: '#F8FAFC',
   },
   cell: {
-    padding: 14,
+    paddingHorizontal: 12,
     justifyContent: 'center',
   },
-  cellText: {
+  dayText: {
+    fontSize: 15,
+    fontFamily: 'Outfit-Bold',
+    color: '#1E293B',
+  },
+  dateText: {
     fontSize: 13,
     fontFamily: 'Outfit-Medium',
-    color: Palette.text,
+    color: '#64748B',
   },
-  categoryBadge: {
-    backgroundColor: Palette.primary + '10',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  categoryBadgeText: {
-    fontSize: 11,
+  categoryIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 8,
+  },
+  categoryText: {
+    fontSize: 14,
     fontFamily: 'Outfit-Bold',
-    color: Palette.primary,
+    color: '#1E293B',
+  },
+  descText: {
+    fontSize: 14,
+    fontFamily: 'Outfit-Medium',
+    color: '#334155',
+    lineHeight: 20,
+  },
+  rainValue: {
+    fontSize: 14,
+    fontFamily: 'Outfit-Bold',
+    color: '#2563EB',
+  },
+  noteText: {
+    fontSize: 12,
+    fontFamily: 'Outfit',
+    color: '#94A3B8',
+    fontStyle: 'italic',
+  },
+  emptyState: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    fontFamily: 'Outfit-Bold',
+    color: '#64748B',
+    marginTop: 12,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    fontFamily: 'Outfit',
+    color: '#94A3B8',
+    marginTop: 4,
   },
   loadingContainer: {
     padding: 60,
@@ -568,20 +718,9 @@ const styles = StyleSheet.create({
     color: Palette.textSecondary,
     fontFamily: 'Outfit-Medium',
   },
-  emptyState: {
-    padding: 60,
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-  },
-  emptyText: {
-    marginTop: 12,
-    color: Palette.textSecondary,
-    fontFamily: 'Outfit-Medium',
-    fontSize: 14,
-  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
     justifyContent: 'flex-end',
   },
   modalRoot: {
@@ -593,11 +732,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     height: '90%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 20,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -677,11 +811,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Palette.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 8,
   },
   saveButtonText: {
     color: 'white',
