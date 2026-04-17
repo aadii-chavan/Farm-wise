@@ -687,10 +687,10 @@ const styles = StyleSheet.create({
     color: '#2563EB',
   },
   noteText: {
-    fontSize: 12,
-    fontFamily: 'Outfit',
-    color: '#94A3B8',
-    fontStyle: 'italic',
+    fontSize: 13,
+    fontFamily: 'Outfit-Medium',
+    color: '#64748B',
+    lineHeight: 18,
   },
   emptyState: {
     paddingVertical: 60,
