@@ -1,86 +1,81 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Modal, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
-import { Text } from './Themed';
-import { Palette } from '@/constants/Colors';
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ScrollView, 
+  ActivityIndicator,
+  Alert,
+  Modal,
+  TextInput,
+  Platform,
+  KeyboardAvoidingView,
+  useWindowDimensions,
+  Pressable
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
-import { WorkbookTemplate, WorkbookEntry, WorkbookColumn, WorkbookColumnType } from '@/types/farm';
+import { format, parse, addDays, differenceInDays, isValid } from 'date-fns';
 import { CalendarModal } from './CalendarModal';
-import { format } from 'date-fns';
 
 interface WorkbookSectionProps {
   plotId: string;
 }
 
-const COLUMN_TYPES: { label: string; value: WorkbookColumnType; icon: any }[] = [
-  { label: 'Text', value: 'text', icon: 'text-outline' },
-  { label: 'Number', value: 'number', icon: 'calculator-outline' },
-  { label: 'Category', value: 'category', icon: 'grid-outline' },
-  { label: 'Date', value: 'date', icon: 'calendar-outline' },
-  { label: 'Time', value: 'time', icon: 'time-outline' },
-  { label: 'Phone', value: 'phone', icon: 'call-outline' },
-  { label: 'Note', value: 'note', icon: 'document-text-outline' },
-];
-
-const DEFAULT_CATEGORIES = ['Pruning', 'Sowing', 'Plantation'];
+// Categories for the new inbuilt table
+const WORKBOOK_CATEGORIES = ['Sowing', 'Fertilizer', 'Pesticide', 'Irrigation', 'Harvesting', 'Pruning', 'Plantation', 'Weeding', 'Tillage', 'Other'];
 
 export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   const { 
-    getWorkbookTemplate, 
-    saveWorkbookTemplate, 
     getWorkbookEntries, 
     saveWorkbookEntry, 
     deleteWorkbookEntry,
-    customEntities,
-    addCustomEntity
+    rainRecords
   } = useFarm();
   
   const { width: screenWidth } = useWindowDimensions();
-
-  const getColumnWidth = (type: WorkbookColumnType) => {
-    const baseWidth = type === 'note' ? 240 : 130;
-    if (!template || template.columns.length === 0) return baseWidth;
-    
-    const totalBaseWidth = template.columns.reduce((acc, col) => acc + (col.type === 'note' ? 240 : 130), 0) + 100; // padding and action col
-    
-    if (totalBaseWidth < screenWidth - 40) {
-        const availableWidth = screenWidth - 40 - 60; // -60 for actions
-        const totalBaseWithoutActions = totalBaseWidth - 100;
-        const ratio = availableWidth / totalBaseWithoutActions;
-        return baseWidth * ratio;
-    }
-    
-    return baseWidth;
-  };
-  
-  const [template, setTemplate] = useState<WorkbookTemplate | null>(null);
-  const [entries, setEntries] = useState<WorkbookEntry[]>([]);
+  const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Modals state
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  // Modal state
   const [showEntryModal, setShowEntryModal] = useState(false);
-  const [editingEntry, setEditingEntry] = useState<WorkbookEntry | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState<{ active: boolean; colId: string } | null>(null);
-  const [showCategoryPicker, setShowCategoryPicker] = useState<{ active: boolean; colId: string } | null>(null);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [isAddingCategory, setIsAddingCategory] = useState(false);
-
+  const [editingEntry, setEditingEntry] = useState<any | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  
   // Form State
-  const [newEntryData, setNewEntryData] = useState<Record<string, any>>({});
-  const [editingColumns, setEditingColumns] = useState<WorkbookColumn[]>([]);
-  const [editingSortBy, setEditingSortBy] = useState<string | undefined>();
-  const [editingSortOrder, setEditingSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [editingStartDate, setEditingStartDate] = useState<string | undefined>();
-  const [showTemplateDatePicker, setShowTemplateDatePicker] = useState(false);
+  const [formData, setFormData] = useState<any>({
+      date: format(new Date(), 'dd/MM/yy'),
+      daysPast: '0',
+      category: '',
+      description: '',
+      rain: '',
+      note: ''
+  });
 
-  // Derived State
-  const workbookCategories = useMemo(() => {
-    const custom = customEntities
-      .filter(e => e.entityType === 'workbook_category')
-      .map(e => e.name);
-    return Array.from(new Set([...DEFAULT_CATEGORIES, ...custom]));
-  }, [customEntities]);
+  // Calculate Reference Point (Earliest Entry)
+  const referencePoint = useMemo(() => {
+    if (entries.length === 0) return null;
+    
+    // Sort by date to find the earliest
+    const sorted = [...entries].sort((a, b) => {
+        try {
+            const dateA = parse(a.data.date, 'dd/MM/yy', new Date());
+            const dateB = parse(b.data.date, 'dd/MM/yy', new Date());
+            return dateA.getTime() - dateB.getTime();
+        } catch (e) {
+            return 0;
+        }
+    });
+    
+    const first = sorted[0];
+    return {
+        date: parse(first.data.date, 'dd/MM/yy', new Date()),
+        daysPast: parseInt(first.data.daysPast || '0')
+    };
+  }, [entries]);
 
   useEffect(() => {
     loadWorkbookData();
@@ -89,69 +84,110 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   const loadWorkbookData = async () => {
     setLoading(true);
     try {
-      const [tpl, data] = await Promise.all([
-        getWorkbookTemplate(plotId),
-        getWorkbookEntries(plotId)
-      ]);
-      setTemplate(tpl);
-      setEntries(data);
-    } catch (error) {
-      console.error('Error loading workbook:', error);
+      const data = await getWorkbookEntries(plotId);
+      setEntries(data || []);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveTemplate = async () => {
-    if (editingColumns.length === 0) {
-      Alert.alert("Wait", "Please add at least one column first.");
-      return;
-    }
-    
-    if (editingColumns.some(c => !c.name.trim())) {
-      Alert.alert("Wait", "All columns must have a name.");
-      return;
+  // Logic to sync Rain, Date, and Days Past
+  const syncFields = (updatedFields: Partial<any>) => {
+    const newData = { ...formData, ...updatedFields };
+
+    // 1. If Date changed, update Days Past and Rain
+    if (updatedFields.date) {
+        // Sync Rain
+        try {
+            const targetDate = format(parse(updatedFields.date, 'dd/MM/yy', new Date()), 'yyyy-MM-dd');
+            const rain = rainRecords.find(r => r.date === targetDate);
+            newData.rain = rain ? rain.amount.toString() : '';
+        } catch (e) {}
+
+        // Sync Days Past if reference exists
+        if (referencePoint) {
+            try {
+                const current = parse(updatedFields.date, 'dd/MM/yy', new Date());
+                const diff = differenceInDays(current, referencePoint.date);
+                newData.daysPast = (referencePoint.daysPast + diff).toString();
+            } catch (e) {}
+        }
     }
 
-    const tpl: Partial<WorkbookTemplate> = {
-      id: template?.id,
-      plotId,
-      columns: editingColumns,
-      sortBy: editingSortBy,
-      sortOrder: editingSortOrder,
-      startDate: editingStartDate
-    };
+    // 2. If Days Past changed, update Date and Rain
+    if (updatedFields.daysPast !== undefined && referencePoint) {
+        try {
+            const diffFromRef = parseInt(updatedFields.daysPast) - referencePoint.daysPast;
+            const newDate = addDays(referencePoint.date, diffFromRef);
+            if (isValid(newDate)) {
+                newData.date = format(newDate, 'dd/MM/yy');
+                
+                // Sync Rain for the new date
+                const targetDate = format(newDate, 'yyyy-MM-dd');
+                const rain = rainRecords.find(r => r.date === targetDate);
+                newData.rain = rain ? rain.amount.toString() : '';
+            }
+        } catch (e) {}
+    }
 
-    await saveWorkbookTemplate(tpl);
-    setShowTemplateModal(false);
-    loadWorkbookData();
+    setFormData(newData);
+  };
+
+  const openEntryModal = (entry?: any) => {
+    if (entry) {
+      setEditingEntry(entry);
+      setFormData(entry.data || {});
+    } else {
+      setEditingEntry(null);
+      const defaultData = {
+          date: format(new Date(), 'dd/MM/yy'),
+          daysPast: '0',
+          category: '',
+          description: '',
+          rain: '',
+          note: ''
+      };
+      
+      // Pre-calculate daysPast for new entry based on today's date
+      if (referencePoint) {
+          const diff = differenceInDays(new Date(), referencePoint.date);
+          defaultData.daysPast = (referencePoint.daysPast + diff).toString();
+      }
+
+      // Pre-fill Rain
+      const targetDate = format(new Date(), 'yyyy-MM-dd');
+      const rain = rainRecords.find(r => r.date === targetDate);
+      defaultData.rain = rain ? rain.amount.toString() : '';
+
+      setFormData(defaultData);
+    }
+    setShowEntryModal(true);
   };
 
   const handleSaveEntry = async () => {
-    if (!template) return;
-
-    for (const col of template.columns) {
-      if (col.required && (!newEntryData[col.id] || newEntryData[col.id].toString().trim() === '')) {
-        Alert.alert("Wait", `${col.name} is required.`);
-        return;
-      }
+    const { date, daysPast, category, description } = formData;
+    if (!date || !daysPast || !category || !description) {
+      Alert.alert("Required Fields", "Please fill Date, Days Past, Category, and Description.");
+      return;
     }
 
-    const entry: Partial<WorkbookEntry> = {
-      id: editingEntry?.id,
-      plotId,
-      data: newEntryData
-    };
-
-    await saveWorkbookEntry(entry);
-    setShowEntryModal(false);
-    setNewEntryData({});
-    setEditingEntry(null);
-    loadWorkbookData();
+    try {
+      await saveWorkbookEntry({
+        ...(editingEntry?.id ? { id: editingEntry.id } : {}),
+        plotId,
+        data: formData
+      });
+      setShowEntryModal(false);
+      loadWorkbookData();
+    } catch (e) {
+      Alert.alert("Error", "Failed to save record");
+    }
   };
 
   const handleDeleteEntry = (id: string) => {
-    Alert.alert("Delete Record", "Are you sure you want to delete this row?", [
+    Alert.alert("Delete Record", "Are you sure you want to remove this entry?", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete", style: "destructive", onPress: async () => {
         await deleteWorkbookEntry(id);
@@ -160,628 +196,259 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     ]);
   };
 
-  const addColumn = () => {
-    const newCol: WorkbookColumn = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: '',
-      type: 'text',
-      required: false,
-      order: editingColumns.length
-    };
-    setEditingColumns([...editingColumns, newCol]);
-  };
-
-  const removeColumn = (id: string) => {
-    setEditingColumns(editingColumns.filter(c => c.id !== id));
-  };
-
-  const updateColumn = (id: string, updates: Partial<WorkbookColumn>) => {
-    setEditingColumns(editingColumns.map(c => c.id === id ? { ...c, ...updates } : c));
-  };
-
-  const openEntryModal = (entry?: WorkbookEntry) => {
-    if (entry) {
-      setEditingEntry(entry);
-      setNewEntryData(entry.data);
-    } else {
-      setEditingEntry(null);
-      
-      // Calculate Auto-fills for New Entry
-      const initialData: Record<string, any> = {};
-      if (template) {
-        template.columns.forEach(col => {
-          if (col.defaultValueSource === 'static' && col.staticDefaultValue) {
-            initialData[col.id] = col.staticDefaultValue;
-          } else if (col.defaultValueSource === 'current_date') {
-            initialData[col.id] = format(new Date(), 'dd/MM/yy');
-          } else if (col.defaultValueSource === 'current_time') {
-            initialData[col.id] = format(new Date(), 'HH:mm');
-          } else if (col.defaultValueSource === 'last_entry' && entries.length > 0) {
-            const lastEntry = [...entries].sort((a,b) => b.createdAt.localeCompare(a.createdAt))[0];
-            if (lastEntry.data[col.id]) {
-                initialData[col.id] = lastEntry.data[col.id];
-            }
-          } else if (col.defaultValueSource === 'days_since_start' && template.startDate) {
-            const start = new Date(template.startDate);
-            start.setHours(0,0,0,0);
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            const diffTime = today.getTime() - start.getTime();
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            initialData[col.id] = diffDays.toString();
-          }
-        });
-      }
-      setNewEntryData(initialData);
-    }
-    setShowEntryModal(true);
-  };
-
-  const handleAddCategory = async () => {
-    if (!newCategoryName.trim()) return;
-    if (workbookCategories.includes(newCategoryName.trim())) {
-      Alert.alert("Wait", "This category already exists.");
-      return;
-    }
-
-    await addCustomEntity('workbook_category', newCategoryName.trim());
-    if (showCategoryPicker) {
-      setNewEntryData({ ...newEntryData, [showCategoryPicker.colId]: newCategoryName.trim() });
-    }
-    setNewCategoryName('');
-    setIsAddingCategory(false);
-    setShowCategoryPicker(null);
-  };
-
-  const renderContent = () => {
-    if (loading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Palette.primary} />
-          <Text style={styles.loadingText}>Syncing workbook data...</Text>
-        </View>
-      );
-    }
-
-    if (!template || template.columns.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyIllustration}>
-            <View style={styles.emptyInnerCircle}>
-              <Ionicons name="book" size={40} color={Palette.primary} />
-            </View>
-            <View style={[styles.emptyOrbit, { transform: [{ rotate: '45deg' }] }]} />
-            <View style={[styles.emptyOrbit, { transform: [{ rotate: '-45deg' }] }]} />
-          </View>
-          <Text style={styles.emptyTitle}>Personalized Tracking</Text>
-          <Text style={styles.emptySubtitle}>Every farm is different. Create a custom structure to track the exact metrics that matter to you.</Text>
-          <TouchableOpacity 
-            style={styles.setupButton}
-            onPress={() => {
-              setEditingColumns([]);
-              setShowTemplateModal(true);
-            }}
-          >
-            <Ionicons name="sparkles" size={18} color="white" style={{ marginRight: 8 }} />
-            <Text style={styles.setupButtonText}>Start Building</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    const sortedColumns = [...template.columns].sort((a,b) => a.order - b.order);
-
-    const sortedEntries = [...entries].sort((a, b) => {
-      if (!template.sortBy) return 0;
-      
-      const valA = a.data[template.sortBy];
-      const valB = b.data[template.sortBy];
-      
-      if (valA === undefined && valB === undefined) return 0;
-      if (valA === undefined) return 1;
-      if (valB === undefined) return -1;
-      
-      const col = template.columns.find(c => c.id === template.sortBy);
-      let comparison = 0;
-      
-      if (col?.type === 'number') {
-        comparison = (parseFloat(valA) || 0) - (parseFloat(valB) || 0);
-      } else {
-        comparison = String(valA).localeCompare(String(valB));
-      }
-      
-      return template.sortOrder === 'desc' ? -comparison : comparison;
+  // Sort entries for the table (Earliest to Latest)
+  const sortedEntries = useMemo(() => {
+    return [...entries].sort((a, b) => {
+        try {
+            const dateA = parse(a.data.date, 'dd/MM/yy', new Date());
+            const dateB = parse(b.data.date, 'dd/MM/yy', new Date());
+            return dateA.getTime() - dateB.getTime();
+        } catch (e) {
+            return 0;
+        }
     });
+  }, [entries]);
 
+  if (loading) {
     return (
-      <View style={{ flex: 1 }}>
-        <View style={styles.header}>
-          <View>
-             <Text style={styles.subtitle}>Current Records</Text>
-             <Text style={styles.entriesCount}>{entries.length} Rows</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.manageButton}
-            onPress={() => {
-              setEditingColumns(template.columns);
-              setEditingSortBy(template.sortBy);
-              setEditingSortOrder(template.sortOrder || 'desc');
-              setEditingStartDate(template.startDate);
-              setShowTemplateModal(true);
-            }}
-          >
-            <Ionicons name="options-outline" size={18} color={Palette.primary} />
-            <Text style={styles.manageButtonText}>Structure</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false} contentContainerStyle={{ flexGrow: 1 }}>
-          <View style={styles.tableWrapper}>
-            {/* Elegant Table Header */}
-            <View style={styles.tableHeader}>
-              {sortedColumns.map(col => (
-                <View key={col.id} style={[styles.columnHeader, { width: getColumnWidth(col.type) }]}>
-                    <View style={styles.columnIconBg}>
-                        <Ionicons 
-                            name={COLUMN_TYPES.find(t => t.value === col.type)?.icon || 'text-outline'} 
-                            size={12} 
-                            color={Palette.primary} 
-                        />
-                    </View>
-                  <Text style={styles.columnHeaderText}>{col.name}</Text>
-                </View>
-              ))}
-              <View style={{ width: 60 }} />
-            </View>
-
-            {/* Premium Table Content */}
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-              {entries.length === 0 ? (
-                <View style={styles.noEntriesContainer}>
-                   <View style={styles.noEntriesIcon}>
-                      <Ionicons name="document-text-outline" size={32} color={Palette.textSecondary + '40'} />
-                   </View>
-                  <Text style={styles.noEntriesText}>No records found</Text>
-                  <Text style={styles.noEntriesSub}>Use the button below to add your first row</Text>
-                </View>
-              ) : (
-                sortedEntries.map((entry, index) => (
-                  <Pressable 
-                    key={entry.id} 
-                    style={[styles.tableRow, index % 2 === 1 && { backgroundColor: Palette.primary + '05' }]}
-                    onPress={() => openEntryModal(entry)}
-                  >
-                    {sortedColumns.map(col => (
-                      <View key={col.id} style={[styles.cell, { width: getColumnWidth(col.type) }]}>
-                        <Text 
-                          style={[
-                            styles.cellText, 
-                            col.type === 'note' && styles.noteText,
-                            col.type === 'number' && styles.numberText,
-                            !entry.data[col.id] && { color: Palette.textSecondary + '40' }
-                          ]} 
-                        >
-                          {col.type === 'date' && entry.data[col.id]
-                            ? (entry.data[col.id].includes('-') ? format(new Date(entry.data[col.id]), 'dd/MM/yy') : entry.data[col.id])
-                            : entry.data[col.id] || '—'}
-                        </Text>
-                      </View>
-                    ))}
-                    <View style={[styles.cell, { width: 60, flexDirection: 'row', justifyContent: 'center' }]}>
-                      <TouchableOpacity 
-                        onPress={() => handleDeleteEntry(entry.id)}
-                        style={styles.deleteBtn}
-                      >
-                        <Ionicons name="trash" size={16} color={Palette.danger + '80'} />
-                      </TouchableOpacity>
-                    </View>
-                  </Pressable>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </ScrollView>
-
-        <TouchableOpacity 
-          style={styles.fab}
-          onPress={() => openEntryModal()}
-        >
-          <Ionicons name="add" size={32} color="white" />
-        </TouchableOpacity>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Palette.primary} />
+        <Text style={styles.loadingText}>Loading Workbook...</Text>
       </View>
     );
-  };
+  }
 
   return (
     <View style={styles.container}>
-      {renderContent()}
-
-      {/* MODALS */}
-      
-      {/* Template Manager */}
-      <Modal visible={showTemplateModal} animationType="slide">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.modalContainer}
+      <View style={styles.header}>
+        <View>
+            <Text style={styles.title}>Workbook</Text>
+            <Text style={styles.subtitle}>Daily logs & tracking</Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => openEntryModal()}
         >
-          <View style={styles.modalHeader}>
-            <View>
-                <Text style={styles.modalTitle}>Structure Builder</Text>
-                <Text style={styles.modalSubtitle}>Edit your table layout</Text>
+          <Ionicons name="add" size={24} color="white" />
+          <Text style={styles.addButtonText}>Add Entry</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.table}>
+          {/* Table Header */}
+          <View style={styles.tableHeader}>
+            <View style={[styles.headerCell, { width: 50 }]}>
+              <Text style={styles.headerText}>Sr.</Text>
             </View>
-            <TouchableOpacity 
-                style={styles.closeBtn}
-                onPress={() => setShowTemplateModal(false)}
-            >
-              <Ionicons name="close" size={24} color={Palette.text} />
-            </TouchableOpacity>
+            <View style={[styles.headerCell, { width: 100 }]}>
+              <Text style={styles.headerText}>Date</Text>
+            </View>
+            <View style={[styles.headerCell, { width: 80 }]}>
+              <Text style={styles.headerText}>Days</Text>
+            </View>
+            <View style={[styles.headerCell, { width: 120 }]}>
+              <Text style={styles.headerText}>Category</Text>
+            </View>
+            <View style={[styles.headerCell, { width: 200 }]}>
+              <Text style={styles.headerText}>Description</Text>
+            </View>
+            <View style={[styles.headerCell, { width: 70 }]}>
+              <Text style={styles.headerText}>Rain</Text>
+            </View>
+            <View style={[styles.headerCell, { width: 150 }]}>
+              <Text style={styles.headerText}>Note</Text>
+            </View>
+            <View style={[styles.headerCell, { width: 80 }]}>
+              <Text style={styles.headerText}>Actions</Text>
+            </View>
           </View>
 
-          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            {/* Sorting Configuration */}
-            <View style={styles.sortingConfigCard}>
-                <View style={styles.sortHeaderRow}>
-                    <Ionicons name="swap-vertical" size={18} color={Palette.primary} />
-                    <Text style={styles.sortingTitle}>Table Ordering</Text>
+          {/* Table Body */}
+          {sortedEntries.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="journal-outline" size={48} color={Palette.textSecondary + '20'} />
+              <Text style={styles.emptyText}>No entries recorded for this plot.</Text>
+            </View>
+          ) : (
+            sortedEntries.map((entry, index) => (
+              <View key={entry.id} style={styles.tableRow}>
+                <View style={[styles.cell, { width: 50 }]}>
+                  <Text style={styles.cellText}>{index + 1}</Text>
                 </View>
-                
-                <View style={styles.sortControlGroup}>
-                    <Text style={styles.sortSubLabel}>Sort Records By</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sortChipList} contentContainerStyle={{ paddingRight: 20 }}>
-                        <TouchableOpacity 
-                            style={[styles.sortChip, !editingSortBy && styles.activeSortChip]}
-                            onPress={() => setEditingSortBy(undefined)}
-                        >
-                            <Text style={[styles.sortChipText, !editingSortBy && styles.activeSortChipText]}>Entry Date</Text>
-                        </TouchableOpacity>
-                        {editingColumns.filter(c => c.name.trim()).map(col => (
-                            <TouchableOpacity 
-                                key={col.id}
-                                style={[styles.sortChip, editingSortBy === col.id && styles.activeSortChip]}
-                                onPress={() => setEditingSortBy(col.id)}
-                            >
-                                <Text style={[styles.sortChipText, editingSortBy === col.id && styles.activeSortChipText]}>{col.name}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
+                <View style={[styles.cell, { width: 100 }]}>
+                  <Text style={styles.cellText}>{entry.data.date}</Text>
                 </View>
+                <View style={[styles.cell, { width: 80 }]}>
+                  <Text style={styles.cellText}>{entry.data.daysPast}</Text>
+                </View>
+                <View style={[styles.cell, { width: 120 }]}>
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>{entry.data.category}</Text>
+                  </View>
+                </View>
+                <View style={[styles.cell, { width: 200 }]}>
+                  <Text style={styles.cellText} numberOfLines={2}>{entry.data.description}</Text>
+                </View>
+                <View style={[styles.cell, { width: 70 }]}>
+                  <Text style={styles.cellText}>{entry.data.rain ? `${entry.data.rain}mm` : '-'}</Text>
+                </View>
+                <View style={[styles.cell, { width: 150 }]}>
+                  <Text style={styles.cellText} numberOfLines={1}>{entry.data.note || '-'}</Text>
+                </View>
+                <View style={[styles.cell, { width: 80, flexDirection: 'row', gap: 12 }]}>
+                  <TouchableOpacity onPress={() => openEntryModal(entry)}>
+                    <Ionicons name="create-outline" size={18} color={Palette.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleDeleteEntry(entry.id)}>
+                    <Ionicons name="trash-outline" size={18} color={Palette.danger} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
 
-                <View style={styles.sortControlGroup}>
-                    <Text style={styles.sortSubLabel}>Direction</Text>
-                    <View style={styles.orderToggleGroup}>
-                        <TouchableOpacity 
-                            style={[styles.orderToggleBtn, editingSortOrder === 'asc' && styles.activeOrderToggleBtn]}
-                            onPress={() => setEditingSortOrder('asc')}
-                        >
-                            <Ionicons name="arrow-up" size={16} color={editingSortOrder === 'asc' ? 'white' : Palette.textSecondary} />
-                            <Text style={[styles.orderToggleText, editingSortOrder === 'asc' && styles.activeOrderToggleText]}>Ascending</Text>
+      {/* Entry Modal */}
+      <Modal visible={showEntryModal} animationType="slide" transparent statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView 
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={styles.modalRoot}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                        <View>
+                            <Text style={styles.modalTitle}>{editingEntry ? 'Edit Record' : 'Add New Record'}</Text>
+                            <Text style={styles.modalSubtitle}>Table row auto-syncs rain & days past</Text>
+                        </View>
+                        <TouchableOpacity style={styles.closeBtn} onPress={() => setShowEntryModal(false)}>
+                            <Ionicons name="close" size={24} color={Palette.text} />
                         </TouchableOpacity>
-                        <TouchableOpacity 
-                            style={[styles.orderToggleBtn, editingSortOrder === 'desc' && styles.activeOrderToggleBtn]}
-                            onPress={() => setEditingSortOrder('desc')}
-                        >
-                            <Ionicons name="arrow-down" size={16} color={editingSortOrder === 'desc' ? 'white' : Palette.textSecondary} />
-                            <Text style={[styles.orderToggleText, editingSortOrder === 'desc' && styles.activeOrderToggleText]}>Descending</Text>
+                    </View>
+
+                    <ScrollView style={styles.formContent} keyboardShouldPersistTaps="handled">
+                        <View style={styles.formRow}>
+                            <View style={[styles.formGroup, { flex: 1.5, marginRight: 12 }]}>
+                                <Text style={styles.label}>Date *</Text>
+                                <TouchableOpacity 
+                                    style={styles.input}
+                                    onPress={() => setShowDatePicker(true)}
+                                >
+                                    <Text style={styles.inputText}>{formData.date}</Text>
+                                    <Ionicons name="calendar-outline" size={18} color={Palette.primary} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={[styles.formGroup, { flex: 1 }]}>
+                                <Text style={styles.label}>Days Past *</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    value={formData.daysPast}
+                                    onChangeText={(val) => syncFields({ daysPast: val })}
+                                    keyboardType="numeric"
+                                    placeholder="0"
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Category *</Text>
+                            <TouchableOpacity 
+                                style={styles.input}
+                                onPress={() => setShowCategoryPicker(true)}
+                            >
+                                <Text style={[styles.inputText, !formData.category && { color: Palette.textSecondary + '60' }]}>
+                                    {formData.category || 'Select category...'}
+                                </Text>
+                                <Ionicons name="chevron-down" size={18} color={Palette.primary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Description *</Text>
+                            <TextInput 
+                                style={styles.input}
+                                value={formData.description}
+                                onChangeText={(val) => setFormData({...formData, description: val})}
+                                placeholder="Details of the activity..."
+                            />
+                        </View>
+
+                        <View style={styles.formRow}>
+                            <View style={[styles.formGroup, { flex: 1 }]}>
+                                <Text style={styles.label}>Rain (mm)</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    value={formData.rain}
+                                    onChangeText={(val) => setFormData({...formData, rain: val})}
+                                    keyboardType="numeric"
+                                    placeholder="0"
+                                />
+                            </View>
+                            <View style={{ flex: 1.5, marginLeft: 12, justifyContent: 'center', paddingTop: 10 }}>
+                                <Text style={styles.helperText}>Auto-filled from Rain Meter</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Additional Note</Text>
+                            <TextInput 
+                                style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                                value={formData.note}
+                                onChangeText={(val) => setFormData({...formData, note: val})}
+                                placeholder="Any extra remarks..."
+                                multiline
+                            />
+                        </View>
+                    </ScrollView>
+
+                    <View style={styles.modalFooter}>
+                        <TouchableOpacity style={styles.saveButton} onPress={handleSaveEntry}>
+                            <Ionicons name="checkmark-circle" size={20} color="white" style={{ marginRight: 8 }} />
+                            <Text style={styles.saveButtonText}>Save Record</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
-
-                <View style={[styles.sortControlGroup, { marginBottom: 0, marginTop: 12, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#F1F5F9' }]}>
-                    <Text style={styles.sortSubLabel}>Workbook Start Date (Cycle)</Text>
-                    <TouchableOpacity 
-                        style={styles.startDateDisplay}
-                        onPress={() => setShowTemplateDatePicker(true)}
-                    >
-                        <View style={styles.dateInfo}>
-                            <Ionicons name="calendar-outline" size={18} color={Palette.primary} />
-                            <Text style={[styles.startDateText, !editingStartDate && { color: Palette.textSecondary + '60' }]}>
-                                {editingStartDate ? format(new Date(editingStartDate), 'dd/MM/yy') : 'Set a start date for calculations...'}
-                            </Text>
-                        </View>
-                        <Text style={styles.changeBtnText}>Change</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.dateHelper}>Used for "Days since start" auto-fill calculations.</Text>
-                </View>
-            </View>
-
-            <View style={styles.sectionDivider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>Columns</Text>
-                <View style={styles.dividerLine} />
-            </View>
-
-            {editingColumns.map((col, index) => (
-              <View key={col.id} style={styles.columnEditorCard}>
-                <View style={styles.columnEditorHeader}>
-                  <View style={styles.indexBadge}>
-                    <Text style={styles.indexBadgeText}>{index + 1}</Text>
-                  </View>
-                  <TouchableOpacity 
-                    style={styles.removeBtn}
-                    onPress={() => removeColumn(col.id)}
-                  >
-                    <Ionicons name="remove-circle" size={22} color={Palette.danger} />
-                  </TouchableOpacity>
-                </View>
-
-                <TextInput
-                  style={styles.columnNameInput}
-                  placeholder="e.g. Activity Name"
-                  placeholderTextColor={Palette.textSecondary + '60'}
-                  value={col.name}
-                  onChangeText={(val) => updateColumn(col.id, { name: val })}
-                />
-
-                <Text style={styles.typeLabel}>Data Type</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeList} contentContainerStyle={{ paddingRight: 20 }}>
-                  {COLUMN_TYPES.map(type => (
-                    <TouchableOpacity 
-                      key={type.value}
-                      style={[
-                        styles.typeItem, 
-                        col.type === type.value && styles.activeTypeItem
-                      ]}
-                      onPress={() => updateColumn(col.id, { type: type.value })}
-                    >
-                      <Ionicons 
-                        name={type.icon} 
-                        size={14} 
-                        color={col.type === type.value ? 'white' : Palette.textSecondary} 
-                      />
-                      <Text style={[
-                        styles.typeItemText,
-                        col.type === type.value && styles.activeTypeItemText
-                      ]}>{type.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                <TouchableOpacity 
-                  style={styles.requiredToggle}
-                  onPress={() => updateColumn(col.id, { required: !col.required })}
-                >
-                  <View style={[styles.checkbox, col.required && styles.checkboxActive]}>
-                    {col.required && <Ionicons name="checkmark" size={14} color="white" />}
-                  </View>
-                  <Text style={styles.requiredToggleText}>Mandatory field</Text>
-                </TouchableOpacity>
-
-                <View style={styles.columnDivider} />
-
-                <Text style={styles.typeLabel}>Auto-Fill / Default Value</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeList} contentContainerStyle={{ paddingRight: 20 }}>
-                  {[
-                    { label: 'None', value: 'none', icon: 'close-circle-outline' },
-                    { label: 'Current Date', value: 'current_date', icon: 'calendar-outline' },
-                    { label: 'Current Time', value: 'current_time', icon: 'time-outline' },
-                    { label: 'Days Past', value: 'days_since_start', icon: 'hourglass-outline' },
-                    { label: 'Same as Last', value: 'last_entry', icon: 'copy-outline' },
-                    { label: 'Fixed Value', value: 'static', icon: 'pin-outline' },
-                  ].map(source => (
-                    <TouchableOpacity 
-                      key={source.value}
-                      style={[
-                        styles.typeItem, 
-                        (col.defaultValueSource || 'none') === source.value && styles.activeTypeItem
-                      ]}
-                      onPress={() => updateColumn(col.id, { defaultValueSource: source.value as any })}
-                    >
-                      <Ionicons 
-                        name={source.icon as any} 
-                        size={14} 
-                        color={(col.defaultValueSource || 'none') === source.value ? 'white' : Palette.textSecondary} 
-                      />
-                      <Text style={[
-                        styles.typeItemText,
-                        (col.defaultValueSource || 'none') === source.value && styles.activeTypeItemText
-                      ]}>{source.label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                {col.defaultValueSource === 'static' && (
-                  <TextInput
-                    style={styles.staticDefaultInput}
-                    placeholder="Enter fixed default value"
-                    placeholderTextColor={Palette.textSecondary + '60'}
-                    value={col.staticDefaultValue}
-                    onChangeText={(val) => updateColumn(col.id, { staticDefaultValue: val })}
-                  />
-                )}
-              </View>
-            ))}
-
-            <TouchableOpacity style={styles.addColumnButton} onPress={addColumn}>
-              <Ionicons name="add-circle" size={22} color={Palette.primary} />
-              <Text style={styles.addColumnButtonText}>Add Column</Text>
-            </TouchableOpacity>
-
-            <View style={{ height: 120 }} />
-          </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.saveTemplateButton} onPress={handleSaveTemplate}>
-                <Text style={styles.saveTemplateButtonText}>Update Structure</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Entry Form */}
-      <Modal visible={showEntryModal} animationType="slide" transparent statusBarTranslucent>
-        <View style={styles.entryModalOverlay}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.entryModalRoot}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-          >
-            <View style={styles.entryModalContainer}>
-              <View style={styles.modalHeader}>
-                <View>
-                    <Text style={styles.modalTitle}>{editingEntry ? 'Edit Entry' : 'Log Entry'}</Text>
-                    <Text style={styles.modalSubtitle}>Fill in the details below</Text>
-                </View>
-                <TouchableOpacity 
-                    style={styles.closeBtn}
-                    onPress={() => setShowEntryModal(false)}
-                >
-                  <Ionicons name="close" size={24} color={Palette.text} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView 
-                style={styles.formScrollView}
-                contentContainerStyle={styles.formScrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              >
-                {template?.columns.sort((a,b) => a.order - b.order).map(col => (
-                  <View key={col.id} style={styles.formGroup}>
-                    <Text style={styles.formLabel}>
-                      {col.name} {col.required && <Text style={{ color: Palette.danger }}>*</Text>}
-                    </Text>
-
-                    {col.type === 'category' ? (
-                      <TouchableOpacity 
-                        style={styles.formInputContainer}
-                        onPress={() => setShowCategoryPicker({ active: true, colId: col.id })}
-                      >
-                        <Text style={[styles.datePickerText, !newEntryData[col.id] && { color: Palette.textSecondary + '60' }]}>
-                          {newEntryData[col.id] || 'Select one...'}
-                        </Text>
-                        <Ionicons name="chevron-down" size={18} color={Palette.primary} />
-                      </TouchableOpacity>
-                    ) : col.type === 'date' ? (
-                      <TouchableOpacity 
-                        style={styles.formInputContainer}
-                        onPress={() => setShowDatePicker({ active: true, colId: col.id })}
-                      >
-                        <Text style={[styles.datePickerText, !newEntryData[col.id] && { color: Palette.textSecondary + '60' }]}>
-                          {newEntryData[col.id] 
-                            ? (newEntryData[col.id].includes('-') ? format(new Date(newEntryData[col.id]), 'dd/MM/yy') : newEntryData[col.id]) 
-                            : 'Choose Date'}
-                        </Text>
-                        <Ionicons name="calendar" size={18} color={Palette.primary} />
-                      </TouchableOpacity>
-                    ) : (
-                      <TextInput
-                        style={[
-                            styles.formInput, 
-                            col.type === 'note' && { height: 120, textAlignVertical: 'top' },
-                            { color: Palette.text }
-                        ]}
-                        placeholder={`Enter ${col.name.toLowerCase()}`}
-                        placeholderTextColor={Palette.textSecondary + '60'}
-                        multiline={col.type === 'note'}
-                        keyboardType={col.type === 'number' ? 'numeric' : col.type === 'phone' ? 'phone-pad' : 'default'}
-                        value={newEntryData[col.id]?.toString()}
-                        onChangeText={(val) => setNewEntryData({...newEntryData, [col.id]: val})}
-                      />
-                    )}
-                  </View>
-                ))}
-              </ScrollView>
-
-              <View style={styles.entryModalFooter}>
-                <TouchableOpacity style={styles.saveEntryButton} onPress={handleSaveEntry}>
-                    <Ionicons name="checkmark-circle" size={20} color="white" style={{marginRight: 8}} />
-                    <Text style={styles.saveEntryButtonText}>Save Record</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
         </View>
       </Modal>
 
-      {/* Category Picker */}
-      <Modal visible={!!showCategoryPicker} transparent animationType="fade">
-        <Pressable style={styles.pickerOverlay} onPress={() => setShowCategoryPicker(null)}>
-          <View style={styles.pickerContainer}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Option</Text>
-              <TouchableOpacity onPress={() => setShowCategoryPicker(null)}>
-                  <Ionicons name="close" size={20} color={Palette.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={{ maxHeight: 350 }} showsVerticalScrollIndicator={false}>
-              {workbookCategories.map(cat => (
-                <TouchableOpacity 
-                  key={cat} 
-                  style={styles.pickerItem}
-                  onPress={() => {
-                    if (showCategoryPicker) {
-                      setNewEntryData({ ...newEntryData, [showCategoryPicker.colId]: cat });
-                      setShowCategoryPicker(null);
-                    }
-                  }}
-                >
-                  <Text style={styles.pickerItemText}>{cat}</Text>
-                  {showCategoryPicker && newEntryData[showCategoryPicker.colId] === cat && (
-                    <View style={styles.checkCircle}>
-                        <Ionicons name="checkmark" size={14} color="white" />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {isAddingCategory ? (
-              <View style={styles.addNewSection}>
-                <TextInput
-                  style={styles.newCatInput}
-                  placeholder="New category name"
-                  placeholderTextColor={Palette.textSecondary + '60'}
-                  value={newCategoryName}
-                  onChangeText={setNewCategoryName}
-                  autoFocus
-                />
-                <View style={styles.newCatActions}>
-                  <TouchableOpacity 
-                    style={styles.cancelCatBtn}
-                    onPress={() => setIsAddingCategory(false)}
-                  >
-                    <Text style={styles.cancelCatText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.addCatBtn}
-                    onPress={handleAddCategory}
-                  >
-                    <Text style={styles.addCatText}>Add</Text>
-                  </TouchableOpacity>
+      {/* Category Picker Modal */}
+      <Modal visible={showCategoryPicker} transparent animationType="fade">
+        <Pressable style={styles.pickerOverlay} onPress={() => setShowCategoryPicker(false)}>
+            <View style={styles.pickerContainer}>
+                <View style={styles.pickerHeader}>
+                    <Text style={styles.pickerTitle}>Select Category</Text>
                 </View>
-              </View>
-            ) : (
-              <TouchableOpacity 
-                style={styles.plusNewButton}
-                onPress={() => setIsAddingCategory(true)}
-              >
-                <Ionicons name="add-circle" size={20} color={Palette.primary} />
-                <Text style={styles.plusNewButtonText}>Create New</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+                <ScrollView>
+                    {WORKBOOK_CATEGORIES.map(cat => (
+                        <TouchableOpacity 
+                            key={cat} 
+                            style={styles.pickerItem}
+                            onPress={() => {
+                                setFormData({...formData, category: cat});
+                                setShowCategoryPicker(false);
+                            }}
+                        >
+                            <Text style={styles.pickerItemText}>{cat}</Text>
+                            {formData.category === cat && <Ionicons name="checkmark" size={20} color={Palette.primary} />}
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
         </Pressable>
       </Modal>
 
-      <CalendarModal
-        visible={!!showDatePicker}
+      <CalendarModal 
+        visible={showDatePicker}
         initialDate={new Date()}
-        onClose={() => setShowDatePicker(null)}
+        onClose={() => setShowDatePicker(false)}
         onSelectDate={(date) => {
-          if (showDatePicker) {
-            setNewEntryData({ ...newEntryData, [showDatePicker.colId]: format(date, 'dd/MM/yy') });
-            setShowDatePicker(null);
-          }
-        }}
-      />
-      <CalendarModal
-        visible={showTemplateDatePicker}
-        initialDate={editingStartDate ? new Date(editingStartDate) : new Date()}
-        onClose={() => setShowTemplateDatePicker(false)}
-        onSelectDate={(date) => {
-          setEditingStartDate(format(date, 'yyyy-MM-dd'));
-          setShowTemplateDatePicker(false);
+            syncFields({ date: format(date, 'dd/MM/yy') });
+            setShowDatePicker(false);
         }}
       />
     </View>
@@ -790,245 +457,145 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    padding: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    color: Palette.textSecondary,
-    fontFamily: 'Outfit-Medium',
-    fontSize: 14,
+    padding: 16,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 15,
+    elevation: 2,
+    marginVertical: 10,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     marginBottom: 20,
-    paddingHorizontal: 4,
+  },
+  title: {
+    fontSize: 22,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.text,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 14,
     color: Palette.textSecondary,
-    fontFamily: 'Outfit-Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    fontFamily: 'Outfit-Medium',
   },
-  entriesCount: {
-    fontSize: 20,
-    color: Palette.text,
-    fontFamily: 'Outfit-Bold',
-  },
-  manageButton: {
+  addButton: {
+    backgroundColor: Palette.primary,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Palette.primary + '15',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Palette.primary + '20',
+    gap: 6,
   },
-  manageButtonText: {
-    fontSize: 13,
-    color: Palette.primary,
+  addButtonText: {
+    color: 'white',
     fontFamily: 'Outfit-Bold',
-    marginLeft: 6,
+    fontSize: 14,
   },
-  tableWrapper: {
-    borderRadius: 16,
-    backgroundColor: 'white',
-    overflow: 'hidden',
+  table: {
     borderWidth: 1,
-    borderColor: Palette.border,
-    minWidth: '100%',
+    borderColor: '#F1F5F9',
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#F8FAFC',
-    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Palette.border,
+    borderBottomColor: '#F1F5F9',
   },
-  columnHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  columnIconBg: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    backgroundColor: Palette.primary + '15',
-    alignItems: 'center',
+  headerCell: {
+    padding: 14,
     justifyContent: 'center',
-    marginRight: 8,
   },
-  columnHeaderText: {
+  headerText: {
+    fontSize: 11,
     fontFamily: 'Outfit-Bold',
-    fontSize: 13,
-    color: '#475569',
+    color: Palette.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
-    alignItems: 'center',
-    minHeight: 56,
+    backgroundColor: 'white',
   },
   cell: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    padding: 14,
     justifyContent: 'center',
   },
   cellText: {
-    fontFamily: 'Outfit-Medium',
-    fontSize: 14,
-    color: Palette.text,
-    lineHeight: 20,
-  },
-  noteText: {
     fontSize: 13,
-    color: '#475569',
+    fontFamily: 'Outfit-Medium',
+    color: Palette.text,
   },
-  numberText: {
-      fontFamily: 'Outfit-Bold',
-      color: Palette.primary,
+  categoryBadge: {
+    backgroundColor: Palette.primary + '10',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
-  deleteBtn: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
-      backgroundColor: Palette.danger + '10',
-      alignItems: 'center',
-      justifyContent: 'center',
+  categoryBadgeText: {
+    fontSize: 11,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.primary,
   },
-  noEntriesContainer: {
+  loadingContainer: {
     padding: 60,
     alignItems: 'center',
   },
-  noEntriesIcon: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      backgroundColor: '#F8FAFC',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 16,
-  },
-  noEntriesText: {
-    color: Palette.text,
-    fontFamily: 'Outfit-Bold',
-    fontSize: 16,
-  },
-  noEntriesSub: {
-      color: Palette.textSecondary,
-      fontFamily: 'Outfit',
-      fontSize: 13,
-      marginTop: 4,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-    minHeight: 400,
-  },
-  emptyIllustration: {
-      width: 120,
-      height: 120,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 30,
-  },
-  emptyInnerCircle: {
-      width: 70,
-      height: 70,
-      borderRadius: 35,
-      backgroundColor: Palette.primary + '10',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 2,
-  },
-  emptyOrbit: {
-      position: 'absolute',
-      width: 110,
-      height: 60,
-      borderRadius: 100,
-      borderWidth: 1,
-      borderColor: Palette.primary + '20',
-      borderStyle: 'dashed',
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.text,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  emptySubtitle: {
-    fontSize: 14,
+  loadingText: {
+    marginTop: 12,
     color: Palette.textSecondary,
-    textAlign: 'center',
-    fontFamily: 'Outfit',
-    lineHeight: 22,
-    marginBottom: 34,
-    paddingHorizontal: 20,
+    fontFamily: 'Outfit-Medium',
   },
-  setupButton: {
-    flexDirection: 'row',
-    backgroundColor: Palette.primary,
-    paddingHorizontal: 28,
-    paddingVertical: 16,
-    borderRadius: 16,
+  emptyState: {
+    padding: 60,
     alignItems: 'center',
-    shadowColor: Palette.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  setupButtonText: {
-    color: 'white',
-    fontFamily: 'Outfit-Bold',
-    fontSize: 16,
-  },
-  fab: {
-    position: 'absolute',
-    right: 4,
-    bottom: 20,
-    backgroundColor: Palette.primary,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: Palette.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-  },
-  // Modal UI Enhancements
-  modalContainer: {
-    flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  emptyText: {
+    marginTop: 12,
+    color: Palette.textSecondary,
+    fontFamily: 'Outfit-Medium',
+    fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalRoot: {
+      flex: 1,
+      justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 24,
-    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: Palette.border,
+    borderBottomColor: '#F1F5F9',
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: 'Outfit-Bold',
     color: Palette.text,
   },
@@ -1039,502 +606,108 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: '#F1F5F9',
-      alignItems: 'center',
-      justifyContent: 'center',
-  },
-  modalContent: {
-    padding: 20,
-  },
-  columnEditorCard: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-  },
-  columnEditorHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  indexBadge: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 8,
-      backgroundColor: Palette.primary + '15',
-  },
-  indexBadgeText: {
-    fontSize: 11,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.primary,
-  },
-  removeBtn: {
       padding: 4,
   },
-  columnNameInput: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 16,
-    fontFamily: 'Outfit-SemiBold',
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    marginBottom: 16,
-    color: Palette.text,
-  },
-  typeLabel: {
-    fontSize: 12,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.textSecondary,
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  typeList: {
-    flexDirection: 'row',
-    marginBottom: 20,
-  },
-  typeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  activeTypeItem: {
-    backgroundColor: Palette.primary,
-    borderColor: Palette.primary,
-  },
-  typeItemText: {
-    fontSize: 13,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.textSecondary,
-    marginLeft: 8,
-  },
-  activeTypeItemText: {
-    color: 'white',
-  },
-  requiredToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    paddingVertical: 4,
-  },
-  checkbox: {
-      width: 20,
-      height: 20,
-      borderRadius: 6,
-      borderWidth: 2,
-      borderColor: Palette.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 10,
-  },
-  checkboxActive: {
-      backgroundColor: Palette.primary,
-      borderColor: Palette.primary,
-  },
-  requiredToggleText: {
-    fontSize: 14,
-    fontFamily: 'Outfit-Medium',
-    color: Palette.text,
-  },
-  addColumnButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    borderWidth: 2,
-    borderColor: Palette.primary,
-    borderStyle: 'dashed',
-    borderRadius: 20,
-    marginTop: 10,
-    backgroundColor: Palette.primary + '05',
-  },
-  addColumnButtonText: {
-    fontSize: 16,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.primary,
-    marginLeft: 10,
-  },
-  modalFooter: {
-      padding: 24,
-      backgroundColor: 'white',
-      borderTopWidth: 1,
-      borderTopColor: Palette.border,
-  },
-  saveTemplateButton: {
-    backgroundColor: Palette.primary,
-    padding: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-    shadowColor: Palette.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-  },
-  saveTemplateButtonText: {
-    color: 'white',
-    fontFamily: 'Outfit-Bold',
-    fontSize: 16,
-  },
-  // Entry Form Enhancements
-  entryModalOverlay: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    justifyContent: 'flex-end',
-  },
-  entryModalRoot: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  entryModalContainer: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    height: '85%',
-    maxHeight: '90%',
-    width: '100%',
-    flexShrink: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-  },
-  entryModalFooter: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    borderTopWidth: 1,
-    borderTopColor: Palette.border,
-    backgroundColor: 'white',
-  },
-  formScrollView: {
-    flex: 1,
-  },
-  formScrollContent: {
+  formContent: {
     padding: 24,
-    paddingBottom: 60,
+  },
+  formRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
   },
   formGroup: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  formLabel: {
+  label: {
     fontSize: 14,
     fontFamily: 'Outfit-Bold',
-    color: '#64748B',
     marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: Palette.text,
   },
-  formInput: {
+  input: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 16,
-    fontSize: 16,
-    fontFamily: 'Outfit-Medium',
     borderWidth: 1,
-    borderColor: Palette.border,
-  },
-  formInputContainer: {
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 15,
+    fontFamily: 'Outfit-Medium',
+    color: Palette.text,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Palette.border,
   },
-  datePickerText: {
-    fontSize: 16,
+  inputText: {
+    fontSize: 15,
     fontFamily: 'Outfit-Medium',
     color: Palette.text,
   },
-  saveEntryButton: {
+  helperText: {
+    fontSize: 12,
+    color: Palette.textSecondary,
+    fontFamily: 'Outfit-Medium',
+    fontStyle: 'italic',
+  },
+  modalFooter: {
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  saveButton: {
     backgroundColor: Palette.primary,
     flexDirection: 'row',
     padding: 18,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: Palette.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
   },
-  saveEntryButtonText: {
+  saveButtonText: {
     color: 'white',
     fontFamily: 'Outfit-Bold',
     fontSize: 16,
   },
   pickerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    justifyContent: 'center',
-    padding: 24,
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
   },
   pickerContainer: {
-    backgroundColor: 'white',
-    borderRadius: 24,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
+      backgroundColor: 'white',
+      width: '100%',
+      borderRadius: 24,
+      padding: 10,
+      maxHeight: '70%',
   },
   pickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+      padding: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: '#F1F5F9',
+      alignItems: 'center',
   },
   pickerTitle: {
-    fontSize: 18,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.text,
+      fontSize: 16,
+      fontFamily: 'Outfit-Bold',
+      color: Palette.text,
   },
   pickerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F8FAFC',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 18,
+      borderBottomWidth: 1,
+      borderBottomColor: '#F8FAFC',
   },
   pickerItemText: {
-    fontSize: 16,
-    fontFamily: 'Outfit-Medium',
-    color: Palette.text,
-  },
-  checkCircle: {
-      width: 22,
-      height: 22,
-      borderRadius: 11,
-      backgroundColor: Palette.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-  },
-  plusNewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    backgroundColor: Palette.primary + '08',
-  },
-  plusNewButtonText: {
-    fontSize: 15,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.primary,
-    marginLeft: 10,
-  },
-  addNewSection: {
-    padding: 20,
-    backgroundColor: '#F8FAFC',
-  },
-  newCatInput: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    fontFamily: 'Outfit-Medium',
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    color: Palette.text,
-  },
-  newCatActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 24,
-  },
-  cancelCatBtn: {
-      padding: 4,
-  },
-  cancelCatText: {
-      fontSize: 14,
-      fontFamily: 'Outfit-Bold',
-      color: Palette.textSecondary,
-  },
-  addCatBtn: {
-      padding: 4,
-  },
-  addCatText: {
-      fontSize: 14,
-      fontFamily: 'Outfit-Bold',
-      color: Palette.primary,
-  },
-  // Sorting UI Styles
-  sortingConfigCard: {
-    backgroundColor: 'white',
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  sortHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  sortingTitle: {
-    fontSize: 16,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.text,
-    marginLeft: 10,
-  },
-  sortControlGroup: {
-    marginBottom: 18,
-  },
-  sortSubLabel: {
-    fontSize: 12,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.textSecondary,
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  sortChipList: {
-    flexDirection: 'row',
-  },
-  sortChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  activeSortChip: {
-    backgroundColor: Palette.primary + '15',
-    borderColor: Palette.primary,
-  },
-  sortChipText: {
-    fontSize: 13,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.textSecondary,
-  },
-  activeSortChipText: {
-    color: Palette.primary,
-  },
-  orderToggleGroup: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  orderToggleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  activeOrderToggleBtn: {
-    backgroundColor: Palette.primary,
-    borderColor: Palette.primary,
-  },
-  orderToggleText: {
-    fontSize: 13,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.textSecondary,
-    marginLeft: 8,
-  },
-  activeOrderToggleText: {
-    color: 'white',
-  },
-  sectionDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 8,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Palette.border,
-  },
-  dividerText: {
-    paddingHorizontal: 16,
-    fontSize: 12,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.textSecondary + '60',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  startDateDisplay: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    padding: 14,
-    borderRadius: 12,
-    marginTop: 10,
-  },
-  dateInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  startDateText: {
-    fontSize: 14,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.primary,
-  },
-  changeBtnText: {
-    fontSize: 13,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.primary,
-  },
-  dateHelper: {
-    fontSize: 11,
-    color: Palette.textSecondary,
-    fontFamily: 'Outfit-Medium',
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  columnDivider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: 20,
-  },
-  staticDefaultInput: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 14,
-    fontFamily: 'Outfit-Medium',
-    borderWidth: 1,
-    borderColor: Palette.border,
-    color: Palette.text,
-    marginTop: -8,
-    marginBottom: 10,
-  },
+      fontSize: 15,
+      fontFamily: 'Outfit-Medium',
+      color: Palette.text,
+  }
 });
