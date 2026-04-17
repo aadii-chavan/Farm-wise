@@ -302,10 +302,10 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                                     <th style="text-align: center; width: 40px;">Sr.</th>
                                     <th style="width: 90px;">Date</th>
                                     <th style="text-align: center; width: 60px;">Day</th>
-                                    <th style="width: 100px;">Activity</th>
+                                    <th style="width: 100px;">Category</th>
                                     <th>Description</th>
                                     <th style="text-align: center; width: 70px;">Rain</th>
-                                    <th>Observations</th>
+                                    <th>Note</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -396,7 +396,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
               <Text style={styles.headerText}>Date</Text>
             </View>
             <View style={[styles.headerCell, { width: 130 }]}>
-              <Text style={styles.headerText}>Activity</Text>
+              <Text style={styles.headerText}>Category</Text>
             </View>
             <View style={[styles.headerCell, { width: 200 }]}>
               <Text style={styles.headerText}>Description</Text>
@@ -405,7 +405,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
               <Text style={styles.headerText}>Rain</Text>
             </View>
             <View style={[styles.headerCell, { width: 130 }]}>
-              <Text style={styles.headerText}>Observations</Text>
+              <Text style={styles.headerText}>Note</Text>
             </View>
             <View style={[styles.headerCell, { width: 80 }]}>
                 <Text style={styles.headerText}>Actions</Text>
