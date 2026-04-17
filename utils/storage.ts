@@ -1,4 +1,4 @@
-import { InventoryItem, Plot, Transaction, GeneralExpense, Task, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction, RainRecord, WorkbookTemplate, WorkbookEntry, WorkbookColumn } from '@/types/farm';
+import { InventoryItem, Plot, Transaction, GeneralExpense, Task, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction, RainRecord, WorkbookEntry } from '@/types/farm';
 import { supabase } from './supabase';
 
 // Helper to check if a string is a valid UUID
@@ -335,9 +335,10 @@ export const getTasks = async (): Promise<any[]> => {
             categories: t.categories || [t.category] || [],
             plot: t.plot,
             completed: t.completed,
-            recurrence: t.recurrence || 'None',
             assignedTo: t.assigned_to,
             note: t.note,
+            syncToWorkbook: t.sync_to_workbook,
+            workbookDetails: t.workbook_details
         }));
     } catch (e) {
         console.error('Failed to load tasks', e);
@@ -359,9 +360,10 @@ export const saveTask = async (task: any): Promise<void> => {
             categories: task.categories,
             plot: task.plot || null,
             completed: task.completed,
-            recurrence: task.recurrence || 'None',
             assigned_to: task.assignedTo || null,
             note: task.note || null,
+            sync_to_workbook: task.syncToWorkbook || false,
+            workbook_details: task.workbookDetails || null,
         };
 
         if (task.id && isUUID(task.id)) {
@@ -388,9 +390,10 @@ export const updateTask = async (task: any): Promise<void> => {
                 categories: task.categories,
                 plot: task.plot || null,
                 completed: task.completed,
-                recurrence: task.recurrence || 'None',
                 assigned_to: task.assignedTo || null,
                 note: task.note || null,
+                sync_to_workbook: task.syncToWorkbook || false,
+                workbook_details: task.workbookDetails || null,
             })
             .eq('id', task.id);
         if (error) throw error;
@@ -429,7 +432,7 @@ export const getCustomEntities = async (): Promise<any[]> => {
     }
 };
 
-export const saveCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'recurrence' | 'workbook_category', name: string): Promise<void> => {
+export const saveCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'workbook_category', name: string): Promise<void> => {
     try {
         const userId = await getUserId();
         if (!userId || !name.trim()) return;
@@ -850,54 +853,7 @@ export const deleteRainRecord = async (id: string): Promise<void> => {
 };
 
 // Workbook
-export const getWorkbookTemplate = async (plotId: string): Promise<WorkbookTemplate | null> => {
-    try {
-        if (!isUUID(plotId)) return null;
-        const { data, error } = await supabase
-            .from('workbook_templates')
-            .select('*')
-            .eq('plot_id', plotId)
-            .maybeSingle();
-        
-        if (error) throw error;
-        if (!data) return null;
 
-        return {
-            id: data.id,
-            plotId: data.plot_id,
-            columns: data.columns,
-            sortBy: data.sort_by,
-            sortOrder: data.sort_order,
-            startDate: data.start_date,
-            updatedAt: data.updated_at
-        };
-    } catch (e) {
-        console.error('Failed to load workbook template', e);
-        return null;
-    }
-};
-
-export const saveWorkbookTemplate = async (template: Partial<WorkbookTemplate>): Promise<void> => {
-    try {
-        const userId = await getUserId();
-        if (!userId || !template.plotId) throw new Error('User not authenticated or missing plot ID');
-
-        const { error } = await supabase.from('workbook_templates').upsert({
-            ...(template.id ? { id: template.id } : {}),
-            user_id: userId,
-            plot_id: template.plotId,
-            columns: template.columns,
-            sort_by: template.sortBy,
-            sort_order: template.sortOrder,
-            start_date: template.startDate,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'plot_id' });
-
-        if (error) throw error;
-    } catch (e) {
-        console.error('Failed to save workbook template', e);
-    }
-};
 
 export const getWorkbookEntries = async (plotId: string): Promise<WorkbookEntry[]> => {
     try {

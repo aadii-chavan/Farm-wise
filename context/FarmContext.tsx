@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { InventoryItem, Plot, Transaction, Task, CustomEntity, GeneralExpense, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction, RainRecord, WorkbookTemplate, WorkbookEntry } from '../types/farm';
+import { InventoryItem, Plot, Transaction, Task, CustomEntity, GeneralExpense, TaskCompletion, LaborProfile, LaborAttendance, LaborContract, LaborTransaction, RainRecord, WorkbookEntry } from '../types/farm';
 import * as Storage from '../utils/storage';
 import { useAuth } from './AuthContext';
+import { format, parse, differenceInDays } from 'date-fns';
 
 
 interface FarmContextType {
@@ -44,7 +45,7 @@ interface FarmContextType {
   refreshTasks: () => Promise<void>;
   
   // Custom Entities
-  addCustomEntity: (type: 'category' | 'shop' | 'general_category' | 'recurrence' | 'workbook_category', name: string) => Promise<void>;
+  addCustomEntity: (type: 'category' | 'shop' | 'general_category' | 'workbook_category', name: string) => Promise<void>;
 
   toggleTaskCompletion: (taskId: string, date: string) => Promise<void>;
 
@@ -70,9 +71,7 @@ interface FarmContextType {
   updateRainRecord: (record: RainRecord) => Promise<void>;
   deleteRainRecord: (id: string) => Promise<void>;
 
-  // Workbook
-  getWorkbookTemplate: (plotId: string) => Promise<WorkbookTemplate | null>;
-  saveWorkbookTemplate: (template: Partial<WorkbookTemplate>) => Promise<void>;
+
   getWorkbookEntries: (plotId: string) => Promise<WorkbookEntry[]>;
   saveWorkbookEntry: (entry: Partial<WorkbookEntry>) => Promise<void>;
   deleteWorkbookEntry: (id: string) => Promise<void>;
@@ -216,7 +215,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'recurrence' | 'workbook_category', name: string) => {
+  const addCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'workbook_category', name: string) => {
     await Storage.saveCustomEntity(type, name);
     await loadData();
   };
@@ -224,14 +223,61 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const toggleTaskCompletion = async (taskId: string, date: string) => {
     // Optimistic Update
     const isAdding = !taskCompletions.some(c => c.taskId === taskId && c.completedAt === date);
+    const task = tasks.find(t => t.id === taskId);
     
     if (isAdding) {
         const newRecord = { id: Math.random().toString(), taskId, completedAt: date };
         setTaskCompletions(prev => [...prev, newRecord]);
         try {
             await Storage.saveTaskCompletion(taskId, date);
+            
+            // Sync to Workbook if enabled (wrapped in its own try/catch to prevent revert)
+            try {
+                if (task?.syncToWorkbook && task.plot) {
+                    const plot = plots.find(p => p.name === task.plot);
+                    if (plot) {
+                        // Calculate Days Past
+                        const allEntries = await Storage.getWorkbookEntries(plot.id);
+                        let daysPast = 0;
+                        
+                        if (allEntries && allEntries.length > 0) {
+                            const parseDateHelper = (d: string) => d.includes('-') ? parse(d, 'yyyy-MM-dd', new Date()) : parse(d, 'dd/MM/yy', new Date());
+                            const sorted = allEntries.sort((a, b) => {
+                                try {
+                                    const dA = parseDateHelper(a.data.date);
+                                    const dB = parseDateHelper(b.data.date);
+                                    return dA.getTime() - dB.getTime();
+                                } catch (e) { return 0; }
+                            });
+                            const first = sorted[0];
+                            const refDate = parseDateHelper(first.data.date);
+                            const refDays = parseInt(first.data.daysPast || '0');
+                            const current = parse(date, 'yyyy-MM-dd', new Date());
+                            daysPast = refDays + differenceInDays(current, refDate);
+                        }
+
+                        // Sync Rain
+                        const rain = rainRecords.find(r => r.date === date);
+
+                        await Storage.saveWorkbookEntry({
+                            plotId: plot.id,
+                            data: {
+                                date: format(parse(date, 'yyyy-MM-dd', new Date()), 'dd/MM/yy'),
+                                daysPast: daysPast.toString(),
+                                category: task.workbookDetails?.category || task.categories[0] || 'Task',
+                                description: task.workbookDetails?.description || task.title,
+                                rain: rain ? rain.amount.toString() : '',
+                                note: task.note || '',
+                                sourceTaskId: taskId,
+                                sourceCompletionDate: date
+                            }
+                        });
+                    }
+                }
+            } catch (syncErr) {
+                console.error('Workbook Sync failed but task completion saved:', syncErr);
+            }
         } catch (e) {
-            // Revert on error
             setTaskCompletions(prev => prev.filter(c => c.id !== newRecord.id));
         }
     } else {
@@ -240,8 +286,26 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
             setTaskCompletions(prev => prev.filter(c => c.id !== existing.id));
             try {
                 await Storage.deleteTaskCompletion(taskId, date);
+
+                // Delete synced workbook entry if exists (wrapped in its own try/catch)
+                try {
+                    if (task?.syncToWorkbook && task.plot) {
+                        const plot = plots.find(p => p.name === task.plot);
+                        if (plot) {
+                            const allEntries = await Storage.getWorkbookEntries(plot.id);
+                            const linkedEntry = allEntries.find(e => 
+                                e.data.sourceTaskId === taskId && 
+                                e.data.sourceCompletionDate === date
+                            );
+                            if (linkedEntry) {
+                                await Storage.deleteWorkbookEntry(linkedEntry.id);
+                            }
+                        }
+                    }
+                } catch (delErr) {
+                    console.error('Failed to cleanup workbook entry during task undo:', delErr);
+                }
             } catch (e) {
-                // Revert on error
                 setTaskCompletions(prev => [...prev, existing]);
             }
         }
@@ -359,27 +423,16 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Workbook methods (On-demand, doesn't use global state)
-  const getWorkbookTemplate = async (plotId: string) => {
-    return await Storage.getWorkbookTemplate(plotId);
-  };
-
-  const saveWorkbookTemplate = async (template: Partial<WorkbookTemplate>) => {
-    await Storage.saveWorkbookTemplate(template);
-  };
-
-  const getWorkbookEntries = async (plotId: string) => {
-    return await Storage.getWorkbookEntries(plotId);
-  };
-
+  const getWorkbookEntries = async (plotId: string) => await Storage.getWorkbookEntries(plotId);
+  
   const saveWorkbookEntry = async (entry: Partial<WorkbookEntry>) => {
     await Storage.saveWorkbookEntry(entry);
-    // Note: We don't refresh the whole app state here because 
-    // workbook entries aren't in the global state.
+    await loadData();
   };
 
   const deleteWorkbookEntry = async (id: string) => {
     await Storage.deleteWorkbookEntry(id);
+    await loadData();
   };
 
   return (
@@ -430,8 +483,6 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       addRainRecord,
       updateRainRecord,
       deleteRainRecord,
-      getWorkbookTemplate,
-      saveWorkbookTemplate,
       getWorkbookEntries,
       saveWorkbookEntry,
       deleteWorkbookEntry

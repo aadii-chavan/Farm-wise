@@ -62,8 +62,9 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     // Sort by date to find the earliest
     const sorted = [...entries].sort((a, b) => {
         try {
-            const dateA = parse(a.data.date, 'dd/MM/yy', new Date());
-            const dateB = parse(b.data.date, 'dd/MM/yy', new Date());
+            const parseDate = (d: string) => d.includes('-') ? parse(d, 'yyyy-MM-dd', new Date()) : parse(d, 'dd/MM/yy', new Date());
+            const dateA = parseDate(a.data.date);
+            const dateB = parseDate(b.data.date);
             return dateA.getTime() - dateB.getTime();
         } catch (e) {
             return 0;
@@ -72,7 +73,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     
     const first = sorted[0];
     return {
-        date: parse(first.data.date, 'dd/MM/yy', new Date()),
+        date: first.data.date.includes('-') ? parse(first.data.date, 'yyyy-MM-dd', new Date()) : parse(first.data.date, 'dd/MM/yy', new Date()),
         daysPast: parseInt(first.data.daysPast || '0')
     };
   }, [entries]);
@@ -101,7 +102,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     if (updatedFields.date) {
         // Sync Rain
         try {
-            const targetDate = format(parse(updatedFields.date, 'dd/MM/yy', new Date()), 'yyyy-MM-dd');
+            const parseDate = (d: string) => d.includes('-') ? parse(d, 'yyyy-MM-dd', new Date()) : parse(d, 'dd/MM/yy', new Date());
+            const targetDate = format(parseDate(updatedFields.date), 'yyyy-MM-dd');
             const rain = rainRecords.find(r => r.date === targetDate);
             newData.rain = rain ? rain.amount.toString() : '';
         } catch (e) {}
@@ -109,7 +111,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
         // Sync Days Past if reference exists
         if (referencePoint) {
             try {
-                const current = parse(updatedFields.date, 'dd/MM/yy', new Date());
+                const parseDate = (d: string) => d.includes('-') ? parse(d, 'yyyy-MM-dd', new Date()) : parse(d, 'dd/MM/yy', new Date());
+                const current = parseDate(updatedFields.date);
                 const diff = differenceInDays(current, referencePoint.date);
                 newData.daysPast = (referencePoint.daysPast + diff).toString();
             } catch (e) {}
@@ -200,8 +203,9 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   const sortedEntries = useMemo(() => {
     return [...entries].sort((a, b) => {
         try {
-            const dateA = parse(a.data.date, 'dd/MM/yy', new Date());
-            const dateB = parse(b.data.date, 'dd/MM/yy', new Date());
+            const parseDate = (d: string) => d.includes('-') ? parse(d, 'yyyy-MM-dd', new Date()) : parse(d, 'dd/MM/yy', new Date());
+            const dateA = parseDate(a.data.date);
+            const dateB = parseDate(b.data.date);
             return dateA.getTime() - dateB.getTime();
         } catch (e) {
             return 0;
@@ -277,7 +281,11 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                   <Text style={styles.cellText}>{index + 1}</Text>
                 </View>
                 <View style={[styles.cell, { width: 100 }]}>
-                  <Text style={styles.cellText}>{entry.data.date}</Text>
+                  <Text style={styles.cellText}>
+                    {entry.data.date && entry.data.date.includes('-') 
+                      ? format(parse(entry.data.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yy')
+                      : entry.data.date}
+                  </Text>
                 </View>
                 <View style={[styles.cell, { width: 80 }]}>
                   <Text style={styles.cellText}>{entry.data.daysPast}</Text>

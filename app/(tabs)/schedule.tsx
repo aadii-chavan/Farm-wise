@@ -23,7 +23,7 @@ import {
     subMonths
 } from 'date-fns';
 import { Stack } from 'expo-router';
-import { DeviceEventEmitter, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, DeviceEventEmitter, ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Task } from '@/types/farm';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -47,8 +47,12 @@ export default function SchedulePage() {
     const [taskCategories, setTaskCategories] = useState<string[]>([]);
     const [taskPlot, setTaskPlot] = useState<string | null>(null);
     const [taskNote, setTaskNote] = useState('');
-    const [taskRecurrence, setTaskRecurrence] = useState<string>('None');
     const [taskAssignedTo, setTaskAssignedTo] = useState('');
+    const [syncToWorkbook, setSyncToWorkbook] = useState(false);
+    const [workbookCategory, setWorkbookCategory] = useState('');
+    const [workbookDescription, setWorkbookDescription] = useState('');
+    const [showWorkbookCatPicker, setShowWorkbookCatPicker] = useState(false);
+    const WORKBOOK_CATEGORIES = ['Sowing', 'Fertilizer', 'Pesticide', 'Irrigation', 'Harvesting', 'Pruning', 'Plantation', 'Weeding', 'Tillage', 'Other'];
     
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -57,8 +61,6 @@ export default function SchedulePage() {
     // Inline Add state
     const [newCatName, setNewCatName] = useState('');
     const [isAddingCat, setIsAddingCat] = useState(false);
-    const [newRecurrence, setNewRecurrence] = useState('');
-    const [isAddingRecurrence, setIsAddingRecurrence] = useState(false);
 
     const defaultCategories = ['Irrigation', 'Fertilizer', 'Pesticide', 'Labor', 'Equipment', 'Harvest'];
     const userCategories = useMemo(() => [
@@ -66,47 +68,14 @@ export default function SchedulePage() {
         ...customEntities.filter(e => e.entityType === 'category').map(e => e.name)
     ], [customEntities]);
 
-    const defaultRecurrences = ['None', 'Daily', 'Weekly', 'Monthly'];
-    const userRecurrences = useMemo(() => [
-        ...defaultRecurrences, 
-        ...customEntities.filter(e => e.entityType === 'recurrence').map(e => e.name)
-    ], [customEntities]);
 
-    // Recurrence logic helper
-    const checkRecurrence = (t: Task, selected: Date, start: Date) => {
-        const diffDays = differenceInCalendarDays(selected, start);
-        const rec = t.recurrence || 'None';
 
-        if (rec === 'None') return false;
-        if (rec === 'Daily') return true;
-        if (rec === 'Weekly') return diffDays % 7 === 0;
-        if (rec === 'Monthly') return getDate(selected) === getDate(start);
 
-        const dayMatch = rec.match(/Every (\d+) days/i);
-        if (dayMatch) return diffDays % parseInt(dayMatch[1]) === 0;
-
-        const numOnly = rec.match(/(\d+)/);
-        if (numOnly) return diffDays % parseInt(numOnly[1]) === 0;
-
-        return false;
-    };
 
     // Filter tasks for a specific date (including recurring tasks)
     const getTasksForDate = (date: Date) => {
         const formattedDate = format(date, 'yyyy-MM-dd');
-        return allTasks.filter(t => {
-            const taskDateObj = parse(t.date, 'yyyy-MM-dd', new Date());
-            const selectedDateClean = startOfDay(date);
-            const taskDateClean = startOfDay(taskDateObj);
-
-            if (isAfter(taskDateClean, selectedDateClean)) return false;
-
-            if (t.recurrence === 'None' || !t.recurrence) {
-                return formattedDate === t.date;
-            } else {
-                return checkRecurrence(t, selectedDateClean, taskDateClean);
-            }
-        });
+        return allTasks.filter(t => t.date === formattedDate);
     };
 
     // Filter tasks for selected date (including recurring tasks)
@@ -160,8 +129,10 @@ export default function SchedulePage() {
             setTaskCategories(task.categories || []);
             setTaskPlot(task.plot || null);
             setTaskNote(task.note || '');
-            setTaskRecurrence(task.recurrence || 'None');
             setTaskAssignedTo(task.assignedTo || '');
+            setSyncToWorkbook(task.syncToWorkbook || false);
+            setWorkbookCategory(task.workbookDetails?.category || '');
+            setWorkbookDescription(task.workbookDetails?.description || '');
         } else {
             setSelectedTask(null);
             setTaskTitle('');
@@ -170,11 +141,12 @@ export default function SchedulePage() {
             setTaskCategories([]);
             setTaskPlot(null);
             setTaskNote('');
-            setTaskRecurrence('None');
             setTaskAssignedTo('');
+            setSyncToWorkbook(false);
+            setWorkbookCategory('');
+            setWorkbookDescription('');
         }
         setIsAddingCat(false);
-        setIsAddingRecurrence(false);
     };
 
     const handleSaveTask = async () => {
@@ -191,9 +163,13 @@ export default function SchedulePage() {
                 categories: taskCategories,
                 plot: taskPlot,
                 completed: selectedTask?.completed || false,
-                recurrence: taskRecurrence as any,
                 assignedTo: taskAssignedTo,
-                note: taskNote
+                note: taskNote,
+                syncToWorkbook: syncToWorkbook,
+                workbookDetails: syncToWorkbook ? {
+                    category: workbookCategory || taskCategories[0] || 'Other',
+                    description: workbookDescription || taskTitle
+                } : undefined
             };
             if (selectedTask) await updateTask(taskData);
             else await addTask(taskData);
@@ -226,14 +202,7 @@ export default function SchedulePage() {
         setIsAddingCat(false);
     };
 
-    const handleAddRecurrence = async () => {
-        if (!newRecurrence.trim()) return;
-        const normalized = newRecurrence.toLowerCase().includes('every') ? newRecurrence : `Every ${newRecurrence} days`;
-        await addCustomEntity('recurrence', normalized);
-        setNewRecurrence('');
-        setIsAddingRecurrence(false);
-        setTaskRecurrence(normalized);
-    };
+
 
     const getCategoryColor = (category: string) => {
         switch (category.toLowerCase()) {
@@ -445,6 +414,74 @@ export default function SchedulePage() {
                             <Text style={styles.inputLabel}>Task Name</Text>
                             <TextInput style={styles.textInput} placeholder="e.g. Irrigation of Plot A" value={taskTitle} onChangeText={setTaskTitle} placeholderTextColor="#94A3B8" />
 
+                            <Text style={styles.inputLabel}>Select Plot</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                                <Pressable style={[styles.chip, taskPlot === null && styles.chipActive]} onPress={() => {
+                                    setTaskPlot(null);
+                                    setSyncToWorkbook(false);
+                                }}>
+                                    <Text style={[styles.chipText, taskPlot === null && styles.chipTextActive]}>None</Text>
+                                </Pressable>
+                                {plots.map(p => (
+                                    <Pressable key={p.id} style={[styles.chip, taskPlot === p.name && styles.chipActive]} onPress={() => {
+                                        setTaskPlot(p.name);
+                                        setSyncToWorkbook(true);
+                                        if (!workbookCategory) {
+                                            setWorkbookCategory(taskCategories[0] || '');
+                                            setWorkbookDescription(taskTitle);
+                                        }
+                                    }}>
+                                        <Text style={[styles.chipText, taskPlot === p.name && styles.chipTextActive]}>{p.name}</Text>
+                                    </Pressable>
+                                ))}
+                            </ScrollView>
+
+                            <Pressable 
+                                style={[
+                                    styles.syncToggleRow, 
+                                    { marginTop: 10, marginBottom: 10 },
+                                    !taskPlot && { opacity: 0.5 }
+                                ]} 
+                                onPress={() => {
+                                    if (!taskPlot) {
+                                        Alert.alert("Plot Required", "Please select a plot first to enable workbook syncing.");
+                                        return;
+                                    }
+                                    setSyncToWorkbook(!syncToWorkbook);
+                                }}
+                            >
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.inputLabel, { marginTop: 0 }]}>Sync to Workbook</Text>
+                                    <Text style={styles.helperText}>Auto-log to plot workbook on completion</Text>
+                                </View>
+                                <View style={[styles.toggleBase, (syncToWorkbook && taskPlot) && styles.toggleActive]}>
+                                    <View style={[styles.toggleCircle, (syncToWorkbook && taskPlot) && styles.toggleCircleActive]} />
+                                </View>
+                            </Pressable>
+
+                            {(syncToWorkbook && taskPlot) && (
+                                <View style={styles.syncDetails}>
+                                    <Text style={styles.inputLabel}>Workbook Category *</Text>
+                                    <Pressable 
+                                        style={styles.inputPicker}
+                                        onPress={() => setShowWorkbookCatPicker(true)}
+                                    >
+                                        <Text style={[styles.pickerText, !workbookCategory && { color: '#94A3B8' }]}>
+                                            {workbookCategory || 'Select category...'}
+                                        </Text>
+                                        <Ionicons name="chevron-down" size={18} color={Palette.primary} />
+                                    </Pressable>
+                                    
+                                    <Text style={styles.inputLabel}>Workbook Description *</Text>
+                                    <TextInput 
+                                        style={styles.textInput} 
+                                        placeholder="Details for workbook entry" 
+                                        value={workbookDescription} 
+                                        onChangeText={setWorkbookDescription} 
+                                    />
+                                </View>
+                            )}
+
                             <View style={styles.formRow}>
                                 <View style={{ flex: 1.5 }}>
                                     <Text style={styles.inputLabel}>Date</Text>
@@ -462,42 +499,7 @@ export default function SchedulePage() {
                                 </View>
                             </View>
 
-                            <Text style={styles.inputLabel}>Recurrence</Text>
-                            <View style={styles.multiCatRow}>
-                                {userRecurrences.map(opt => (
-                                    <Pressable key={opt} style={[styles.chip, taskRecurrence === opt && styles.chipActive]} onPress={() => setTaskRecurrence(opt)}>
-                                        <Text style={[styles.chipText, taskRecurrence === opt && styles.chipTextActive]}>{opt}</Text>
-                                    </Pressable>
-                                ))}
-                                {isAddingRecurrence ? (
-                                    <TextInput 
-                                        style={[styles.chip, { minWidth: 100, color: Palette.text }]}
-                                        autoFocus
-                                        placeholder="Every X Days"
-                                        value={newRecurrence}
-                                        onChangeText={setNewRecurrence}
-                                        onSubmitEditing={handleAddRecurrence}
-                                        onBlur={() => setIsAddingRecurrence(false)}
-                                    />
-                                ) : (
-                                    <Pressable style={[styles.chip, { borderStyle: 'dashed' }]} onPress={() => setIsAddingRecurrence(true)}>
-                                        <Ionicons name="add" size={16} color={Palette.textSecondary} />
-                                        <Text style={[styles.chipText, { marginLeft: 4 }]}>Custom</Text>
-                                    </Pressable>
-                                )}
-                            </View>
 
-                            <Text style={styles.inputLabel}>Plot</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                                <Pressable style={[styles.chip, taskPlot === null && styles.chipActive]} onPress={() => setTaskPlot(null)}>
-                                    <Text style={[styles.chipText, taskPlot === null && styles.chipTextActive]}>None</Text>
-                                </Pressable>
-                                {plots.map(p => (
-                                    <Pressable key={p.id} style={[styles.chip, taskPlot === p.name && styles.chipActive]} onPress={() => setTaskPlot(p.name)}>
-                                        <Text style={[styles.chipText, taskPlot === p.name && styles.chipTextActive]}>{p.name}</Text>
-                                    </Pressable>
-                                ))}
-                            </ScrollView>
 
                             <Text style={styles.inputLabel}>Categories</Text>
                             <View style={styles.multiCatRow}>
@@ -534,6 +536,7 @@ export default function SchedulePage() {
                             <Text style={styles.inputLabel}>Notes</Text>
                             <TextInput style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]} placeholder="Additional details..." multiline value={taskNote} onChangeText={setTaskNote} placeholderTextColor="#94A3B8" />
 
+
                             <Pressable style={[styles.saveButton, isSubmitting && { opacity: 0.7 }]} onPress={handleSaveTask} disabled={isSubmitting}>
                                 {isSubmitting ? <ActivityIndicator color="white" /> : <Text style={styles.saveButtonText}>{selectedTask ? 'Update Schedule' : 'Schedule Task'}</Text>}
                             </Pressable>
@@ -543,6 +546,33 @@ export default function SchedulePage() {
                         {showTimePicker && <DateTimePicker mode="time" value={taskTime} onChange={(e, d) => { setShowTimePicker(false); if (d) setTaskTime(d); }} />}
                     </View>
                 </KeyboardAvoidingView>
+            </Modal>
+
+            {/* Workbook Category Picker */}
+            <Modal visible={showWorkbookCatPicker} transparent animationType="fade">
+                <Pressable style={styles.modalOverlay} onPress={() => setShowWorkbookCatPicker(false)}>
+                    <View style={[styles.modalContent, { maxHeight: '60%' }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Select Workbook Category</Text>
+                            <Pressable onPress={() => setShowWorkbookCatPicker(false)}><Ionicons name="close" size={24} color={Palette.textSecondary} /></Pressable>
+                        </View>
+                        <ScrollView>
+                            {WORKBOOK_CATEGORIES.map(cat => (
+                                <Pressable 
+                                    key={cat} 
+                                    style={styles.pickerItem}
+                                    onPress={() => {
+                                        setWorkbookCategory(cat);
+                                        setShowWorkbookCatPicker(false);
+                                    }}
+                                >
+                                    <Text style={styles.pickerItemText}>{cat}</Text>
+                                    {workbookCategory === cat && <Ionicons name="checkmark" size={20} color={Palette.primary} />}
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    </View>
+                </Pressable>
             </Modal>
 
             <CalendarModal 
@@ -625,5 +655,15 @@ const styles = StyleSheet.create({
     chipText: { fontSize: 13, fontFamily: 'Outfit-Medium', color: '#64748B' },
     chipTextActive: { color: 'white' },
     saveButton: { backgroundColor: Palette.primary, borderRadius: 16, padding: 18, alignItems: 'center', marginTop: 24, shadowColor: Palette.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-    saveButtonText: { color: 'white', fontFamily: 'Outfit-Bold', fontSize: 16 }
+    saveButtonText: { color: 'white', fontFamily: 'Outfit-Bold', fontSize: 16 },
+    sectionDivider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 10 },
+    syncToggleRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', marginTop: 10 },
+    helperText: { fontSize: 12, color: '#64748B', fontFamily: 'Outfit-Medium', marginTop: 2 },
+    toggleBase: { width: 44, height: 24, borderRadius: 12, backgroundColor: '#E2E8F0', padding: 2 },
+    toggleActive: { backgroundColor: Palette.primary },
+    toggleCircle: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'white' },
+    toggleCircleActive: { alignSelf: 'flex-end' },
+    syncDetails: { marginTop: 16, paddingLeft: 12, borderLeftWidth: 2, borderLeftColor: Palette.primary + '20' },
+    pickerItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
+    pickerItemText: { fontSize: 15, fontFamily: 'Outfit-Medium', color: '#1E293B' }
 });

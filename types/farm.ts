@@ -57,9 +57,14 @@ export interface Task {
   categories: string[];
   plot?: string | null;
   completed: boolean;
-  recurrence?: 'None' | 'Daily' | 'Weekly' | 'Bi-Weekly' | 'Monthly' | 'Every 2 Days' | 'Every 3 Days' | 'Every 10 Days' | 'Every 15 Days';
+  recurrence?: string;
   assignedTo?: string;
   note?: string;
+  syncToWorkbook?: boolean;
+  workbookDetails?: {
+    category: string;
+    description: string;
+  };
 }
 
 export interface CustomEntity {
