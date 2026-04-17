@@ -868,6 +868,7 @@ export const getWorkbookTemplate = async (plotId: string): Promise<WorkbookTempl
             columns: data.columns,
             sortBy: data.sort_by,
             sortOrder: data.sort_order,
+            startDate: data.start_date,
             updatedAt: data.updated_at
         };
     } catch (e) {
@@ -888,6 +889,7 @@ export const saveWorkbookTemplate = async (template: Partial<WorkbookTemplate>):
             columns: template.columns,
             sort_by: template.sortBy,
             sort_order: template.sortOrder,
+            start_date: template.startDate,
             updated_at: new Date().toISOString()
         }, { onConflict: 'plot_id' });
 

@@ -147,12 +147,16 @@ export interface RainRecord {
 // Workbook Module Types
 export type WorkbookColumnType = 'text' | 'number' | 'date' | 'time' | 'phone' | 'note' | 'category';
 
+export type WorkbookDefaultValueSource = 'none' | 'static' | 'current_date' | 'current_time' | 'last_entry' | 'days_since_start';
+
 export interface WorkbookColumn {
   id: string;
   name: string;
   type: WorkbookColumnType;
   required: boolean;
   order: number;
+  defaultValueSource?: WorkbookDefaultValueSource;
+  staticDefaultValue?: string;
 }
 
 export interface WorkbookTemplate {
@@ -161,6 +165,7 @@ export interface WorkbookTemplate {
   columns: WorkbookColumn[];
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  startDate?: string;
   updatedAt: string;
 }
 

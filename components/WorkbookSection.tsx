@@ -71,6 +71,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   const [editingColumns, setEditingColumns] = useState<WorkbookColumn[]>([]);
   const [editingSortBy, setEditingSortBy] = useState<string | undefined>();
   const [editingSortOrder, setEditingSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [editingStartDate, setEditingStartDate] = useState<string | undefined>();
+  const [showTemplateDatePicker, setShowTemplateDatePicker] = useState(false);
 
   // Derived State
   const workbookCategories = useMemo(() => {
@@ -116,7 +118,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
       plotId,
       columns: editingColumns,
       sortBy: editingSortBy,
-      sortOrder: editingSortOrder
+      sortOrder: editingSortOrder,
+      startDate: editingStartDate
     };
 
     await saveWorkbookTemplate(tpl);
@@ -182,7 +185,34 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
       setNewEntryData(entry.data);
     } else {
       setEditingEntry(null);
-      setNewEntryData({});
+      
+      // Calculate Auto-fills for New Entry
+      const initialData: Record<string, any> = {};
+      if (template) {
+        template.columns.forEach(col => {
+          if (col.defaultValueSource === 'static' && col.staticDefaultValue) {
+            initialData[col.id] = col.staticDefaultValue;
+          } else if (col.defaultValueSource === 'current_date') {
+            initialData[col.id] = format(new Date(), 'dd/MM/yy');
+          } else if (col.defaultValueSource === 'current_time') {
+            initialData[col.id] = format(new Date(), 'HH:mm');
+          } else if (col.defaultValueSource === 'last_entry' && entries.length > 0) {
+            const lastEntry = [...entries].sort((a,b) => b.createdAt.localeCompare(a.createdAt))[0];
+            if (lastEntry.data[col.id]) {
+                initialData[col.id] = lastEntry.data[col.id];
+            }
+          } else if (col.defaultValueSource === 'days_since_start' && template.startDate) {
+            const start = new Date(template.startDate);
+            start.setHours(0,0,0,0);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const diffTime = today.getTime() - start.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            initialData[col.id] = diffDays.toString();
+          }
+        });
+      }
+      setNewEntryData(initialData);
     }
     setShowEntryModal(true);
   };
@@ -276,6 +306,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
               setEditingColumns(template.columns);
               setEditingSortBy(template.sortBy);
               setEditingSortOrder(template.sortOrder || 'desc');
+              setEditingStartDate(template.startDate);
               setShowTemplateModal(true);
             }}
           >
@@ -434,6 +465,23 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                         </TouchableOpacity>
                     </View>
                 </View>
+
+                <View style={[styles.sortControlGroup, { marginBottom: 0, marginTop: 12, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#F1F5F9' }]}>
+                    <Text style={styles.sortSubLabel}>Workbook Start Date (Cycle)</Text>
+                    <TouchableOpacity 
+                        style={styles.startDateDisplay}
+                        onPress={() => setShowTemplateDatePicker(true)}
+                    >
+                        <View style={styles.dateInfo}>
+                            <Ionicons name="calendar-outline" size={18} color={Palette.primary} />
+                            <Text style={[styles.startDateText, !editingStartDate && { color: Palette.textSecondary + '60' }]}>
+                                {editingStartDate ? format(new Date(editingStartDate), 'dd/MM/yy') : 'Set a start date for calculations...'}
+                            </Text>
+                        </View>
+                        <Text style={styles.changeBtnText}>Change</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.dateHelper}>Used for "Days since start" auto-fill calculations.</Text>
+                </View>
             </View>
 
             <View style={styles.sectionDivider}>
@@ -497,6 +545,49 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                   </View>
                   <Text style={styles.requiredToggleText}>Mandatory field</Text>
                 </TouchableOpacity>
+
+                <View style={styles.columnDivider} />
+
+                <Text style={styles.typeLabel}>Auto-Fill / Default Value</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeList} contentContainerStyle={{ paddingRight: 20 }}>
+                  {[
+                    { label: 'None', value: 'none', icon: 'close-circle-outline' },
+                    { label: 'Current Date', value: 'current_date', icon: 'calendar-outline' },
+                    { label: 'Current Time', value: 'current_time', icon: 'time-outline' },
+                    { label: 'Days Past', value: 'days_since_start', icon: 'hourglass-outline' },
+                    { label: 'Same as Last', value: 'last_entry', icon: 'copy-outline' },
+                    { label: 'Fixed Value', value: 'static', icon: 'pin-outline' },
+                  ].map(source => (
+                    <TouchableOpacity 
+                      key={source.value}
+                      style={[
+                        styles.typeItem, 
+                        (col.defaultValueSource || 'none') === source.value && styles.activeTypeItem
+                      ]}
+                      onPress={() => updateColumn(col.id, { defaultValueSource: source.value as any })}
+                    >
+                      <Ionicons 
+                        name={source.icon as any} 
+                        size={14} 
+                        color={(col.defaultValueSource || 'none') === source.value ? 'white' : Palette.textSecondary} 
+                      />
+                      <Text style={[
+                        styles.typeItemText,
+                        (col.defaultValueSource || 'none') === source.value && styles.activeTypeItemText
+                      ]}>{source.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {col.defaultValueSource === 'static' && (
+                  <TextInput
+                    style={styles.staticDefaultInput}
+                    placeholder="Enter fixed default value"
+                    placeholderTextColor={Palette.textSecondary + '60'}
+                    value={col.staticDefaultValue}
+                    onChangeText={(val) => updateColumn(col.id, { staticDefaultValue: val })}
+                  />
+                )}
               </View>
             ))}
 
@@ -682,6 +773,15 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
             setNewEntryData({ ...newEntryData, [showDatePicker.colId]: format(date, 'dd/MM/yy') });
             setShowDatePicker(null);
           }
+        }}
+      />
+      <CalendarModal
+        visible={showTemplateDatePicker}
+        initialDate={editingStartDate ? new Date(editingStartDate) : new Date()}
+        onClose={() => setShowTemplateDatePicker(false)}
+        onSelectDate={(date) => {
+          setEditingStartDate(format(date, 'yyyy-MM-dd'));
+          setShowTemplateDatePicker(false);
         }}
       />
     </View>
@@ -1388,5 +1488,53 @@ const styles = StyleSheet.create({
     color: Palette.textSecondary + '60',
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  startDateDisplay: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 10,
+  },
+  dateInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  startDateText: {
+    fontSize: 14,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.primary,
+  },
+  changeBtnText: {
+    fontSize: 13,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.primary,
+  },
+  dateHelper: {
+    fontSize: 11,
+    color: Palette.textSecondary,
+    fontFamily: 'Outfit-Medium',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  columnDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 20,
+  },
+  staticDefaultInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    fontFamily: 'Outfit-Medium',
+    borderWidth: 1,
+    borderColor: Palette.border,
+    color: Palette.text,
+    marginTop: -8,
+    marginBottom: 10,
   },
 });
