@@ -53,7 +53,7 @@ export default function Login() {
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <Image 
-              source={require('../../assets/images/farmezy.png')} 
+              source={require('../../assets/images/farmezy.jpeg')} 
               style={styles.logo}
               resizeMode="cover"
             />

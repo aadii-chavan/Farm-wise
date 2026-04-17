@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Modal, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Modal, TextInput, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
 import { Text } from './Themed';
 import { Palette } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +34,24 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     customEntities,
     addCustomEntity
   } = useFarm();
+  
+  const { width: screenWidth } = useWindowDimensions();
+
+  const getColumnWidth = (type: WorkbookColumnType) => {
+    const baseWidth = type === 'note' ? 240 : 130;
+    if (!template || template.columns.length === 0) return baseWidth;
+    
+    const totalBaseWidth = template.columns.reduce((acc, col) => acc + (col.type === 'note' ? 240 : 130), 0) + 100; // padding and action col
+    
+    if (totalBaseWidth < screenWidth - 40) {
+        const availableWidth = screenWidth - 40 - 60; // -60 for actions
+        const totalBaseWithoutActions = totalBaseWidth - 100;
+        const ratio = availableWidth / totalBaseWithoutActions;
+        return baseWidth * ratio;
+    }
+    
+    return baseWidth;
+  };
   
   const [template, setTemplate] = useState<WorkbookTemplate | null>(null);
   const [entries, setEntries] = useState<WorkbookEntry[]>([]);
@@ -238,12 +256,12 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
           </TouchableOpacity>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false} contentContainerStyle={{ flexGrow: 1 }}>
           <View style={styles.tableWrapper}>
             {/* Elegant Table Header */}
             <View style={styles.tableHeader}>
               {sortedColumns.map(col => (
-                <View key={col.id} style={[styles.columnHeader, { width: col.type === 'note' ? 240 : 130 }]}>
+                <View key={col.id} style={[styles.columnHeader, { width: getColumnWidth(col.type) }]}>
                     <View style={styles.columnIconBg}>
                         <Ionicons 
                             name={COLUMN_TYPES.find(t => t.value === col.type)?.icon || 'text-outline'} 
@@ -275,7 +293,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                     onPress={() => openEntryModal(entry)}
                   >
                     {sortedColumns.map(col => (
-                      <View key={col.id} style={[styles.cell, { width: col.type === 'note' ? 240 : 130 }]}>
+                      <View key={col.id} style={[styles.cell, { width: getColumnWidth(col.type) }]}>
                         <Text 
                           style={[
                             styles.cellText, 
@@ -321,7 +339,10 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
       
       {/* Template Manager */}
       <Modal visible={showTemplateModal} animationType="slide">
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalContainer}
+        >
           <View style={styles.modalHeader}>
             <View>
                 <Text style={styles.modalTitle}>Structure Builder</Text>
@@ -407,7 +428,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                 <Text style={styles.saveTemplateButtonText}>Update Structure</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Entry Form */}
@@ -416,6 +437,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
           <KeyboardAvoidingView 
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.entryModalRoot}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
             <View style={styles.entryModalContainer}>
               <View style={styles.modalHeader}>
@@ -636,6 +658,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: Palette.border,
+    minWidth: '100%',
   },
   tableHeader: {
     flexDirection: 'row',
@@ -985,6 +1008,8 @@ const styles = StyleSheet.create({
   // Entry Form Enhancements
   entryModalOverlay: {
     flex: 1,
+    width: '100%',
+    height: '100%',
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     justifyContent: 'flex-end',
   },
@@ -997,13 +1022,16 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     height: '85%',
+    maxHeight: '90%',
+    width: '100%',
+    flexShrink: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
   },
   entryModalFooter: {
-    paddingInline: 24,
+    paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     borderTopWidth: 1,
