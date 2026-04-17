@@ -22,6 +22,13 @@ import { useFarm } from '@/context/FarmContext';
 import { useAuth } from '@/context/AuthContext';
 import { format, parse, addDays, differenceInDays, isValid, parseISO } from 'date-fns';
 import { CalendarModal } from './CalendarModal';
+import Animated, { 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withRepeat, 
+  withSequence, 
+  withTiming 
+} from 'react-native-reanimated';
 
 interface WorkbookSectionProps {
   plotId: string;
@@ -42,6 +49,70 @@ const CATEGORY_STYLES: Record<string, { color: string, icon: string }> = {
   'Tillage': { color: '#607D8B', icon: 'shovel' },
   'Other': { color: '#9E9E9E', icon: 'dots-horizontal' }
 };
+
+const SkeletonPulse = ({ style }: { style?: any }) => {
+  const opacity = useSharedValue(0.3);
+
+  React.useEffect(() => {
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.7, { duration: 800 }),
+        withTiming(0.3, { duration: 800 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return <Animated.View style={[styles.skeleton, style, animatedStyle]} />;
+};
+
+const WorkbookSkeleton = () => (
+  <View style={styles.container}>
+    <View style={styles.header}>
+      <View>
+        <SkeletonPulse style={{ width: 120, height: 24, marginBottom: 8 }} />
+        <SkeletonPulse style={{ width: 180, height: 14 }} />
+      </View>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <SkeletonPulse style={{ width: 44, height: 44, borderRadius: 12 }} />
+        <SkeletonPulse style={{ width: 80, height: 44, borderRadius: 12 }} />
+      </View>
+    </View>
+    <View style={styles.table}>
+      <View style={styles.tableHeader}>
+        {[40, 70, 100, 130, 200].map((w, i) => (
+          <View key={i} style={[styles.headerCell, { width: w }]}>
+            <SkeletonPulse style={{ width: '80%', height: 10 }} />
+          </View>
+        ))}
+      </View>
+      {[1, 2, 3, 4, 5].map(i => (
+        <View key={i} style={styles.tableRow}>
+          <View style={[styles.cell, { width: 40 }]}>
+            <SkeletonPulse style={{ width: 15, height: 15 }} />
+          </View>
+          <View style={[styles.cell, { width: 70 }]}>
+            <SkeletonPulse style={{ width: 30, height: 15 }} />
+          </View>
+          <View style={[styles.cell, { width: 100 }]}>
+            <SkeletonPulse style={{ width: 60, height: 15 }} />
+          </View>
+          <View style={[styles.cell, { width: 130 }]}>
+            <SkeletonPulse style={{ width: 80, height: 15 }} />
+          </View>
+          <View style={[styles.cell, { width: 200 }]}>
+            <SkeletonPulse style={{ width: 150, height: 15 }} />
+          </View>
+        </View>
+      ))}
+    </View>
+  </View>
+);
 
 export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   const { 
@@ -350,12 +421,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   }, [entries]);
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Palette.primary} />
-        <Text style={styles.loadingText}>Loading Workbook...</Text>
-      </View>
-    );
+    return <WorkbookSkeleton />;
   }
 
   return (
@@ -776,6 +842,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
     color: Palette.textSecondary,
     fontFamily: 'Outfit-Medium',
+  },
+  skeleton: {
+    backgroundColor: '#E2E8F0',
+    borderRadius: 4,
   },
   modalOverlay: {
     flex: 1,
