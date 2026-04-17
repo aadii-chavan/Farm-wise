@@ -2,6 +2,7 @@ import { Text } from '@/components/Themed';
 import { Palette } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { Stack } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Alert,
@@ -83,63 +84,37 @@ export default function ProfileScreen() {
      ]);
   };
 
-  const handleDownloadReport = (format: 'PDF' | 'Excel') => {
-    Alert.alert('Reports', `${format} report download will be available soon.`);
-  };
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+  return ( 
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+      <Stack.Screen options={{ headerShown: false }} />
       {/* Header Profile Section */}
-      <View style={styles.headerBackground}>
-        <View style={styles.headerContent}>
-            <View style={styles.avatarWrapper}>
-                <View style={styles.avatarContainer}>
-                    <Ionicons name="person" size={48} color="white" />
+      <View style={styles.headerArea}>
+        <View style={styles.headerGlass}>
+            <View style={styles.profileHero}>
+                <View style={styles.avatarGlow}>
+                    <View style={styles.avatarContainer}>
+                        <Text style={styles.avatarText}>{(fullName || user?.email || 'F').charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <Pressable style={styles.cameraBtn}>
+                        <Ionicons name="camera" size={14} color="white" />
+                    </Pressable>
                 </View>
-                <Pressable style={styles.editAvatarButton}>
-                    <Ionicons name="camera" size={16} color={Palette.primary} />
-                </Pressable>
-            </View>
-            <Text style={styles.userName}>{fullName || 'Farmer'}</Text>
-            <Text style={styles.userEmail}>{user?.email}</Text>
-            
-            <View style={styles.badgeRow}>
-                <View style={styles.premiumBadge}>
-                    <Ionicons name="ribbon" size={14} color="white" />
-                    <Text style={styles.badgeText}>Verified Farmer</Text>
-                </View>
-                <View style={[styles.premiumBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                    <Ionicons name="calendar" size={14} color="white" />
-                    <Text style={styles.badgeText}>Joined Mar 2024</Text>
+                <View style={styles.heroInfo}>
+                    <Text style={styles.userName}>{fullName || 'Farmer'}</Text>
+                    <Text style={styles.userEmail}>{user?.email}</Text>
+                    <View style={styles.statusRow}>
+                        <View style={styles.statusBadge}>
+                            <Ionicons name="checkmark-circle" size={12} color="#10B981" />
+                            <Text style={styles.statusText}>Verified Account</Text>
+                        </View>
+                    </View>
                 </View>
             </View>
         </View>
       </View>
 
       <View style={styles.mainContent}>
-        {/* Reports Section */}
-        <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Reports & Exports</Text>
-        </View>
-        
-        <View style={styles.reportButtonsRow}>
-            <Pressable style={styles.reportCard} onPress={() => handleDownloadReport('PDF')}>
-                <View style={[styles.reportIconBg, { backgroundColor: '#FFEBEE' }]}>
-                    <Ionicons name="document-text" size={24} color="#D32F2F" />
-                </View>
-                <Text style={styles.reportLabel}>Export PDF</Text>
-                <Text style={styles.reportSub}>Full History</Text>
-            </Pressable>
-
-            <Pressable style={styles.reportCard} onPress={() => handleDownloadReport('Excel')}>
-                <View style={[styles.reportIconBg, { backgroundColor: '#E8F5E9' }]}>
-                    <Ionicons name="stats-chart" size={24} color="#2E7D32" />
-                </View>
-                <Text style={styles.reportLabel}>Excel Sheet</Text>
-                <Text style={styles.reportSub}>For Analysis</Text>
-            </Pressable>
-        </View>
-
         {/* Settings List */}
         <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Account Details</Text>
@@ -236,216 +211,215 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Palette.background,
+    backgroundColor: '#FFFFFF',
   },
-  headerBackground: {
+  headerArea: {
     backgroundColor: Palette.primary,
-    paddingTop: 60,
-    paddingBottom: 40,
-    borderBottomLeftRadius: 35,
-    borderBottomRightRadius: 35,
-    shadowColor: Palette.primary,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 10,
-  },
-  headerContent: {
-    alignItems: 'center',
+    paddingTop: 50,
+    paddingBottom: 25,
     paddingHorizontal: 20,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
-  avatarWrapper: {
-    padding: 4,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 60,
-    marginBottom: 16,
-    position: 'relative',
+  headerGlass: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  profileHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  avatarGlow: {
+    padding: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 22,
   },
   avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Palette.primaryDark,
+    width: 70,
+    height: 70,
+    borderRadius: 18,
+    backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 4,
+  },
+  avatarText: {
+    fontSize: 28,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.primary,
+  },
+  cameraBtn: {
+    position: 'absolute',
+    bottom: -6,
+    right: -6,
+    backgroundColor: Palette.primary,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
     borderColor: 'white',
   },
-  editAvatarButton: {
-    position: 'absolute',
-    bottom: 5,
-    right: 5,
-    backgroundColor: 'white',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+  heroInfo: {
+    flex: 1,
   },
   userName: {
-    fontSize: 26,
+    fontSize: 22,
     fontFamily: 'Outfit-Bold',
     color: 'white',
   },
   userEmail: {
-    fontSize: 15,
-    color: 'white',
-    opacity: 0.8,
-    marginTop: 4,
-    fontFamily: 'Outfit',
+    fontSize: 13,
+    fontFamily: 'Outfit-Medium',
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 2,
   },
-  badgeRow: {
+  statusRow: {
     flexDirection: 'row',
-    marginTop: 20,
-    gap: 10,
+    marginTop: 8,
   },
-  premiumBadge: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 20,
     gap: 6,
   },
-  badgeText: {
+  statusText: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Outfit-Bold',
   },
   mainContent: {
     paddingHorizontal: 20,
-    marginTop: 25,
+    marginTop: 24,
   },
   sectionHeader: {
-    marginBottom: 12,
-    marginTop: 10,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Outfit-Bold',
-    color: Palette.text,
+    color: '#1e293b',
   },
-  reportButtonsRow: {
+  quickActions: {
+    gap: 12,
+    marginBottom: 30,
+  },
+  actionCard: {
     flexDirection: 'row',
-    gap: 15,
-    marginBottom: 25,
-  },
-  reportCard: {
-    flex: 1,
+    alignItems: 'center',
     backgroundColor: 'white',
-    borderRadius: 24,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    gap: 16,
   },
-  reportIconBg: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  reportLabel: {
-    fontSize: 15,
-    fontFamily: 'Outfit-Bold',
-    color: Palette.text,
-  },
-  reportSub: {
-    fontSize: 11,
-    fontFamily: 'Outfit',
-    color: Palette.textSecondary,
-    marginTop: 2,
-  },
-  settingsCard: {
-    backgroundColor: 'white',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    marginBottom: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  settingsItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 18,
-  },
-  settingsInputItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  itemIconBg: {
+  actionIcon: {
     width: 44,
     height: 44,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+  },
+  actionLabel: {
+    fontSize: 15,
+    fontFamily: 'Outfit-Bold',
+    color: '#1e293b',
+  },
+  actionSub: {
+    fontSize: 12,
+    fontFamily: 'Outfit-Medium',
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+  settingsCard: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  settingsItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 18,
+    gap: 16,
+  },
+  settingsInputItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 16,
+  },
+  itemIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   itemTextContent: {
     flex: 1,
   },
   itemTitle: {
-    fontSize: 14,
-    fontFamily: 'Outfit-Medium',
-    color: Palette.textSecondary,
-    marginBottom: 2,
+    fontSize: 11,
+    fontFamily: 'Outfit-Bold',
+    color: '#94A3B8',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   itemSub: {
-    fontSize: 16,
-    fontFamily: 'Outfit-SemiBold',
-    color: Palette.text,
+    fontSize: 15,
+    fontFamily: 'Outfit-Bold',
+    color: '#1e293b',
+    marginTop: 2,
   },
   itemInput: {
-    fontSize: 16,
-    fontFamily: 'Outfit-SemiBold',
-    color: Palette.text,
+    fontSize: 15,
+    fontFamily: 'Outfit-Bold',
+    color: '#1e293b',
     padding: 0,
     marginTop: 2,
   },
   saveButton: {
     backgroundColor: Palette.primary,
-    borderRadius: 16,
-    height: 56,
+    borderRadius: 18,
+    height: 54,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30,
     shadowColor: Palette.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   saveButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Outfit-Bold',
   },
   divider: {
     height: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F1F5F9',
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFEBEE',
+    backgroundColor: '#FFF1F2',
     padding: 18,
     borderRadius: 20,
-    marginBottom: 20,
+    marginBottom: 24,
+    gap: 16,
   },
   logoutIconBg: {
     width: 40,
@@ -454,18 +428,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
   },
   logoutText: {
-    fontSize: 17,
+    fontSize: 16,
     fontFamily: 'Outfit-Bold',
-    color: '#D32F2F',
+    color: '#E11D48',
   },
   versionText: {
     textAlign: 'center',
-    fontSize: 12,
-    color: Palette.textSecondary,
-    fontFamily: 'Outfit',
+    fontSize: 11,
+    color: '#94A3B8',
+    fontFamily: 'Outfit-Medium',
     marginBottom: 10,
   }
 });
