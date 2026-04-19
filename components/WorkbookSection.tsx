@@ -117,7 +117,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     deleteWorkbookEntry,
     rainRecords,
     customEntities,
-    addCustomEntity
+    addCustomEntity,
+    plots
   } = useFarm();
   const { user } = useAuth();
   
@@ -308,6 +309,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   const handleDownloadPDF = async () => {
     try {
         const userName = user?.user_metadata?.full_name || user?.email || 'Farmer';
+        const plot = plots.find(p => p.id === plotId);
         
         // Calculate Stats
         const totalActivities = sortedEntries.length;
@@ -372,6 +374,17 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                             <h2 class="report-title">Workbook Ledger</h2>
                             <div class="user-info">Prepared for: <b>${userName}</b></div>
                             <div style="font-size: 12px; color: #94a3b8; margin-top: 5px;">Period: ${dateRange}</div>
+                        </div>
+                    </div>
+
+                    <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; border: 1px solid #e2e8f0;">
+                        <div>
+                            <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Plot Details</div>
+                            <div style="font-size: 18px; font-weight: 800; color: #0f172a;">${plot?.name || 'Unknown Plot'}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Crop & Area</div>
+                            <div style="font-size: 14px; font-weight: 600; color: #334155;">${plot?.cropType || 'N/A'}${plot?.variety ? ` (${plot.variety})` : ''} • ${plot?.area || 0} Acres</div>
                         </div>
                     </div>
 

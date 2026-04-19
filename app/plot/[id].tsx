@@ -3,6 +3,9 @@ import { TransactionCard } from '@/components/TransactionCard';
 import { FilterModal, FilterState } from '@/components/FilterModal';
 import { Palette } from '@/constants/Colors';
 import { useFarm } from '@/context/FarmContext';
+import { useAuth } from '@/context/AuthContext';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
@@ -13,6 +16,7 @@ export default function PlotDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { plots, transactions, deleteTransaction } = useFarm();
+  const { user } = useAuth();
 
   const confirmDelete = (txId: string) => {
     Alert.alert(
@@ -102,6 +106,149 @@ export default function PlotDetailScreen() {
         }));
   }, [filteredTransactions]);
 
+  const handleDownloadHistoryPDF = async () => {
+    try {
+        const userName = user?.user_metadata?.full_name || user?.email || 'Farmer';
+        
+        const totalIncome = income;
+        const totalExpense = expense;
+        const totalProfit = profit;
+
+        const tableRows = filteredTransactions.map((tx, index) => {
+            return `
+            <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 13px; color: #64748b; white-space: nowrap;">${index + 1}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; white-space: nowrap;">${new Date(tx.date).toLocaleDateString('en-GB')}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 700; color: ${tx.type === 'Income' ? '#10b981' : '#ef4444'}; text-transform: uppercase;">${tx.type}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 800; color: #1e293b; font-size: 13px;">${tx.category}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155; line-height: 1.5;">${tx.title}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: ${tx.type === 'Income' ? '#10b981' : '#ef4444'}; font-weight: 700; font-size: 13px; white-space: nowrap;">₹${tx.amount.toLocaleString()}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; font-style: italic; line-height: 1.4;">${tx.note || '-'}</td>
+            </tr>
+        `}).join('');
+
+        const html = `
+            <html>
+                <head>
+                    <style>
+                        @page { margin: 20mm; }
+                        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }
+                        .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 4px solid #006d5b; padding-bottom: 25px; margin-bottom: 25px; }
+                        .logo-container { flex: 1; }
+                        .logo-text { font-size: 38px; font-weight: 900; color: #006d5b; letter-spacing: -1.5px; margin: 0; }
+                        .logo-sub { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin-top: -5px; }
+                        .report-meta { text-align: right; flex: 1; }
+                        .report-title { font-size: 26px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+                        .user-info { font-size: 15px; color: #475569; margin-top: 8px; }
+                        
+                        .plot-details { background-color: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 25px; display: flex; justify-content: space-between; border: 1px solid #e2e8f0; }
+                        
+                        .stats-grid { display: flex; gap: 20px; margin-bottom: 35px; }
+                        .stat-card { flex: 1; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: center; }
+                        .stat-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+                        .stat-value { font-size: 20px; font-weight: 900; }
+                        
+                        .table-container { border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+                        table { width: 100%; border-collapse: collapse; background: white; page-break-inside: auto; }
+                        tr { page-break-inside: avoid; page-break-after: auto; }
+                        th, td { vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+                        th { background-color: #006d5b; color: white; text-align: left; padding: 16px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+                        
+                        .footer { margin-top: 60px; padding-top: 30px; border-top: 2px solid #f1f5f9; text-align: center; }
+                        .footer-brand { font-size: 18px; font-weight: 800; color: #006d5b; margin-bottom: 5px; }
+                        .footer-tagline { font-size: 13px; color: #64748b; font-weight: 500; }
+                        .disclaimer { font-size: 11px; color: #94a3b8; margin-top: 20px; font-style: italic; max-width: 80%; margin-left: auto; margin-right: auto; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="logo-container">
+                            <h1 class="logo-text">FarmEzy</h1>
+                            <p class="logo-sub">Smart Agriculture</p>
+                        </div>
+                        <div class="report-meta">
+                            <h2 class="report-title">Financial Ledger</h2>
+                            <div class="user-info">Prepared for: <b>${userName}</b></div>
+                            <div style="font-size: 12px; color: #94a3b8; margin-top: 5px;">Filter: ${filterState.dateFilter}</div>
+                        </div>
+                    </div>
+
+                    <div class="plot-details">
+                        <div>
+                            <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Plot Details</div>
+                            <div style="font-size: 18px; font-weight: 800; color: #0f172a;">${plot?.name || 'Unknown Plot'}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Crop & Area</div>
+                            <div style="font-size: 14px; font-weight: 600; color: #334155;">${plot?.cropType || 'N/A'}${plot?.variety ? ` (${plot.variety})` : ''} • ${plot?.area || 0} Acres</div>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Total Income</div>
+                            <div class="stat-value" style="color: #10b981;">₹${totalIncome.toLocaleString()}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Total Expense</div>
+                            <div class="stat-value" style="color: #ef4444;">₹${totalExpense.toLocaleString()}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Net Profit/Loss</div>
+                            <div class="stat-value" style="color: ${totalProfit >= 0 ? '#10b981' : '#ef4444'};">${totalProfit >= 0 ? '+' : '-'}₹${Math.abs(totalProfit).toLocaleString()}</div>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="text-align: center; width: 5%; white-space: nowrap;">Sr.</th>
+                                    <th style="width: 12%; white-space: nowrap;">Date</th>
+                                    <th style="width: 10%;">Type</th>
+                                    <th style="width: 15%;">Category</th>
+                                    <th style="width: 25%;">Title</th>
+                                    <th style="text-align: right; width: 15%; white-space: nowrap;">Amount</th>
+                                    <th style="width: 18%;">Note</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="footer">
+                        <div class="footer-brand">FarmEzy</div>
+                        <div class="footer-tagline">Your Digital Partner in Modern Agriculture</div>
+                        <p class="disclaimer">
+                            This Financial Ledger is a system-generated document based on data provided by the user. It is intended for agricultural financial tracking. FarmEzy is not responsible for any discrepancies in manual data entry.
+                            <br><br>
+                            Generated on: ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}, ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                    </div>
+                </body>
+            </html>
+        `;
+
+        const { uri } = await Print.printToFileAsync({ 
+            html,
+            base64: false
+        });
+
+        if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(uri, {
+                UTI: '.pdf',
+                mimeType: 'application/pdf',
+                dialogTitle: `FarmEzy - Plot Ledger (${plot?.name || 'History'})`
+            });
+        }
+    } catch (error) {
+        Alert.alert('Error', 'Failed to generate PDF');
+        console.error(error);
+    }
+  };
+
   if (!plot) {
     return (
       <View style={styles.container}>
@@ -181,7 +328,12 @@ export default function PlotDetailScreen() {
                           )}
                           <Ionicons name="chevron-down" size={14} color={Palette.textSecondary} style={{ marginLeft: 6 }} />
                       </Pressable>
-                      <Text style={styles.historyCount}>{filteredTransactions.length} entries</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                          <Text style={styles.historyCount}>{filteredTransactions.length} entries</Text>
+                          <Pressable onPress={handleDownloadHistoryPDF} style={{ padding: 6, backgroundColor: Palette.primary + '15', borderRadius: 8 }}>
+                              <Ionicons name="download-outline" size={18} color={Palette.primary} />
+                          </Pressable>
+                      </View>
                   </View>
 
                   <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
