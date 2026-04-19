@@ -272,28 +272,24 @@ export default function PlotDetailScreen() {
       <View style={styles.content}>
           <View style={styles.statsCard}>
               <View style={styles.statsHeader}>
-                  <View>
+                  <View style={{ flex: 1 }}>
                       <Text style={styles.statsTitle}>
-                          {plot.cropType}{plot.variety ? ` (${plot.variety})` : ''}
+                          {plot.cropType}{plot.variety ? ` (${plot.variety})` : ''} • {plot.area} Ac
                       </Text>
-                      <Text style={styles.statsSubtitle}>{plot.area} Acres</Text>
+                      <View style={styles.statsRow}>
+                          <Text style={styles.statLabelCompact}>
+                              Inc: <Text style={{ color: Palette.success, fontFamily: 'Outfit-Bold' }}>₹{income.toLocaleString()}</Text>
+                          </Text>
+                          <View style={styles.dotSeparator} />
+                          <Text style={styles.statLabelCompact}>
+                              Exp: <Text style={{ color: Palette.danger, fontFamily: 'Outfit-Bold' }}>₹{expense.toLocaleString()}</Text>
+                          </Text>
+                      </View>
                   </View>
-                  <View style={[styles.profitBadge, { backgroundColor: profit >= 0 ? Palette.success + '20' : Palette.danger + '20' }]}>
+                  <View style={[styles.profitBadge, { backgroundColor: profit >= 0 ? Palette.success + '15' : Palette.danger + '15' }]}>
                       <Text style={[styles.profitText, { color: profit >= 0 ? Palette.success : Palette.danger }]}>
                           {profit >= 0 ? '↑' : '↓'} ₹{Math.abs(profit).toLocaleString()}
                       </Text>
-                  </View>
-              </View>
-
-              <View style={styles.statsRow}>
-                  <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Total Income</Text>
-                      <Text style={[styles.statValue, { color: Palette.success }]}>₹{income.toLocaleString()}</Text>
-                  </View>
-                  <View style={styles.divider} />
-                  <View style={styles.statItem}>
-                      <Text style={styles.statLabel}>Total Expense</Text>
-                      <Text style={[styles.statValue, { color: Palette.danger }]}>₹{expense.toLocaleString()}</Text>
                   </View>
               </View>
           </View>
@@ -328,10 +324,10 @@ export default function PlotDetailScreen() {
                           )}
                           <Ionicons name="chevron-down" size={14} color={Palette.textSecondary} style={{ marginLeft: 6 }} />
                       </Pressable>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                           <Text style={styles.historyCount}>{filteredTransactions.length} entries</Text>
-                          <Pressable onPress={handleDownloadHistoryPDF} style={{ padding: 6, backgroundColor: Palette.primary + '15', borderRadius: 8 }}>
-                              <Ionicons name="download-outline" size={18} color={Palette.primary} />
+                          <Pressable onPress={handleDownloadHistoryPDF} style={styles.downloadButton}>
+                              <Ionicons name="cloud-download-outline" size={20} color={Palette.primary} />
                           </Pressable>
                       </View>
                   </View>
@@ -368,7 +364,7 @@ export default function PlotDetailScreen() {
                   </ScrollView>
               </>
           ) : (
-              <WorkbookSection plotId={id as string} />
+              <WorkbookSection plotId={id as string} hideHeader />
           )}
       </View>
 
@@ -399,75 +395,60 @@ const styles = StyleSheet.create({
   },
   content: {
       flex: 1,
-      padding: 20,
+      padding: 16,
   },
   statsCard: {
       backgroundColor: 'white',
-      borderRadius: 20,
-      padding: 16,
-      marginBottom: 16,
+      borderRadius: 16,
+      padding: 12,
+      marginBottom: 12,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.05,
-      shadowRadius: 15,
-      elevation: 5,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 10,
+      elevation: 3,
   },
   statsHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: 12,
+      alignItems: 'center',
   },
   statsTitle: {
-      fontSize: 20,
+      fontSize: 16,
       fontFamily: 'Outfit-Bold',
       color: Palette.text,
-  },
-  statsSubtitle: {
-      fontSize: 12,
-      color: Palette.textSecondary,
-      fontFamily: 'Outfit',
-  },
-  profitBadge: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 12,
-  },
-  profitText: {
-      fontSize: 14,
-      fontFamily: 'Outfit-Bold',
   },
   statsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      borderTopWidth: 1,
-      borderTopColor: '#f5f5f5',
-      paddingTop: 12,
+      marginTop: 2,
   },
-  statItem: {
-      flex: 1,
-      alignItems: 'center',
-  },
-  statLabel: {
+  statLabelCompact: {
       fontSize: 12,
       color: Palette.textSecondary,
-      fontFamily: 'Outfit-Medium',
-      marginBottom: 4,
+      fontFamily: 'Outfit',
   },
-  statValue: {
-      fontSize: 16,
+  dotSeparator: {
+      width: 3,
+      height: 3,
+      borderRadius: 1.5,
+      backgroundColor: '#cbd5e1',
+      marginHorizontal: 8,
+  },
+  profitBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 10,
+  },
+  profitText: {
+      fontSize: 15,
       fontFamily: 'Outfit-Bold',
-  },
-  divider: {
-      width: 1,
-      height: 20,
-      backgroundColor: '#f0f0f0',
   },
   filterRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: 12,
   },
   filterButton: {
       flexDirection: 'row',
@@ -477,12 +458,7 @@ const styles = StyleSheet.create({
       paddingHorizontal: 12,
       borderRadius: 10,
       borderWidth: 1,
-      borderColor: '#f0f0f0',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.02,
-      shadowRadius: 3,
-      elevation: 1,
+      borderColor: '#e2e8f0',
   },
   filterButtonText: {
       fontFamily: 'Outfit-Medium',
@@ -491,47 +467,55 @@ const styles = StyleSheet.create({
   },
   filterBadge: {
       backgroundColor: Palette.primary,
-      borderRadius: 10,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      marginLeft: 6,
-      justifyContent: 'center',
-      alignItems: 'center',
+      borderRadius: 8,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      marginLeft: 4,
   },
   filterBadgeText: {
       color: 'white',
       fontSize: 10,
       fontFamily: 'Outfit-Bold',
   },
+  downloadButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
   historyCount: {
-      fontSize: 12,
+      fontSize: 11,
       color: Palette.textSecondary,
       fontFamily: 'Outfit-Medium',
   },
   tabContainer: {
       flexDirection: 'row',
-      backgroundColor: '#f5f5f5',
-      padding: 4,
-      borderRadius: 12,
-      marginBottom: 16,
+      backgroundColor: '#f1f5f9',
+      padding: 3,
+      borderRadius: 10,
+      marginBottom: 12,
   },
   tabButton: {
       flex: 1,
-      paddingVertical: 10,
+      paddingVertical: 8,
       alignItems: 'center',
-      borderRadius: 8,
+      borderRadius: 7,
   },
   activeTabButton: {
       backgroundColor: 'white',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 2,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
   },
   tabButtonText: {
       fontFamily: 'Outfit-Medium',
-      fontSize: 14,
+      fontSize: 13,
       color: Palette.textSecondary,
   },
   activeTabButtonText: {
@@ -550,36 +534,31 @@ const styles = StyleSheet.create({
       marginTop: 12,
   },
   timelineGroup: {
-      marginBottom: 16,
+      marginBottom: 12,
   },
   timelineDateContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 12,
+      marginBottom: 8,
   },
   timelineDot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
       backgroundColor: Palette.primary,
       marginRight: 10,
-      shadowColor: Palette.primary,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.4,
-      shadowRadius: 4,
-      elevation: 2,
   },
   timelineDateText: {
-      fontSize: 15,
+      fontSize: 13,
       fontFamily: 'Outfit-Bold',
       color: Palette.text,
   },
   timelineContent: {
-      borderLeftWidth: 2,
+      borderLeftWidth: 1.5,
       borderLeftColor: Palette.border,
-      marginLeft: 4,
+      marginLeft: 3,
       paddingLeft: 16,
-      paddingBottom: 8,
+      paddingBottom: 4,
   },
   timelineItemWrapper: {
       marginBottom: 4,

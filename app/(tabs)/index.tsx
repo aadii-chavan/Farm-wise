@@ -153,7 +153,7 @@ export default function Dashboard() {
               </Pressable>
           </View>
           
-          <Pressable style={styles.balanceCard} onPress={() => router.push('/(tabs)/schedule')}>
+          <View style={styles.balanceCard}>
               <View>
                 <Text style={styles.balanceLabel}>Net Profit (Season)</Text>
                 <Text style={styles.balanceAmount}>₹{seasonStats.profit.toLocaleString('en-IN')}</Text>
@@ -162,7 +162,7 @@ export default function Dashboard() {
                      <Ionicons name="calendar-outline" size={12} color="white" style={{marginLeft: 4}} />
                 </Pressable>
               </View>
-          </Pressable>
+          </View>
         </View>
 
         <CalendarModal

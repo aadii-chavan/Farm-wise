@@ -217,59 +217,67 @@ export default function ShopDetailScreen() {
     const renderHeader = () => (
         <View style={styles.headerSection}>
             <View style={styles.summaryCard}>
-                <View style={styles.summaryRow}>
-                    <View style={styles.summaryBox}>
+                <View style={styles.summaryGrid}>
+                    <View style={styles.summaryItem}>
                         <Text style={styles.summaryLabel}>Total Spent</Text>
-                        <Text style={styles.summaryVal}>₹{summary.totalSpent.toLocaleString()}</Text>
+                        <Text style={styles.summaryVal}>₹{summary.totalSpent.toLocaleString('en-IN')}</Text>
                     </View>
-                    <View style={styles.summaryBox}>
+                    <View style={styles.summaryDivider} />
+                    <View style={styles.summaryItem}>
                         <Text style={styles.summaryLabel}>Total Paid</Text>
-                        <Text style={[styles.summaryVal, { color: Palette.success }]}>₹{summary.totalPaid.toLocaleString()}</Text>
+                        <Text style={[styles.summaryVal, { color: Palette.success }]}>₹{summary.totalPaid.toLocaleString('en-IN')}</Text>
                     </View>
                 </View>
                 
-                <View style={styles.balanceDivider} />
-                
-                <View style={styles.balanceRow}>
-                    <View>
-                        <Text style={styles.balanceLabel}>Current Balance Due</Text>
+                <View style={styles.balanceSection}>
+                    <View style={styles.balanceInfo}>
+                        <Text style={styles.balanceLabel}>Current Balance</Text>
                         {summary.interest > 0 && (
-                            <Text style={styles.interestSubtext}>Includes ₹{summary.interest.toFixed(0)} interest</Text>
+                            <View style={styles.interestBadge}>
+                                <Ionicons name="trending-up" size={10} color="#d97706" />
+                                <Text style={styles.interestSubtext}>₹{summary.interest.toFixed(0)} Interest</Text>
+                            </View>
                         )}
                     </View>
                     <Text style={[styles.balanceVal, { color: summary.currentBalance > 0 ? Palette.danger : Palette.success }]}>
-                        ₹{summary.currentBalance.toLocaleString()}
+                        ₹{summary.currentBalance.toLocaleString('en-IN')}
                     </Text>
                 </View>
             </View>
 
-            <Pressable 
-                style={[styles.payBtn, summary.currentBalance <= 0 && { backgroundColor: Palette.textSecondary, opacity: 0.8 }]} 
-                onPress={() => {
-                    if (summary.currentBalance <= 0) {
-                        Alert.alert("No Outstanding Balance", "There are no outstanding bills to pay.");
-                        return;
-                    }
-                    setIsPayModalVisible(true);
-                }}
-            >
-                <Ionicons name="card-outline" size={20} color="white" />
-                <Text style={styles.payBtnText}>Record Payment</Text>
-            </Pressable>
+            <View style={styles.actionRow}>
+                <Pressable 
+                    style={[styles.payBtn, summary.currentBalance <= 0 && { backgroundColor: Palette.textSecondary, opacity: 0.8 }]} 
+                    onPress={() => {
+                        if (summary.currentBalance <= 0) {
+                            Alert.alert("No Outstanding Balance", "There are no outstanding bills to pay.");
+                            return;
+                        }
+                        setIsPayModalVisible(true);
+                    }}
+                >
+                    <Ionicons name="card-outline" size={20} color="white" />
+                    <Text style={styles.payBtnText}>Record Payment</Text>
+                </Pressable>
+            </View>
 
-            <View style={styles.tabBar}>
-                <Pressable 
-                    onPress={() => setActiveTab('bills')} 
-                    style={[styles.tab, activeTab === 'bills' && styles.tabActive]}
-                >
-                    <Text style={[styles.tabText, activeTab === 'bills' && styles.tabTextActive]}>Bill History</Text>
-                </Pressable>
-                <Pressable 
-                    onPress={() => setActiveTab('payments')} 
-                    style={[styles.tab, activeTab === 'payments' && styles.tabActive]}
-                >
-                    <Text style={[styles.tabText, activeTab === 'payments' && styles.tabTextActive]}>Payment History</Text>
-                </Pressable>
+            <View style={styles.tabContainer}>
+                <View style={styles.tabBar}>
+                    <Pressable 
+                        onPress={() => setActiveTab('bills')} 
+                        style={[styles.tab, activeTab === 'bills' && styles.tabActive]}
+                    >
+                        <Ionicons name="receipt" size={16} color={activeTab === 'bills' ? Palette.primary : Palette.textSecondary} style={{marginRight: 6}} />
+                        <Text style={[styles.tabText, activeTab === 'bills' && styles.tabTextActive]}>Bills</Text>
+                    </Pressable>
+                    <Pressable 
+                        onPress={() => setActiveTab('payments')} 
+                        style={[styles.tab, activeTab === 'payments' && styles.tabActive]}
+                    >
+                        <Ionicons name="cash" size={16} color={activeTab === 'payments' ? Palette.primary : Palette.textSecondary} style={{marginRight: 6}} />
+                        <Text style={[styles.tabText, activeTab === 'payments' && styles.tabTextActive]}>Payments</Text>
+                    </Pressable>
+                </View>
             </View>
         </View>
     );
@@ -277,14 +285,14 @@ export default function ShopDetailScreen() {
     const renderBillItem = ({ item }: { item: any }) => (
         <View style={styles.billCard}>
             <View style={styles.billHeader}>
-                <View>
-                    <Text style={styles.billDate}>{format(item.date, 'dd MMM yyyy')}</Text>
-                    {item.invoiceNo && (
-                        <View style={styles.invoiceTag}>
-                            <Ionicons name="receipt-outline" size={12} color={Palette.textSecondary} />
-                            <Text style={styles.invoiceNo}> INVOICE #{item.invoiceNo}</Text>
-                        </View>
-                    )}
+                <View style={styles.billIdBox}>
+                    <View style={styles.billIconCircle}>
+                        <Ionicons name="receipt" size={16} color={Palette.primary} />
+                    </View>
+                    <View>
+                        <Text style={styles.billDate}>{format(item.date, 'dd MMM yyyy')}</Text>
+                        <Text style={styles.invoiceNo}>{item.invoiceNo ? `Inv #${item.invoiceNo}` : 'Direct Purchase'}</Text>
+                    </View>
                 </View>
                 <View style={[styles.badge, item.paymentMode === 'Credit' ? styles.badgeCredit : styles.badgeCash]}>
                     <Text style={[styles.badgeText, item.paymentMode === 'Credit' ? styles.badgeTextCredit : styles.badgeTextCash]}>
@@ -293,9 +301,14 @@ export default function ShopDetailScreen() {
                 </View>
             </View>
 
-            <View style={styles.billTable}>
+            <View style={styles.billContent}>
                 {item.items.map((sub: any, idx: number) => (
                     <View key={idx} style={styles.itemRow}>
+                        <View style={styles.itemIconContainer}>
+                            <View style={[styles.miniIconCircle, { backgroundColor: Palette.primary + '10' }]}>
+                                <Ionicons name="cube-outline" size={14} color={Palette.primary} />
+                            </View>
+                        </View>
                         <View style={styles.itemInfo}>
                             <Text style={styles.itemName}>{sub.name}</Text>
                             <Text style={styles.itemDetail}>
@@ -306,42 +319,35 @@ export default function ShopDetailScreen() {
                             </Text>
                         </View>
                         <Text style={styles.itemTotal}>
-                            ₹{(sub.pricePerUnit ? sub.pricePerUnit * sub.quantity : 0).toLocaleString()}
+                            ₹{(sub.pricePerUnit ? sub.pricePerUnit * sub.quantity : 0).toLocaleString('en-IN')}
                         </Text>
                     </View>
                 ))}
             </View>
 
-            <View style={styles.billDivider} />
-
             <View style={styles.billFooter}>
-                <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Subtotal</Text>
-                    <Text style={styles.totalValue}>₹{item.principal.toLocaleString()}</Text>
+                <View style={styles.footerRow}>
+                    <Text style={styles.footerLabel}>Subtotal</Text>
+                    <Text style={styles.footerVal}>₹{item.principal.toLocaleString('en-IN')}</Text>
                 </View>
 
                 {item.paymentMode === 'Credit' && item.accumulatedInterest > 0 && (
-                    <View style={[styles.totalRow, { marginTop: 8 }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Ionicons name="trending-up" size={12} color="#d97706" style={{ marginRight: 4 }} />
-                            <Text style={styles.interestNote}>Interest Accrued</Text>
-                        </View>
-                        <Text style={[styles.totalValue, { color: '#d97706' }]}>
-                            + ₹{item.accumulatedInterest.toFixed(0)}
-                        </Text>
+                    <View style={[styles.footerRow, { marginTop: 4 }]}>
+                        <Text style={[styles.footerLabel, { color: '#d97706' }]}>Interest Accrued</Text>
+                        <Text style={[styles.footerVal, { color: '#d97706' }]}>+₹{item.accumulatedInterest.toFixed(0)}</Text>
                     </View>
                 )}
 
-                <View style={[styles.totalRow, { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f1f5f9', borderStyle: 'dashed' }]}>
-                    <Text style={[styles.totalLabel, { color: Palette.text, fontFamily: 'Outfit-Bold' }]}>Total Amount</Text>
-                    <Text style={[styles.totalValue, { fontSize: 20, color: Palette.primary }]}>
-                        ₹{(item.principal + (item.accumulatedInterest || 0)).toLocaleString()}
+                <View style={styles.billTotalRow}>
+                    <Text style={styles.billTotalLabel}>Total Amount</Text>
+                    <Text style={styles.billTotalVal}>
+                        ₹{(item.principal + (item.accumulatedInterest || 0)).toLocaleString('en-IN')}
                     </Text>
                 </View>
 
                 {item.note && (
-                    <View style={styles.noteBox}>
-                        <Ionicons name="document-text-outline" size={14} color={Palette.textSecondary} />
+                    <View style={styles.noteContainer}>
+                        <Ionicons name="information-circle-outline" size={14} color={Palette.textSecondary} />
                         <Text style={styles.noteText}>{item.note}</Text>
                     </View>
                 )}
@@ -473,112 +479,9 @@ const styles = StyleSheet.create({
         backgroundColor: Palette.background,
     },
     headerSection: {
-        marginBottom: 10,
+        marginBottom: 0,
     },
     summaryCard: {
-        backgroundColor: 'white',
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 10,
-    },
-    summaryRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    summaryBox: {
-        flex: 1,
-    },
-    summaryLabel: {
-        fontFamily: 'Outfit-Medium',
-        fontSize: 12,
-        color: Palette.textSecondary,
-        marginBottom: 4,
-    },
-    summaryVal: {
-        fontFamily: 'Outfit-Bold',
-        fontSize: 18,
-        color: Palette.text,
-    },
-    balanceDivider: {
-        height: 1,
-        backgroundColor: '#f1f5f9',
-        marginVertical: 20,
-    },
-    balanceRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    balanceLabel: {
-        fontFamily: 'Outfit-Bold',
-        fontSize: 14,
-        color: Palette.text,
-    },
-    interestSubtext: {
-        fontFamily: 'Outfit',
-        fontSize: 11,
-        color: '#d97706',
-        marginTop: 2,
-    },
-    balanceVal: {
-        fontFamily: 'Outfit-Bold',
-        fontSize: 24,
-    },
-    payBtn: {
-        backgroundColor: Palette.primary,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 18,
-        borderRadius: 16,
-        marginBottom: 24,
-        shadowColor: Palette.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    payBtnText: {
-        color: 'white',
-        fontFamily: 'Outfit-Bold',
-        fontSize: 16,
-        marginLeft: 10,
-    },
-    tabBar: {
-        flexDirection: 'row',
-        backgroundColor: '#e2e8f0',
-        padding: 4,
-        borderRadius: 14,
-        marginBottom: 20,
-    },
-    tab: {
-        flex: 1,
-        paddingVertical: 10,
-        alignItems: 'center',
-        borderRadius: 11,
-    },
-    tabActive: {
-        backgroundColor: 'white',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    tabText: {
-        fontFamily: 'Outfit-Bold',
-        fontSize: 13,
-        color: Palette.textSecondary,
-    },
-    tabTextActive: {
-        color: Palette.primary,
-    },
-    billCard: {
         backgroundColor: 'white',
         borderRadius: 24,
         padding: 20,
@@ -591,33 +494,173 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#f1f5f9',
     },
+    summaryGrid: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+    },
+    summaryItem: {
+        flex: 1,
+    },
+    summaryDivider: {
+        width: 1,
+        height: 24,
+        backgroundColor: '#f1f5f9',
+        marginHorizontal: 16,
+    },
+    summaryLabel: {
+        fontFamily: 'Outfit-Medium',
+        fontSize: 11,
+        color: Palette.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 4,
+    },
+    summaryVal: {
+        fontFamily: 'Outfit-Bold',
+        fontSize: 18,
+        color: Palette.text,
+    },
+    balanceSection: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingTop: 16,
+    },
+    balanceInfo: {
+        flex: 1,
+    },
+    balanceLabel: {
+        fontFamily: 'Outfit-Bold',
+        fontSize: 14,
+        color: Palette.text,
+    },
+    interestBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fffbeb',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        marginTop: 4,
+        alignSelf: 'flex-start',
+    },
+    interestSubtext: {
+        fontFamily: 'Outfit-SemiBold',
+        fontSize: 10,
+        color: '#d97706',
+        marginLeft: 4,
+    },
+    balanceVal: {
+        fontFamily: 'Outfit-Bold',
+        fontSize: 24,
+    },
+    actionRow: {
+        marginBottom: 20,
+    },
+    payBtn: {
+        backgroundColor: Palette.primary,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        borderRadius: 16,
+        shadowColor: Palette.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    payBtnText: {
+        color: 'white',
+        fontFamily: 'Outfit-Bold',
+        fontSize: 16,
+        marginLeft: 10,
+    },
+    tabContainer: {
+        marginBottom: 20,
+    },
+    tabBar: {
+        flexDirection: 'row',
+        backgroundColor: '#f1f5f9',
+        padding: 4,
+        borderRadius: 14,
+    },
+    tab: {
+        flex: 1,
+        flexDirection: 'row',
+        paddingVertical: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 11,
+    },
+    tabActive: {
+        backgroundColor: 'white',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    tabText: {
+        fontFamily: 'Outfit-Bold',
+        fontSize: 14,
+        color: Palette.textSecondary,
+    },
+    tabTextActive: {
+        color: Palette.primary,
+    },
+    billCard: {
+        backgroundColor: 'white',
+        borderRadius: 24,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#f1f5f9',
+        overflow: 'hidden',
+    },
     billHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#fafafa',
         borderBottomWidth: 1,
         borderBottomColor: '#f1f5f9',
-        paddingBottom: 15,
-        marginBottom: 15,
+    },
+    billIdBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    billIconCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        backgroundColor: Palette.primary + '10',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
     },
     billDate: {
         fontSize: 14,
-        fontFamily: 'Outfit-SemiBold',
+        fontFamily: 'Outfit-Bold',
         color: Palette.text,
     },
-    invoiceTag: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 4,
-    },
     invoiceNo: {
-        fontSize: 12,
+        fontSize: 11,
         fontFamily: 'Outfit-Medium',
         color: Palette.textSecondary,
+        marginTop: 1,
     },
     badge: {
-        paddingHorizontal: 12,
-        paddingVertical: 5,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
         borderRadius: 8,
     },
     badgeCash: {
@@ -629,8 +672,9 @@ const styles = StyleSheet.create({
         borderColor: '#fef3c7',
     },
     badgeText: {
-        fontSize: 11,
+        fontSize: 10,
         fontFamily: 'Outfit-Bold',
+        textTransform: 'uppercase',
     },
     badgeTextCash: {
         color: Palette.success,
@@ -638,80 +682,101 @@ const styles = StyleSheet.create({
     badgeTextCredit: {
         color: '#d97706',
     },
-    billTable: {
-        marginVertical: 10,
+    billContent: {
+        padding: 16,
     },
     itemRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 12,
+        paddingVertical: 10,
         borderBottomWidth: 1,
         borderBottomColor: '#f8fafc',
     },
+    itemIconContainer: {
+        marginRight: 12,
+    },
+    miniIconCircle: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     itemInfo: {
         flex: 1,
-        marginRight: 10,
     },
     itemName: {
-        fontSize: 15,
+        fontSize: 14,
         fontFamily: 'Outfit-Bold',
         color: Palette.text,
         marginBottom: 2,
     },
     itemDetail: {
-        fontSize: 12,
+        fontSize: 11,
         fontFamily: 'Outfit-Medium',
         color: Palette.textSecondary,
     },
     itemTotal: {
+        fontSize: 14,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+        marginLeft: 10,
+    },
+    billFooter: {
+        padding: 16,
+        backgroundColor: '#fcfcfc',
+        borderTopWidth: 1,
+        borderTopColor: '#f1f5f9',
+    },
+    footerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    footerLabel: {
+        fontSize: 13,
+        fontFamily: 'Outfit-Medium',
+        color: Palette.textSecondary,
+    },
+    footerVal: {
+        fontSize: 14,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+    },
+    billTotalRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#f1f5f9',
+        borderStyle: 'dashed',
+    },
+    billTotalLabel: {
         fontSize: 15,
         fontFamily: 'Outfit-Bold',
         color: Palette.text,
     },
-    billDivider: {
-        height: 1,
-        backgroundColor: '#f1f5f9',
-        marginVertical: 10,
-    },
-    billFooter: {
-        borderTopWidth: 1,
-        borderTopColor: '#f1f5f9',
-        paddingTop: 15,
-    },
-    totalRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    totalLabel: {
-        fontSize: 14,
-        fontFamily: 'Outfit-SemiBold',
-        color: Palette.textSecondary,
-    },
-    totalValue: {
+    billTotalVal: {
         fontSize: 18,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: Palette.primary,
     },
-    interestNote: {
-        fontSize: 12,
-        fontFamily: 'Outfit-Bold',
-        color: '#d97706',
-    },
-    noteBox: {
+    noteContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 15,
-        backgroundColor: Palette.background,
-        padding: 12,
-        borderRadius: 14,
+        marginTop: 12,
+        backgroundColor: '#f1f5f9',
+        padding: 8,
+        borderRadius: 8,
     },
     noteText: {
-        fontSize: 12,
+        fontSize: 11,
         fontFamily: 'Outfit',
         color: Palette.textSecondary,
-        marginLeft: 8,
+        marginLeft: 6,
         flex: 1,
     },
     paymentCard: {
@@ -721,10 +786,13 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         borderWidth: 1,
         borderColor: '#f1f5f9',
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     paymentHeader: {
         flexDirection: 'row',
         alignItems: 'center',
+        flex: 1,
     },
     paymentIcon: {
         width: 36,

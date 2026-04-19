@@ -32,6 +32,7 @@ import Animated, {
 
 interface WorkbookSectionProps {
   plotId: string;
+  hideHeader?: boolean;
 }
 
 // Categories for the new inbuilt table
@@ -110,7 +111,7 @@ const WorkbookSkeleton = () => (
   </View>
 );
 
-export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
+export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId, hideHeader }) => {
   const { 
     getWorkbookEntries, 
     saveWorkbookEntry, 
@@ -489,24 +490,26 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, hideHeader && { marginBottom: 12, marginTop: -5 }]}>
         <View>
-            <Text style={styles.title}>Workbook</Text>
-            <Text style={styles.subtitle}>Daily logs & tracking</Text>
+            <Text style={[styles.title, hideHeader && { fontSize: 18 }]}>
+                {hideHeader ? 'Workbook Logs' : 'Workbook'}
+            </Text>
+            {!hideHeader && <Text style={styles.subtitle}>Daily logs & tracking</Text>}
         </View>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ flexDirection: 'row', gap: 10, marginLeft: 'auto', alignItems: 'center' }}>
             <TouchableOpacity 
-              style={styles.downloadButton}
+              style={[styles.downloadButton, hideHeader && { padding: 6 }]}
               onPress={handleDownloadPDF}
             >
-              <Ionicons name="cloud-download-outline" size={22} color={Palette.primary} />
+              <Ionicons name="cloud-download-outline" size={hideHeader ? 20 : 22} color={Palette.primary} />
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.addButton}
+              style={[styles.addButton, hideHeader && { paddingVertical: 6, paddingHorizontal: 12 }]}
               onPress={() => openEntryModal()}
             >
-              <Ionicons name="add" size={18} color="white" />
-              <Text style={styles.addButtonText}>Add</Text>
+              <Ionicons name="add" size={hideHeader ? 16 : 18} color="white" />
+              <Text style={[styles.addButtonText, hideHeader && { fontSize: 13 }]}>Add</Text>
             </TouchableOpacity>
         </View>
       </View>
