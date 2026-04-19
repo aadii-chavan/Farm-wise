@@ -282,7 +282,7 @@ export default function ShopDetailScreen() {
                     {item.invoiceNo && (
                         <View style={styles.invoiceTag}>
                             <Ionicons name="receipt-outline" size={12} color={Palette.textSecondary} />
-                            <Text style={styles.invoiceNo}> #{item.invoiceNo}</Text>
+                            <Text style={styles.invoiceNo}> INVOICE #{item.invoiceNo}</Text>
                         </View>
                     )}
                 </View>
@@ -294,46 +294,50 @@ export default function ShopDetailScreen() {
             </View>
 
             <View style={styles.billTable}>
-                <View style={styles.tableHeader}>
-                    <Text style={[styles.tableHeaderText, { flex: 2 }]}>Item</Text>
-                    <Text style={[styles.tableHeaderText, { flex: 1, textAlign: 'center' }]}>Qty</Text>
-                    <Text style={[styles.tableHeaderText, { flex: 1.2, textAlign: 'right' }]}>Amount</Text>
-                </View>
-                
                 {item.items.map((sub: any, idx: number) => (
-                    <View key={idx} style={styles.tableRow}>
-                        <Text style={[styles.rowText, { flex: 2 }]} numberOfLines={1}>{sub.name}</Text>
-                        <Text style={[styles.rowText, { flex: 1, textAlign: 'center' }]}>
-                            {sub.numPackages ? `${sub.numPackages} x` : `${sub.quantity}${sub.unit}`}
-                        </Text>
-                        <Text style={[styles.rowText, { flex: 1.2, textAlign: 'right', fontFamily: 'Outfit-Bold' }]}>
+                    <View key={idx} style={styles.itemRow}>
+                        <View style={styles.itemInfo}>
+                            <Text style={styles.itemName}>{sub.name}</Text>
+                            <Text style={styles.itemDetail}>
+                                {sub.numPackages 
+                                    ? `${sub.numPackages} pkgs × ${sub.sizePerPackage}${sub.unit}` 
+                                    : `${sub.quantity} ${sub.unit}`}
+                                {sub.pricePerUnit ? `  •  ₹${sub.pricePerUnit}/${sub.unit}` : ''}
+                            </Text>
+                        </View>
+                        <Text style={styles.itemTotal}>
                             ₹{(sub.pricePerUnit ? sub.pricePerUnit * sub.quantity : 0).toLocaleString()}
                         </Text>
                     </View>
                 ))}
             </View>
 
+            <View style={styles.billDivider} />
+
             <View style={styles.billFooter}>
                 <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Bill Principal</Text>
+                    <Text style={styles.totalLabel}>Subtotal</Text>
                     <Text style={styles.totalValue}>₹{item.principal.toLocaleString()}</Text>
                 </View>
 
-                {item.paymentMode === 'Credit' && (
-                    <>
-                        <View style={[styles.totalRow, { marginTop: 8 }]}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Ionicons name="trending-up" size={12} color="#d97706" style={{ marginRight: 4 }} />
-                                <Text style={styles.interestNote}>
-                                    Accrued Interest
-                                </Text>
-                            </View>
-                            <Text style={[styles.totalValue, { color: '#d97706', fontSize: 16 }]}>
-                                + ₹{item.accumulatedInterest.toFixed(0)}
-                            </Text>
+                {item.paymentMode === 'Credit' && item.accumulatedInterest > 0 && (
+                    <View style={[styles.totalRow, { marginTop: 8 }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="trending-up" size={12} color="#d97706" style={{ marginRight: 4 }} />
+                            <Text style={styles.interestNote}>Interest Accrued</Text>
                         </View>
-                    </>
+                        <Text style={[styles.totalValue, { color: '#d97706' }]}>
+                            + ₹{item.accumulatedInterest.toFixed(0)}
+                        </Text>
+                    </View>
                 )}
+
+                <View style={[styles.totalRow, { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#f1f5f9', borderStyle: 'dashed' }]}>
+                    <Text style={[styles.totalLabel, { color: Palette.text, fontFamily: 'Outfit-Bold' }]}>Total Amount</Text>
+                    <Text style={[styles.totalValue, { fontSize: 20, color: Palette.primary }]}>
+                        ₹{(item.principal + (item.accumulatedInterest || 0)).toLocaleString()}
+                    </Text>
+                </View>
 
                 {item.note && (
                     <View style={styles.noteBox}>
@@ -635,30 +639,40 @@ const styles = StyleSheet.create({
         color: '#d97706',
     },
     billTable: {
-        marginBottom: 15,
+        marginVertical: 10,
     },
-    tableHeader: {
+    itemRow: {
         flexDirection: 'row',
-        paddingBottom: 8,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f8fafc',
-    },
-    tableHeaderText: {
-        fontSize: 10,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.textSecondary,
-        textTransform: 'uppercase',
-    },
-    tableRow: {
-        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingVertical: 12,
         borderBottomWidth: 1,
         borderBottomColor: '#f8fafc',
     },
-    rowText: {
-        fontSize: 14,
-        fontFamily: 'Outfit',
+    itemInfo: {
+        flex: 1,
+        marginRight: 10,
+    },
+    itemName: {
+        fontSize: 15,
+        fontFamily: 'Outfit-Bold',
         color: Palette.text,
+        marginBottom: 2,
+    },
+    itemDetail: {
+        fontSize: 12,
+        fontFamily: 'Outfit-Medium',
+        color: Palette.textSecondary,
+    },
+    itemTotal: {
+        fontSize: 15,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.text,
+    },
+    billDivider: {
+        height: 1,
+        backgroundColor: '#f1f5f9',
+        marginVertical: 10,
     },
     billFooter: {
         borderTopWidth: 1,

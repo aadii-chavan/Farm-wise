@@ -120,8 +120,11 @@ export default function LaborBookScreen() {
                                                 <Ionicons name="wallet-outline" size={12} color="#64748B" />
                                                 <Text style={styles.profileMetaText}>₹{worker.baseWage}/day</Text>
                                             </View>
-                                            {worker.notes && (
-                                                <Text style={styles.workerNote} numberOfLines={1}>{worker.notes}</Text>
+                                            {worker.phone && (
+                                                <View style={styles.phoneRow}>
+                                                    <Ionicons name="call-outline" size={10} color="#94A3B8" />
+                                                    <Text style={styles.phoneText}>{worker.phone}</Text>
+                                                </View>
                                             )}
                                         </View>
                                         <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
@@ -166,8 +169,11 @@ export default function LaborBookScreen() {
                                                 <Ionicons name="cash-outline" size={12} color="#64748B" />
                                                 <Text style={styles.profileMetaText}>₹{(worker.baseWage || 0).toLocaleString()} Annual</Text>
                                             </View>
-                                            {worker.notes && (
-                                                <Text style={styles.workerNote} numberOfLines={1}>{worker.notes}</Text>
+                                            {worker.phone && (
+                                                <View style={styles.phoneRow}>
+                                                    <Ionicons name="call-outline" size={10} color="#94A3B8" />
+                                                    <Text style={styles.phoneText}>{worker.phone}</Text>
+                                                </View>
                                             )}
                                         </View>
                                         <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
@@ -221,8 +227,11 @@ export default function LaborBookScreen() {
                                             <View style={styles.contractorInfo}>
                                                 <Text style={styles.contractorName}>{worker.name}</Text>
                                                 <Text style={styles.contractorSub}>Contractor</Text>
-                                                {worker.notes && (
-                                                    <Text style={[styles.workerNote, { marginTop: 4 }]} numberOfLines={1}>{worker.notes}</Text>
+                                                {worker.phone && (
+                                                    <View style={styles.phoneRow}>
+                                                        <Ionicons name="call-outline" size={10} color="#94A3B8" />
+                                                        <Text style={styles.phoneText}>{worker.phone}</Text>
+                                                    </View>
                                                 )}
                                             </View>
                                             <Ionicons name="arrow-forward-circle-outline" size={24} color={Palette.primary} />
@@ -619,11 +628,16 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit-Medium',
         color: '#94A3B8',
     },
-    workerNote: {
+    phoneRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 2,
+    },
+    phoneText: {
         fontSize: 11,
         fontFamily: 'Outfit-Medium',
         color: '#94A3B8',
-        marginTop: 2,
     },
     ghostAddBtn: {
         flexDirection: 'row',
