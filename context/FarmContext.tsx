@@ -45,7 +45,7 @@ interface FarmContextType {
   refreshTasks: () => Promise<void>;
   
   // Custom Entities
-  addCustomEntity: (type: 'category' | 'shop' | 'general_category' | 'workbook_category', name: string) => Promise<void>;
+  addCustomEntity: (type: 'category' | 'shop' | 'general_category' | 'workbook_category' | 'workbook_column', name: string) => Promise<void>;
 
   toggleTaskCompletion: (taskId: string, date: string) => Promise<void>;
 
@@ -215,7 +215,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'workbook_category', name: string) => {
+  const addCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'workbook_category' | 'workbook_column', name: string) => {
     await Storage.saveCustomEntity(type, name);
     await loadData();
   };

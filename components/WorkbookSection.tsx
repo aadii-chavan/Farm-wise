@@ -135,6 +135,15 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isSavingCategory, setIsSavingCategory] = useState(false);
   
+  const [showAddColumnModal, setShowAddColumnModal] = useState(false);
+  const [newColumnName, setNewColumnName] = useState('');
+  const [isSavingColumn, setIsSavingColumn] = useState(false);
+  const [isSavingRecord, setIsSavingRecord] = useState(false);
+
+  const customColumns = useMemo(() => {
+    return customEntities.filter(c => c.entityType === 'workbook_column').map(c => c.name);
+  }, [customEntities]);
+  
   // Form State
   const [formData, setFormData] = useState<any>({
       date: format(new Date(), 'dd/MM/yy'),
@@ -271,6 +280,9 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
       return;
     }
 
+    if (isSavingRecord) return;
+    setIsSavingRecord(true);
+
     try {
       await saveWorkbookEntry({
         ...(editingEntry?.id ? { id: editingEntry.id } : {}),
@@ -281,6 +293,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
       loadWorkbookData();
     } catch (e) {
       Alert.alert("Error", "Failed to save record");
+    } finally {
+      setIsSavingRecord(false);
     }
   };
 
@@ -318,6 +332,12 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
             `${format(parse(sortedEntries[0].data.date, sortedEntries[0].data.date.includes('-') ? 'yyyy-MM-dd' : 'dd/MM/yy', new Date()), 'dd MMM')} - ${format(parse(sortedEntries[sortedEntries.length-1].data.date, sortedEntries[sortedEntries.length-1].data.date.includes('-') ? 'yyyy-MM-dd' : 'dd/MM/yy', new Date()), 'dd MMM yyyy')}` : 
             'All Time';
 
+        // Calculate dynamic widths to ensure table stays exactly 100% wide
+        const descWidth = Math.max(15, 35 - (customColumns.length * 6));
+        const noteWidth = Math.max(10, 22 - (customColumns.length * 4));
+        const remainingWidth = 57 - descWidth - noteWidth;
+        const customColWidth = customColumns.length > 0 ? (remainingWidth / customColumns.length) : 0;
+
         const tableRows = sortedEntries.map((entry, index) => {
             const dynamicRain = getRainForDate(entry.data.date);
             const displayRain = dynamicRain || entry.data.rain;
@@ -330,6 +350,11 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                 <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155; line-height: 1.5;">${entry.data.description}</td>
                 <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #2563eb; font-weight: 700; font-size: 13px; white-space: nowrap;">${displayRain ? `${displayRain} mm` : '-'}</td>
                 <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; font-style: italic; line-height: 1.4;">${entry.data.note || '-'}</td>
+                ${customColumns.map(col => `
+                    <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155;">
+                        ${entry.data[col] || '-'}
+                    </td>
+                `).join('')}
             </tr>
         `}).join('');
 
@@ -337,8 +362,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
             <html>
                 <head>
                     <style>
-                        @page { margin: 20mm; }
-                        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }
+                        @page { margin: 20mm; ${customColumns.length > 0 ? 'size: landscape;' : ''} }
+                        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: ${customColumns.length > 0 ? '20px' : '40px'}; color: #1e293b; line-height: 1.6; }
                         .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 4px solid #006d5b; padding-bottom: 25px; margin-bottom: 35px; }
                         .logo-container { flex: 1; }
                         .logo-text { font-size: 38px; font-weight: 900; color: #006d5b; letter-spacing: -1.5px; margin: 0; }
@@ -353,7 +378,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                         .stat-value { font-size: 24px; font-weight: 900; color: #006d5b; }
                         
                         .table-container { border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-                        table { width: 100%; border-collapse: collapse; background: white; page-break-inside: auto; }
+                        table { width: 100%; border-collapse: collapse; background: white; page-break-inside: auto; table-layout: fixed; }
                         tr { page-break-inside: avoid; page-break-after: auto; }
                         th, td { vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
                         th { background-color: #006d5b; color: white; text-align: left; padding: 16px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
@@ -411,9 +436,10 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                                     <th style="width: 10%; white-space: nowrap;">Date</th>
                                     <th style="text-align: center; width: 8%; white-space: nowrap;">Day</th>
                                     <th style="width: 12%; white-space: nowrap;">Category</th>
-                                    <th style="width: 35%;">Description</th>
+                                    <th style="width: ${descWidth}%;">Description</th>
                                     <th style="text-align: center; width: 8%; white-space: nowrap;">Rain</th>
-                                    <th style="width: 22%;">Note</th>
+                                    <th style="width: ${noteWidth}%;">Note</th>
+                                    ${customColumns.map(c => `<th style="width: ${customColWidth}%;">${c}</th>`).join('')}
                                 </tr>
                             </thead>
                             <tbody>
@@ -510,8 +536,16 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
             <View style={[styles.headerCell, { width: 130 }]}>
               <Text style={styles.headerText}>Note</Text>
             </View>
-            <View style={[styles.headerCell, { width: 80 }]}>
+            {customColumns.map(col => (
+              <View key={col} style={[styles.headerCell, { width: 130 }]}>
+                <Text style={styles.headerText}>{col}</Text>
+              </View>
+            ))}
+            <View style={[styles.headerCell, { width: 100, flexDirection: 'row', alignItems: 'center' }]}>
                 <Text style={styles.headerText}>Actions</Text>
+                <TouchableOpacity onPress={() => setShowAddColumnModal(true)} style={{ marginLeft: 6 }}>
+                    <Ionicons name="add-circle" size={18} color={Palette.primary} />
+                </TouchableOpacity>
             </View>
           </View>
 
@@ -567,7 +601,12 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                   <View style={[styles.cell, { width: 130 }]}>
                     <Text style={styles.noteText} numberOfLines={2}>{entry.data.note || '-'}</Text>
                   </View>
-                  <View style={[styles.cell, { width: 80, flexDirection: 'row', gap: 12 }]}>
+                  {customColumns.map(col => (
+                      <View key={col} style={[styles.cell, { width: 130 }]}>
+                        <Text style={styles.descText} numberOfLines={2}>{entry.data[col] || '-'}</Text>
+                      </View>
+                  ))}
+                  <View style={[styles.cell, { width: 100, flexDirection: 'row', gap: 12 }]}>
                     <TouchableOpacity onPress={() => openEntryModal(entry)}>
                         <Ionicons name="pencil" size={16} color={Palette.primary} />
                     </TouchableOpacity>
@@ -680,17 +719,86 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                                 multiline
                             />
                         </View>
+
+                        {customColumns.map(col => (
+                            <View key={col} style={styles.formGroup}>
+                                <Text style={styles.label}>{col}</Text>
+                                <TextInput 
+                                    style={styles.input}
+                                    value={formData[col] || ''}
+                                    onChangeText={(val) => setFormData({...formData, [col]: val})}
+                                    placeholder={`Enter ${col}...`}
+                                />
+                            </View>
+                        ))}
                     </ScrollView>
 
                     <View style={styles.modalFooter}>
-                        <TouchableOpacity style={styles.saveButton} onPress={handleSaveEntry}>
-                            <Ionicons name="checkmark-circle" size={20} color="white" style={{ marginRight: 8 }} />
-                            <Text style={styles.saveButtonText}>Save Record</Text>
+                        <TouchableOpacity 
+                            style={[styles.saveButton, isSavingRecord && { opacity: 0.7 }]} 
+                            onPress={handleSaveEntry}
+                            disabled={isSavingRecord}
+                        >
+                            {isSavingRecord ? (
+                                <ActivityIndicator size="small" color="white" />
+                            ) : (
+                                <>
+                                    <Ionicons name="checkmark-circle" size={20} color="white" style={{ marginRight: 8 }} />
+                                    <Text style={styles.saveButtonText}>Save Record</Text>
+                                </>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </View>
             </KeyboardAvoidingView>
         </View>
+      </Modal>
+
+      {/* Add Column Modal */}
+      <Modal visible={showAddColumnModal} transparent animationType="fade">
+        <Pressable style={styles.pickerOverlay} onPress={() => { setShowAddColumnModal(false); setNewColumnName(''); }}>
+            <View style={[styles.pickerContainer, { padding: 20 }]}>
+                <View style={styles.pickerHeader}>
+                    <Text style={styles.pickerTitle}>Add Custom Column</Text>
+                </View>
+                <Text style={{ fontSize: 13, color: Palette.textSecondary, marginBottom: 15, fontFamily: 'Outfit' }}>
+                    Create a new column that will appear in your workbook table. You can store any text, number, or note in it.
+                </Text>
+                <TextInput 
+                    style={styles.input} 
+                    value={newColumnName} 
+                    onChangeText={setNewColumnName} 
+                    placeholder="Column Name (e.g., Temperature, Batch No)" 
+                    autoFocus
+                />
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20, gap: 15, alignItems: 'center' }}>
+                    <TouchableOpacity onPress={() => { setShowAddColumnModal(false); setNewColumnName(''); }}>
+                        <Text style={{ color: Palette.textSecondary, fontFamily: 'Outfit-Medium', fontSize: 15 }}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={{ backgroundColor: Palette.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, opacity: isSavingColumn ? 0.7 : 1 }}
+                        disabled={isSavingColumn}
+                        onPress={async () => {
+                            if(newColumnName.trim() && !isSavingColumn){
+                                setIsSavingColumn(true);
+                                try {
+                                    await addCustomEntity('workbook_column', newColumnName.trim());
+                                    setShowAddColumnModal(false);
+                                    setNewColumnName('');
+                                } finally {
+                                    setIsSavingColumn(false);
+                                }
+                            }
+                    }}>
+                        {isSavingColumn ? (
+                            <ActivityIndicator size="small" color="white" />
+                        ) : (
+                            <Text style={{ color: 'white', fontFamily: 'Outfit-Bold', fontSize: 14 }}>Save</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Pressable>
       </Modal>
 
       {/* Category Picker Modal */}

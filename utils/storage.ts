@@ -432,7 +432,7 @@ export const getCustomEntities = async (): Promise<any[]> => {
     }
 };
 
-export const saveCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'workbook_category', name: string): Promise<void> => {
+export const saveCustomEntity = async (type: 'category' | 'shop' | 'general_category' | 'workbook_category' | 'workbook_column', name: string): Promise<void> => {
     try {
         const userId = await getUserId();
         if (!userId || !name.trim()) return;

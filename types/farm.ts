@@ -69,7 +69,7 @@ export interface Task {
 
 export interface CustomEntity {
   id: string;
-  entityType: 'category' | 'shop' | 'general_category' | 'recurrence' | 'workbook_category';
+  entityType: 'category' | 'shop' | 'general_category' | 'recurrence' | 'workbook_category' | 'workbook_column';
   name: string;
 }
 
