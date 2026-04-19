@@ -35,18 +35,14 @@ interface WorkbookSectionProps {
 }
 
 // Categories for the new inbuilt table
-const WORKBOOK_CATEGORIES = ['Sowing', 'Fertilizer', 'Pesticide', 'Irrigation', 'Harvesting', 'Pruning', 'Plantation', 'Weeding', 'Tillage', 'Other'];
+const WORKBOOK_CATEGORIES = ['Foundational Pruning', 'Fruit Pruning', 'Sowing', 'Harvesting', 'Weeding'];
 
 const CATEGORY_STYLES: Record<string, { color: string, icon: string }> = {
+  'Foundational Pruning': { color: '#795548', icon: 'content-cut' },
+  'Fruit Pruning': { color: '#8D6E63', icon: 'content-cut' },
   'Sowing': { color: '#4CAF50', icon: 'seed-outline' },
-  'Fertilizer': { color: '#FF9800', icon: 'flask-outline' },
-  'Pesticide': { color: '#F44336', icon: 'bug-outline' },
-  'Irrigation': { color: '#2196F3', icon: 'water-outline' },
   'Harvesting': { color: '#9C27B0', icon: 'food-apple-outline' },
-  'Pruning': { color: '#795548', icon: 'content-cut' },
-  'Plantation': { color: '#009688', icon: 'tree-outline' },
   'Weeding': { color: '#E91E63', icon: 'grass' },
-  'Tillage': { color: '#607D8B', icon: 'shovel' },
   'Other': { color: '#9E9E9E', icon: 'dots-horizontal' }
 };
 
@@ -119,7 +115,9 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     getWorkbookEntries, 
     saveWorkbookEntry, 
     deleteWorkbookEntry,
-    rainRecords
+    rainRecords,
+    customEntities,
+    addCustomEntity
   } = useFarm();
   const { user } = useAuth();
   
@@ -132,6 +130,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   const [editingEntry, setEditingEntry] = useState<any | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   
   // Form State
   const [formData, setFormData] = useState<any>({
@@ -142,6 +142,11 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
       rain: '',
       note: ''
   });
+
+  const allCategories = useMemo(() => {
+      const customCats = customEntities.filter(c => c.entityType === 'workbook_category').map(c => c.name);
+      return [...WORKBOOK_CATEGORIES, ...customCats];
+  }, [customEntities]);
 
   // Calculate Reference Point (Earliest Entry)
   const referencePoint = useMemo(() => {
@@ -287,6 +292,18 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
     ]);
   };
 
+  const getRainForDate = (dateStr: string) => {
+      if (!dateStr) return null;
+      try {
+          const parsed = dateStr.includes('-') ? parse(dateStr, 'yyyy-MM-dd', new Date()) : parse(dateStr, 'dd/MM/yy', new Date());
+          const targetDate = format(parsed, 'yyyy-MM-dd');
+          const rain = rainRecords.find(r => r.date === targetDate);
+          return rain ? rain.amount.toString() : null;
+      } catch (e) {
+          return null;
+      }
+  };
+
   const handleDownloadPDF = async () => {
     try {
         const userName = user?.user_metadata?.full_name || user?.email || 'Farmer';
@@ -298,22 +315,26 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
             `${format(parse(sortedEntries[0].data.date, sortedEntries[0].data.date.includes('-') ? 'yyyy-MM-dd' : 'dd/MM/yy', new Date()), 'dd MMM')} - ${format(parse(sortedEntries[sortedEntries.length-1].data.date, sortedEntries[sortedEntries.length-1].data.date.includes('-') ? 'yyyy-MM-dd' : 'dd/MM/yy', new Date()), 'dd MMM yyyy')}` : 
             'All Time';
 
-        const tableRows = sortedEntries.map((entry, index) => `
+        const tableRows = sortedEntries.map((entry, index) => {
+            const dynamicRain = getRainForDate(entry.data.date);
+            const displayRain = dynamicRain || entry.data.rain;
+            return `
             <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 13px; color: #64748b;">${index + 1}</td>
-                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600;">${entry.data.date && entry.data.date.includes('-') ? format(parse(entry.data.date, 'yyyy-MM-dd', new Date()), 'dd MMM yy') : entry.data.date}</td>
-                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 13px; color: #1e293b; font-weight: 700;">Day ${entry.data.daysPast}</td>
-                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 800; color: ${CATEGORY_STYLES[entry.data.category]?.color || '#1e293b'}; font-size: 13px;">${entry.data.category}</td>
-                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #334155; line-height: 1.4;">${entry.data.description}</td>
-                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #2563eb; font-weight: 700; font-size: 13px;">${entry.data.rain ? `${entry.data.rain} mm` : '-'}</td>
-                <td style="padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 11px; color: #64748b; font-style: italic;">${entry.data.note || '-'}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 13px; color: #64748b; white-space: nowrap;">${index + 1}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; white-space: nowrap;">${entry.data.date && entry.data.date.includes('-') ? format(parse(entry.data.date, 'yyyy-MM-dd', new Date()), 'dd MMM yy') : entry.data.date}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 13px; color: #1e293b; font-weight: 700; white-space: nowrap;">Day ${entry.data.daysPast}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 800; color: ${CATEGORY_STYLES[entry.data.category]?.color || '#1e293b'}; font-size: 13px; white-space: nowrap;">${entry.data.category}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155; line-height: 1.5;">${entry.data.description}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #2563eb; font-weight: 700; font-size: 13px; white-space: nowrap;">${displayRain ? `${displayRain} mm` : '-'}</td>
+                <td style="padding: 16px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color: #64748b; font-style: italic; line-height: 1.4;">${entry.data.note || '-'}</td>
             </tr>
-        `).join('');
+        `}).join('');
 
         const html = `
             <html>
                 <head>
                     <style>
+                        @page { margin: 20mm; }
                         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.6; }
                         .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 4px solid #006d5b; padding-bottom: 25px; margin-bottom: 35px; }
                         .logo-container { flex: 1; }
@@ -329,7 +350,9 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                         .stat-value { font-size: 24px; font-weight: 900; color: #006d5b; }
                         
                         .table-container { border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-                        table { width: 100%; border-collapse: collapse; background: white; }
+                        table { width: 100%; border-collapse: collapse; background: white; page-break-inside: auto; }
+                        tr { page-break-inside: avoid; page-break-after: auto; }
+                        th, td { vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
                         th { background-color: #006d5b; color: white; text-align: left; padding: 16px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
                         
                         .footer { margin-top: 60px; padding-top: 30px; border-top: 2px solid #f1f5f9; text-align: center; }
@@ -370,13 +393,13 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="text-align: center; width: 40px;">Sr.</th>
-                                    <th style="width: 90px;">Date</th>
-                                    <th style="text-align: center; width: 60px;">Day</th>
-                                    <th style="width: 100px;">Category</th>
-                                    <th>Description</th>
-                                    <th style="text-align: center; width: 70px;">Rain</th>
-                                    <th>Note</th>
+                                    <th style="text-align: center; width: 5%; white-space: nowrap;">Sr.</th>
+                                    <th style="width: 10%; white-space: nowrap;">Date</th>
+                                    <th style="text-align: center; width: 8%; white-space: nowrap;">Day</th>
+                                    <th style="width: 12%; white-space: nowrap;">Category</th>
+                                    <th style="width: 35%;">Description</th>
+                                    <th style="text-align: center; width: 8%; white-space: nowrap;">Rain</th>
+                                    <th style="width: 22%;">Note</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -448,7 +471,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
         <View style={styles.table}>
           {/* Table Header */}
           <View style={styles.tableHeader}>
@@ -479,6 +502,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
           </View>
 
           {/* Table Body */}
+          <ScrollView showsVerticalScrollIndicator={true} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
           {sortedEntries.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="journal-outline" size={48} color="#94a3b830" />
@@ -488,6 +512,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
           ) : (
             sortedEntries.map((entry, index) => {
               const catStyle = CATEGORY_STYLES[entry.data.category] || CATEGORY_STYLES['Other'];
+              const dynamicRain = getRainForDate(entry.data.date);
+              const displayRain = dynamicRain || entry.data.rain;
               return (
                 <Pressable 
                   key={entry.id} 
@@ -520,8 +546,8 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                     <Text style={styles.descText} numberOfLines={2}>{entry.data.description}</Text>
                   </View>
                   <View style={[styles.cell, { width: 70 }]}>
-                    <Text style={[styles.rainValue, !entry.data.rain && { color: '#CBD5E1' }]}>
-                      {entry.data.rain ? `${entry.data.rain}mm` : '-'}
+                    <Text style={[styles.rainValue, !displayRain && { color: '#CBD5E1' }]}>
+                      {displayRain ? `${displayRain}mm` : '-'}
                     </Text>
                   </View>
                   <View style={[styles.cell, { width: 130 }]}>
@@ -539,6 +565,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
               );
             })
           )}
+          </ScrollView>
         </View>
       </ScrollView>
 
@@ -654,25 +681,64 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
 
       {/* Category Picker Modal */}
       <Modal visible={showCategoryPicker} transparent animationType="fade">
-        <Pressable style={styles.pickerOverlay} onPress={() => setShowCategoryPicker(false)}>
+        <Pressable style={styles.pickerOverlay} onPress={() => { setShowCategoryPicker(false); setIsAddingNewCategory(false); setNewCategoryName(''); }}>
             <View style={styles.pickerContainer}>
                 <View style={styles.pickerHeader}>
                     <Text style={styles.pickerTitle}>Select Category</Text>
                 </View>
-                <ScrollView>
-                    {WORKBOOK_CATEGORIES.map(cat => (
-                        <TouchableOpacity 
-                            key={cat} 
-                            style={styles.pickerItem}
-                            onPress={() => {
-                                setFormData({...formData, category: cat});
-                                setShowCategoryPicker(false);
-                            }}
-                        >
-                            <Text style={styles.pickerItemText}>{cat}</Text>
-                            {formData.category === cat && <Ionicons name="checkmark" size={20} color={Palette.primary} />}
-                        </TouchableOpacity>
-                    ))}
+                <ScrollView keyboardShouldPersistTaps="handled">
+                    {isAddingNewCategory ? (
+                        <View style={{ padding: 20 }}>
+                            <TextInput 
+                                style={styles.input} 
+                                value={newCategoryName} 
+                                onChangeText={setNewCategoryName} 
+                                placeholder="Enter custom category" 
+                                autoFocus
+                            />
+                            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 15, gap: 15, alignItems: 'center' }}>
+                                <TouchableOpacity onPress={() => setIsAddingNewCategory(false)}>
+                                    <Text style={{ color: Palette.textSecondary, fontFamily: 'Outfit-Medium', fontSize: 15 }}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    style={{ backgroundColor: Palette.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
+                                    onPress={async () => {
+                                        if(newCategoryName.trim()){
+                                            await addCustomEntity('workbook_category', newCategoryName.trim());
+                                            setFormData({...formData, category: newCategoryName.trim()});
+                                            setIsAddingNewCategory(false);
+                                            setNewCategoryName('');
+                                            setShowCategoryPicker(false);
+                                        }
+                                }}>
+                                    <Text style={{ color: 'white', fontFamily: 'Outfit-Bold', fontSize: 14 }}>Save</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ) : (
+                        <>
+                            {allCategories.map(cat => (
+                                <TouchableOpacity 
+                                    key={cat} 
+                                    style={styles.pickerItem}
+                                    onPress={() => {
+                                        setFormData({...formData, category: cat});
+                                        setShowCategoryPicker(false);
+                                    }}
+                                >
+                                    <Text style={styles.pickerItemText}>{cat}</Text>
+                                    {formData.category === cat && <Ionicons name="checkmark" size={20} color={Palette.primary} />}
+                                </TouchableOpacity>
+                            ))}
+                            <TouchableOpacity 
+                                style={[styles.pickerItem, { borderBottomWidth: 0 }]}
+                                onPress={() => setIsAddingNewCategory(true)}
+                            >
+                                <Ionicons name="add" size={20} color={Palette.primary} style={{ marginRight: 8 }} />
+                                <Text style={[styles.pickerItemText, { color: Palette.primary, flex: 1 }]}>New category</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </ScrollView>
             </View>
         </Pressable>
@@ -693,6 +759,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     padding: 20,
     backgroundColor: 'white',
     borderRadius: 24,
@@ -744,8 +811,9 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   table: {
+    flex: 1,
     backgroundColor: 'white',
-    width: '100%',
+    minWidth: '100%',
   },
   tableHeader: {
     flexDirection: 'row',
