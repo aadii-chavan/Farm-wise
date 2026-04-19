@@ -117,26 +117,24 @@ export default function WorkerDetailScreen() {
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ 
-                headerShown: true, 
-                title: worker.name,
-                headerTitleStyle: { fontFamily: 'Outfit-Bold' },
-                headerRight: () => (
-                    <View style={{ flexDirection: 'row', marginRight: 8, gap: 12 }}>
-                        <TouchableOpacity onPress={() => setIsEditModalVisible(true)}>
-                            <Ionicons name="pencil-outline" size={22} color={Palette.primary} />
+            <Stack.Screen options={{ headerShown: false }} />
+
+            <View style={styles.header}>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="chevron-back" size={24} color={Palette.text} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Staff Profile</Text>
+                    <View style={styles.headerActions}>
+                        <TouchableOpacity onPress={() => setIsEditModalVisible(true)} style={styles.actionBtn}>
+                            <Ionicons name="pencil-outline" size={20} color={Palette.primary} />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={handleDelete}>
-                            <Ionicons name="trash-outline" size={22} color={Palette.danger} />
+                        <TouchableOpacity onPress={handleDelete} style={styles.actionBtn}>
+                            <Ionicons name="trash-outline" size={20} color={Palette.danger} />
                         </TouchableOpacity>
                     </View>
-                ),
-                headerLeft: () => (
-                    <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 8 }}>
-                        <Ionicons name="arrow-back" size={24} color={Palette.text} />
-                    </TouchableOpacity>
-                )
-            }} />
+                </View>
+            </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 {/* Profile Header Card */}
@@ -145,13 +143,11 @@ export default function WorkerDetailScreen() {
                         <Text style={styles.avatarText}>{worker.name.charAt(0)}</Text>
                     </View>
                     <View style={styles.profileInfo}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={styles.workerName}>{worker.name}</Text>
-                        </View>
+                        <Text style={styles.workerName}>{worker.name}</Text>
                         <Text style={styles.workerType}>{worker.type} Staff • Joined {format(parseISO(worker.startDate || new Date().toISOString()), 'MMM d, yyyy')}</Text>
                         {worker.phone && (
                             <TouchableOpacity style={styles.phoneLink}>
-                                <Ionicons name="call" size={14} color={Palette.primary} />
+                                <Ionicons name="call" size={14} color={'#475569'} />
                                 <Text style={styles.phoneText}>{worker.phone}</Text>
                             </TouchableOpacity>
                         )}
@@ -162,42 +158,43 @@ export default function WorkerDetailScreen() {
                             </View>
                         )}
                     </View>
-                    {worker.type !== 'Contract' && (
-                        <TouchableOpacity 
-                            style={styles.payButton}
-                            onPress={() => setIsPayModalVisible(true)}
-                        >
-                            <Ionicons name="card-outline" size={20} color="white" />
-                            <Text style={styles.payButtonText}>+ Pay</Text>
-                        </TouchableOpacity>
-                    )}
                 </View>
 
-                <View style={styles.summaryRow}>
-                    <View style={[styles.summaryBox, { backgroundColor: Palette.primary + '10' }]}>
-                        <Text style={styles.summaryLabel}>{stats.l1}</Text>
-                        <Text style={[styles.summaryValue, { color: Palette.primary }]}>₹{Math.round(stats.v1).toLocaleString()}</Text>
+                {worker.type !== 'Contract' && (
+                    <TouchableOpacity 
+                        style={styles.payButton}
+                        onPress={() => setIsPayModalVisible(true)}
+                    >
+                        <Ionicons name="card-outline" size={20} color="white" />
+                        <Text style={styles.payButtonText}>Record Payment or Advance</Text>
+                    </TouchableOpacity>
+                )}
+
+                <View style={styles.statsGrid}>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabel}>{stats.l1}</Text>
+                        <Text style={styles.statValue}>₹{Math.round(stats.v1).toLocaleString()}</Text>
                     </View>
-                    <View style={[styles.summaryBox, { backgroundColor: Palette.success + '10' }]}>
-                        <Text style={styles.summaryLabel}>{stats.l2}</Text>
-                        <Text style={[styles.summaryValue, { color: Palette.success }]}>₹{Math.round(stats.v2).toLocaleString()}</Text>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabel}>{stats.l2}</Text>
+                        <Text style={[styles.statValue, { color: Palette.success }]}>₹{Math.round(stats.v2).toLocaleString()}</Text>
                     </View>
                 </View>
 
-                <View style={styles.summaryRow}>
-                    <View style={[styles.summaryBox, { backgroundColor: (worker.type === 'Annual' ? Palette.danger : Palette.danger) + '10' }]}>
-                        <Text style={styles.summaryLabel}>{stats.l3}</Text>
-                        <Text style={[styles.summaryValue, { color: Palette.danger }]}>₹{Math.round(stats.v3).toLocaleString()}</Text>
+                <View style={[styles.statsGrid, { marginBottom: 24 }]}>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabel}>{stats.l3}</Text>
+                        <Text style={[styles.statValue, { color: Palette.danger }]}>₹{Math.round(stats.v3).toLocaleString()}</Text>
                     </View>
-                    <View style={[styles.summaryBox, { backgroundColor: '#F59E0B10' }]}>
-                        <Text style={styles.summaryLabel}>{stats.l4}</Text>
-                        <Text style={[styles.summaryValue, { color: '#F59E0B' }]}>₹{Math.round(stats.v4).toLocaleString()}</Text>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabel}>{stats.l4}</Text>
+                        <Text style={[styles.statValue, { color: '#F59E0B' }]}>₹{Math.round(stats.v4).toLocaleString()}</Text>
                     </View>
                 </View>
 
                 {/* History Section */}
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Transaction History</Text>
+                <View style={styles.listHeader}>
+                    <Text style={styles.listTitle}>Transaction History</Text>
                     {worker.type !== 'Contract' && (
                         <TouchableOpacity onPress={() => router.push({ pathname: '/labor-attendance-sheet', params: { type: worker.type } })}>
                             <Text style={styles.attendanceLink}>View Sheet</Text>
@@ -206,30 +203,39 @@ export default function WorkerDetailScreen() {
                 </View>
 
                 {transactions.length === 0 ? (
-                    <View style={styles.emptyBox}>
-                        <Ionicons name="receipt-outline" size={32} color={Palette.textSecondary + '40'} />
-                        <Text style={styles.emptyText}>No transactions yet.</Text>
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
+                        <Text style={styles.emptyText}>No transactions yet</Text>
                     </View>
                 ) : (
-                    transactions.map((t) => (
-                        <View key={t.id} style={styles.transactionCard}>
-                            <View style={styles.transactionHeader}>
-                                <View style={[styles.typeBadge, 
-                                    t.type === 'Advance' ? styles.badgeAdvance : 
-                                    t.type === 'Advance Repayment' ? styles.badgeRepayment : 
-                                    t.type === 'Contract Payment' ? styles.badgeContract : 
-                                    t.type === 'Salary Deduction' ? styles.badgeDeduction : styles.badgeSettle
-                                ]}>
-                                    <Text style={styles.typeText}>{t.type === 'Salary Deduction' ? 'Deduction' : t.type}</Text>
+                    transactions.map((t) => {
+                        const isPayout = ['Weekly Settle', 'Advance', 'Annual Installment', 'Contract Payment', 'Other'].includes(t.type);
+                        
+                        return (
+                            <View key={t.id} style={styles.transactionItem}>
+                                <View style={styles.transactionMain}>
+                                    <View style={[styles.indicator, { backgroundColor: isPayout ? Palette.danger : Palette.success }]} />
+                                    <View style={styles.transactionInfo}>
+                                        <Text style={styles.workerNameText}>{t.type === 'Salary Deduction' ? 'Deduction' : t.type}</Text>
+                                        <View style={styles.typeRow}>
+                                            <Text style={styles.dateLabelText}>{format(parseISO(t.date), 'dd MMM yyyy')}</Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.amountArea}>
+                                        <Text style={[styles.amountText, { color: isPayout ? '#1e293b' : Palette.success }]}>
+                                            {isPayout ? '-' : '+'}₹{t.amount.toLocaleString()}
+                                        </Text>
+                                    </View>
                                 </View>
-                                <Text style={styles.transactionDate}>{format(parseISO(t.date), 'MMM d, yyyy')}</Text>
+                                {t.note && (
+                                    <View style={styles.noteContainer}>
+                                        <Text style={styles.noteLabel}>NOTE:</Text>
+                                        <Text style={styles.noteContent}>{t.note}</Text>
+                                    </View>
+                                )}
                             </View>
-                            <View style={styles.transactionContent}>
-                                <Text style={styles.amountText}>₹{t.amount.toLocaleString()}</Text>
-                                {t.note && <Text style={styles.noteText}>{t.note}</Text>}
-                            </View>
-                        </View>
-                    ))
+                        );
+                    })
                 )}
             </ScrollView>
 
@@ -261,30 +267,65 @@ export default function WorkerDetailScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+    header: {
+        backgroundColor: 'white',
+        paddingTop: 50,
+        paddingBottom: 10,
+    },
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        justifyContent: 'space-between',
+        marginBottom: 10,
+    },
+    backBtn: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+    },
+    headerActions: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    actionBtn: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
     },
     scrollContent: {
-        padding: 20,
+        paddingHorizontal: 20,
         paddingBottom: 40,
+        paddingTop: 10,
     },
     profileCard: {
         flexDirection: 'row',
         backgroundColor: 'white',
-        padding: 24,
+        padding: 20,
         borderRadius: 24,
-        marginBottom: 20,
+        marginBottom: 24,
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 15,
-        elevation: 5,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
     },
     avatar: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: Palette.primary,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: Palette.primary + '15',
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 16,
@@ -292,168 +333,37 @@ const styles = StyleSheet.create({
     avatarText: {
         fontSize: 24,
         fontFamily: 'Outfit-Bold',
-        color: 'white',
+        color: Palette.primary,
     },
     profileInfo: {
         flex: 1,
     },
-    payButton: {
-        backgroundColor: Palette.primary,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        shadowColor: Palette.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    payButtonText: {
-        color: 'white',
-        fontFamily: 'Outfit-Bold',
-        fontSize: 14,
-    },
     workerName: {
-        fontSize: 20,
+        fontSize: 22,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-    },
-    headFeeBadge: {
-        backgroundColor: '#F59E0B20',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-        marginLeft: 10,
-    },
-    headFeeText: {
-        fontSize: 12,
-        fontFamily: 'Outfit-Bold',
-        color: '#F59E0B',
+        color: '#1e293b',
+        marginBottom: 4,
     },
     workerType: {
         fontSize: 13,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-        marginTop: 2,
+        color: '#64748B',
+        fontFamily: 'Outfit-Medium',
     },
     phoneLink: {
         flexDirection: 'row',
         alignItems: 'center',
         marginTop: 8,
-    },
-    phoneText: {
-        color: Palette.primary,
-        fontFamily: 'Outfit-Medium',
-        fontSize: 13,
-        marginLeft: 6,
-    },
-    summaryRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 12,
-    },
-    summaryBox: {
-        flex: 1,
-        marginHorizontal: 6,
-        padding: 16,
-        borderRadius: 20,
-    },
-    summaryLabel: {
-        fontSize: 10,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit-Bold',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    summaryValue: {
-        fontSize: 18,
-        fontFamily: 'Outfit-Bold',
-        marginTop: 4,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 24,
-        marginBottom: 16,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-    },
-    attendanceLink: {
-        color: Palette.primary,
-        fontFamily: 'Outfit-Bold',
-        fontSize: 13,
-    },
-    transactionCard: {
-        backgroundColor: 'white',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-    },
-    transactionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    transactionDate: {
-        fontSize: 12,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-    },
-    transactionContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-    },
-    typeBadge: {
-        paddingVertical: 4,
+        backgroundColor: '#F8FAFC',
+        alignSelf: 'flex-start',
         paddingHorizontal: 10,
+        paddingVertical: 6,
         borderRadius: 8,
     },
-    badgeSettle: { backgroundColor: Palette.success + '15' },
-    badgeAdvance: { backgroundColor: Palette.danger + '15' },
-    badgeRepayment: { backgroundColor: '#F59E0B15' },
-    badgeDeduction: {
-        backgroundColor: Palette.danger + '15',
-    },
-    badgeContract: {
-        backgroundColor: Palette.primary + '15' 
-    },
-    typeText: {
-        fontSize: 10,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.textSecondary,
-    },
-    amountText: {
-        fontSize: 18,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-    },
-    noteText: {
+    phoneText: {
+        color: '#475569',
+        fontFamily: 'Outfit-Medium',
         fontSize: 12,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-        marginTop: 4,
-        fontStyle: 'italic',
-    },
-    emptyBox: {
-        padding: 40,
-        alignItems: 'center',
-    },
-    emptyText: {
-        marginTop: 12,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-        fontSize: 14,
+        marginLeft: 6,
     },
     notesSection: {
         marginTop: 16,
@@ -462,7 +372,7 @@ const styles = StyleSheet.create({
         borderTopColor: '#F1F5F9',
     },
     notesLabel: {
-        fontSize: 9,
+        fontSize: 10,
         fontFamily: 'Outfit-Bold',
         color: '#94A3B8',
         textTransform: 'uppercase',
@@ -474,5 +384,141 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit-Medium',
         color: '#64748B',
         lineHeight: 18,
+    },
+    payButton: {
+        backgroundColor: Palette.primary,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderRadius: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginBottom: 24,
+    },
+    payButtonText: {
+        color: 'white',
+        fontFamily: 'Outfit-Bold',
+        fontSize: 15,
+    },
+    statsGrid: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 12,
+    },
+    statCard: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+        padding: 16,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: 88,
+    },
+    statLabel: {
+        fontSize: 10,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 6,
+    },
+    statValue: {
+        fontSize: 18,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+    },
+    listHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
+    listTitle: {
+        fontSize: 18,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+    },
+    attendanceLink: {
+        color: Palette.primary,
+        fontFamily: 'Outfit-Bold',
+        fontSize: 13,
+    },
+    transactionItem: {
+        backgroundColor: 'white',
+        borderRadius: 20,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    transactionMain: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    indicator: {
+        width: 4,
+        height: 32,
+        borderRadius: 2,
+        marginRight: 16,
+    },
+    transactionInfo: {
+        flex: 1,
+    },
+    workerNameText: {
+        fontSize: 15,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+        marginBottom: 4,
+    },
+    typeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    dateLabelText: {
+        fontSize: 12,
+        fontFamily: 'Outfit-Medium',
+        color: '#94A3B8',
+    },
+    amountArea: {
+        alignItems: 'flex-end',
+    },
+    amountText: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+    },
+    noteContainer: {
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F8FAFC',
+        flexDirection: 'row',
+        gap: 6,
+    },
+    noteLabel: {
+        fontSize: 9,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        marginTop: 2,
+    },
+    noteContent: {
+        flex: 1,
+        fontSize: 12,
+        fontFamily: 'Outfit-Medium',
+        color: '#64748B',
+        lineHeight: 16,
+    },
+    emptyContainer: {
+        paddingVertical: 60,
+        alignItems: 'center',
+    },
+    emptyText: {
+        marginTop: 12,
+        fontSize: 14,
+        fontFamily: 'Outfit-Medium',
+        color: '#94A3B8',
     },
 });
