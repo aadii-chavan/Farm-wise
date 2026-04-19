@@ -132,6 +132,7 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState<any>({
@@ -701,17 +702,27 @@ export const WorkbookSection: React.FC<WorkbookSectionProps> = ({ plotId }) => {
                                     <Text style={{ color: Palette.textSecondary, fontFamily: 'Outfit-Medium', fontSize: 15 }}>Cancel</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity 
-                                    style={{ backgroundColor: Palette.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
+                                    style={{ backgroundColor: Palette.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, opacity: isSavingCategory ? 0.7 : 1 }}
+                                    disabled={isSavingCategory}
                                     onPress={async () => {
-                                        if(newCategoryName.trim()){
-                                            await addCustomEntity('workbook_category', newCategoryName.trim());
-                                            setFormData({...formData, category: newCategoryName.trim()});
-                                            setIsAddingNewCategory(false);
-                                            setNewCategoryName('');
-                                            setShowCategoryPicker(false);
+                                        if(newCategoryName.trim() && !isSavingCategory){
+                                            setIsSavingCategory(true);
+                                            try {
+                                                await addCustomEntity('workbook_category', newCategoryName.trim());
+                                                setFormData({...formData, category: newCategoryName.trim()});
+                                                setIsAddingNewCategory(false);
+                                                setNewCategoryName('');
+                                                setShowCategoryPicker(false);
+                                            } finally {
+                                                setIsSavingCategory(false);
+                                            }
                                         }
                                 }}>
-                                    <Text style={{ color: 'white', fontFamily: 'Outfit-Bold', fontSize: 14 }}>Save</Text>
+                                    {isSavingCategory ? (
+                                        <ActivityIndicator size="small" color="white" />
+                                    ) : (
+                                        <Text style={{ color: 'white', fontFamily: 'Outfit-Bold', fontSize: 14 }}>Save</Text>
+                                    )}
                                 </TouchableOpacity>
                             </View>
                         </View>
