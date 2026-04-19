@@ -226,13 +226,25 @@ export default function SchedulePage() {
 
     const getCategoryColor = (category: string) => {
         switch (category.toLowerCase()) {
-            case 'irrigation': return '#2563EB';
-            case 'fertilizer': return '#059669';
-            case 'pesticide': return '#DC2626';
-            case 'labor': return '#7C3AED';
-            case 'equipment': return '#EA580C';
-            case 'harvest': return '#F59E0B';
-            default: return '#64748B';
+            case 'irrigation': return '#3B82F6';
+            case 'fertilizer': return '#10B981';
+            case 'pesticide': return '#F43F5E';
+            case 'labor': return '#8B5CF6';
+            case 'equipment': return '#F59E0B';
+            case 'harvest': return '#10B981';
+            default: return Palette.primary;
+        }
+    };
+
+    const getCategoryIcon = (category: string) => {
+        switch (category.toLowerCase()) {
+            case 'irrigation': return 'water';
+            case 'fertilizer': return 'leaf';
+            case 'pesticide': return 'bug';
+            case 'labor': return 'people';
+            case 'equipment': return 'construct';
+            case 'harvest': return 'basket';
+            default: return 'list';
         }
     };
 
@@ -312,7 +324,7 @@ export default function SchedulePage() {
                                                         { backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : getCategoryColor(tasksOnDay[0].categories[0] || '') + '15' }
                                                     ]}>
                                                         <Ionicons 
-                                                            name="star-sharp" 
+                                                            name="calendar" 
                                                             size={10} 
                                                             color={isSelected ? 'white' : getCategoryColor(tasksOnDay[0].categories[0] || '')} 
                                                         />
@@ -339,13 +351,23 @@ export default function SchedulePage() {
             <ScrollView style={styles.listContainer} contentContainerStyle={{ padding: 20 }}>
                 {dayTasks.length === 0 ? (
                     <View style={styles.emptyContainer}>
-                        <View style={styles.emptyIconContainer}>
-                             <Ionicons name="calendar-clear-outline" size={48} color="#CBD5E1" />
-                        </View>
-                        <Text style={styles.emptyText}>Rest Day! No tasks scheduled</Text>
-                        <Pressable style={styles.emptyAdd} onPress={() => { resetForm(); setShowModal(true); }}>
-                            <Ionicons name="add" size={18} color={Palette.primary} />
-                            <Text style={styles.emptyAddText}>Plan a Task</Text>
+                        <LinearGradient
+                            colors={[Palette.primary + '10', Palette.primary + '05']}
+                            style={styles.emptyIconContainer}
+                        >
+                             <Ionicons name="checkmark-done-outline" size={44} color={Palette.primary} />
+                        </LinearGradient>
+                        <Text style={styles.emptyHeader}>All Caught Up!</Text>
+                        <Text style={styles.emptySubheader}>No tasks scheduled for this day.</Text>
+                        <Pressable 
+                            style={({ pressed }) => [
+                                styles.emptyAdd,
+                                pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] }
+                            ]} 
+                            onPress={() => { resetForm(); setShowModal(true); }}
+                        >
+                            <Ionicons name="add-circle" size={20} color="white" />
+                            <Text style={styles.emptyAddText}>Create a Task</Text>
                         </Pressable>
                     </View>
                 ) : (
@@ -358,70 +380,66 @@ export default function SchedulePage() {
                             ]}
                             onPress={() => { resetForm(task); setShowModal(true); }}
                         >
-                            {/* Vertical Status Bar */}
-                            <View style={[styles.statusBar, { backgroundColor: getCategoryColor(task.categories[0] || '') }]} />
-
-                            <View style={styles.taskContent}>
-                                <View style={styles.taskHeader}>
-                                    <View style={styles.timeLabelContainer}>
-                                        <Ionicons name="time" size={12} color={Palette.primary} />
-                                        <Text style={styles.timeLabelText}>{task.time}</Text>
+                            <View style={styles.taskMainContent}>
+                                <View style={styles.taskHeaderRow}>
+                                    <View style={[styles.categoryIconContainer, { backgroundColor: getCategoryColor(task.categories[0] || '') + '15' }]}>
+                                        <Ionicons 
+                                            name={getCategoryIcon(task.categories[0] || '') as any} 
+                                            size={18} 
+                                            color={getCategoryColor(task.categories[0] || '')} 
+                                        />
                                     </View>
-                                    <View style={styles.taskActionsHeader}>
-                                         <Pressable 
-                                            style={styles.actionIconBtn}
-                                            onPress={() => handleDelete(task.id)}
-                                        >
-                                            <Ionicons name="trash-outline" size={16} color="#94A3B8" />
-                                        </Pressable>
+                                    <View style={styles.taskTimeContainer}>
+                                        <Text style={styles.taskTimeText}>{task.time}</Text>
+                                        {task.isOverdue && !task.isCompletedInstance && (
+                                            <View style={styles.overdueBadge}>
+                                                <Text style={styles.overdueText}>Missed</Text>
+                                            </View>
+                                        )}
                                     </View>
-                                </View>
-
-                                <View style={styles.titleRow}>
-                                    <Text style={[styles.taskTitle, task.isCompletedInstance && styles.taskTitleCompleted]} numberOfLines={2}>
-                                        {task.title}
-                                    </Text>
-                                    {task.isOverdue && !task.isCompletedInstance && (
-                                        <View style={styles.overdueBadge}>
-                                            <Text style={styles.overdueText}>MISSED</Text>
+                                    {task.syncToWorkbook && (
+                                        <View style={styles.syncIndicator}>
+                                            <Ionicons name="sync-circle" size={16} color={Palette.primary} />
                                         </View>
                                     )}
                                 </View>
 
-                                <View style={styles.taskMetaFooter}>
+                                <Text style={[styles.taskTitle, task.isCompletedInstance && styles.taskTitleCompleted]} numberOfLines={1}>
+                                    {task.title}
+                                </Text>
+
+                                <View style={styles.taskFooterRow}>
                                     <View style={styles.footerLeft}>
-                                        <View style={styles.plotPill}>
-                                            <Ionicons name="location" size={10} color="#64748B" />
-                                            <Text style={styles.plotText}>{task.plot || 'General'}</Text>
+                                        <View style={styles.locationContainer}>
+                                            <Ionicons name="location-outline" size={12} color="#94A3B8" />
+                                            <Text style={styles.footerLabel}>{task.plot || 'General Plot'}</Text>
                                         </View>
-                                        {task.recurrence !== 'None' && (
-                                            <View style={[styles.plotPill, { backgroundColor: Palette.primary + '10' }]}>
-                                                <Ionicons name="repeat" size={10} color={Palette.primary} />
-                                                <Text style={[styles.plotText, { color: Palette.primary }]}>{task.recurrence}</Text>
+                                        {task.assignedTo ? (
+                                            <View style={styles.staffContainer}>
+                                                <Ionicons name="person-outline" size={12} color="#94A3B8" />
+                                                <Text style={styles.footerLabel}>{task.assignedTo}</Text>
                                             </View>
-                                        )}
+                                        ) : null}
                                     </View>
                                     
-                                    <View style={styles.footerRight}>
-                                         <View style={styles.badgeList}>
-                                            {task.categories.slice(0, 2).map((cat: string) => (
-                                                <View key={cat} style={[styles.miniBadge, { backgroundColor: getCategoryColor(cat) + '15' }]}>
-                                                    <Text style={[styles.miniBadgeText, { color: getCategoryColor(cat) }]}>{cat}</Text>
-                                                </View>
-                                            ))}
-                                        </View>
+                                    <View style={styles.badgeContainer}>
+                                        {task.categories.slice(0, 1).map((cat: string) => (
+                                            <View key={cat} style={[styles.compactBadge, { backgroundColor: getCategoryColor(cat) + '10' }]}>
+                                                <Text style={[styles.compactBadgeText, { color: getCategoryColor(cat) }]}>{cat}</Text>
+                                            </View>
+                                        ))}
                                     </View>
                                 </View>
                             </View>
 
                             <Pressable 
-                                style={[styles.completionCircle, task.isCompletedInstance && styles.completionCircleChecked]}
+                                style={[styles.checkButton, task.isCompletedInstance && styles.checkButtonActive]}
                                 onPress={() => toggleComplete(task)}
                             >
                                 <Ionicons 
                                     name={task.isCompletedInstance ? "checkmark-circle" : "ellipse-outline"} 
                                     size={28} 
-                                    color={task.isCompletedInstance ? Palette.success : '#CBD5E1'} 
+                                    color={task.isCompletedInstance ? Palette.success : '#E2E8F0'} 
                                 />
                             </Pressable>
                         </Pressable>
@@ -639,55 +657,178 @@ const styles = StyleSheet.create({
     starBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 6 },
     moreTasksLabel: { fontSize: 8, fontFamily: 'Outfit-Bold' },
     listContainer: { flex: 1 },
-    emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100, paddingBottom: 120 },
-    emptyIconContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-    emptyText: { fontSize: 16, fontFamily: 'Outfit-Medium', color: '#64748B' },
-    emptyAdd: { marginTop: 24, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 12, backgroundColor: Palette.primary + '15', borderRadius: 24, gap: 8 },
-    emptyAddText: { color: Palette.primary, fontFamily: 'Outfit-Bold', fontSize: 15 },
-    taskCard: { flexDirection: 'row', backgroundColor: 'white', borderRadius: 24, marginBottom: 16, alignItems: 'stretch', shadowColor: '#0F172A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4, overflow: 'hidden' },
-    taskCardCompleted: { opacity: 0.6 },
-    statusBar: { width: 6 },
-    taskContent: { flex: 1, padding: 16, paddingLeft: 12 },
-    taskHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-    timeLabelContainer: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-    timeLabelText: { fontSize: 11, fontFamily: 'Outfit-Bold', color: '#475569' },
-    taskActionsHeader: { flexDirection: 'row', gap: 8 },
-    actionIconBtn: { padding: 4 },
-    taskTitle: {
-        fontSize: 16,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+    emptyContainer: { 
+        flex: 1, 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        marginTop: 60, 
+        paddingHorizontal: 40 
     },
-    titleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    emptyIconContainer: { 
+        width: 100, 
+        height: 100, 
+        borderRadius: 50, 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        marginBottom: 24,
+    },
+    emptyHeader: { 
+        fontSize: 20, 
+        fontFamily: 'Outfit-Bold', 
+        color: '#1E293B',
+        marginBottom: 8,
+    },
+    emptySubheader: { 
+        fontSize: 14, 
+        fontFamily: 'Outfit-Medium', 
+        color: '#64748B',
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    emptyAdd: { 
+        marginTop: 32, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        paddingHorizontal: 28, 
+        paddingVertical: 14, 
+        backgroundColor: Palette.primary, 
+        borderRadius: 16, 
+        gap: 8,
+        shadowColor: Palette.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    emptyAddText: { 
+        color: 'white', 
+        fontFamily: 'Outfit-Bold', 
+        fontSize: 15 
+    },
+    taskCard: { 
+        flexDirection: 'row', 
+        backgroundColor: 'white', 
+        borderRadius: 20, 
+        marginBottom: 16, 
+        alignItems: 'center', 
+        shadowColor: '#000', 
+        shadowOffset: { width: 0, height: 4 }, 
+        shadowOpacity: 0.03, 
+        shadowRadius: 12, 
+        elevation: 2, 
+        borderWidth: 1, 
+        borderColor: '#F1F5F9' 
+    },
+    taskCardCompleted: { 
+        backgroundColor: '#F8FAFC',
+        borderColor: '#E2E8F0',
+        opacity: 0.8,
+    },
+    taskMainContent: { 
+        flex: 1, 
+        padding: 16,
+    },
+    taskHeaderRow: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
         marginBottom: 12,
+        gap: 12,
+    },
+    categoryIconContainer: { 
+        width: 36, 
+        height: 36, 
+        borderRadius: 12, 
+        alignItems: 'center', 
+        justifyContent: 'center',
+    },
+    taskTimeContainer: { 
+        flex: 1, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
         gap: 8,
     },
+    taskTimeText: { 
+        fontSize: 14, 
+        fontFamily: 'Outfit-Bold', 
+        color: '#1E293B',
+    },
+    syncIndicator: {
+        width: 24,
+        height: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    taskTitle: {
+        fontSize: 17,
+        fontFamily: 'Outfit-SemiBold',
+        color: '#0F172A',
+        marginBottom: 12,
+    },
+    taskTitleCompleted: { 
+        textDecorationLine: 'line-through', 
+        color: '#94A3B8',
+    },
+    taskFooterRow: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+    },
+    footerLeft: { 
+        flexDirection: 'row', 
+        gap: 12,
+    },
+    locationContainer: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        gap: 4,
+    },
+    staffContainer: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        gap: 4,
+    },
+    footerLabel: { 
+        fontSize: 12, 
+        fontFamily: 'Outfit-Medium', 
+        color: '#64748B',
+    },
+    badgeContainer: { 
+        flexDirection: 'row', 
+        gap: 6,
+    },
+    compactBadge: { 
+        paddingHorizontal: 8, 
+        paddingVertical: 4, 
+        borderRadius: 8,
+    },
+    compactBadgeText: { 
+        fontSize: 10, 
+        fontFamily: 'Outfit-Bold', 
+        textTransform: 'uppercase',
+    },
+    checkButton: { 
+        paddingHorizontal: 16, 
+        height: '100%',
+        justifyContent: 'center', 
+        borderLeftWidth: 1, 
+        borderLeftColor: '#F1F5F9',
+    },
+    checkButtonActive: { 
+        backgroundColor: '#F0FDF410',
+    },
     overdueBadge: {
-        backgroundColor: '#FEF2F2',
-        paddingHorizontal: 6,
+        backgroundColor: '#FFF1F2',
+        paddingHorizontal: 8,
         paddingVertical: 2,
-        borderRadius: 4,
-        borderWidth: 0.5,
-        borderColor: '#EF4444',
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: '#FDA4AF',
     },
     overdueText: {
         fontSize: 10,
         fontFamily: 'Outfit-Bold',
-        color: '#EF4444',
+        color: '#E11D48',
     },
-    taskTitleCompleted: { textDecorationLine: 'line-through', color: '#94A3B8' },
-    taskMetaFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-    footerLeft: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-    footerRight: { alignItems: 'flex-end' },
-    plotPill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F8FAFC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' },
-    plotText: { fontSize: 11, fontFamily: 'Outfit-Medium', color: '#64748B' },
-    badgeList: { flexDirection: 'row', gap: 4 },
-    miniBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-    miniBadgeText: { fontSize: 10, fontFamily: 'Outfit-Bold', textTransform: 'uppercase' },
-    completionCircle: { paddingHorizontal: 16, justifyContent: 'center', borderLeftWidth: 1, borderLeftColor: '#F1F5F9' },
-    completionCircleChecked: { backgroundColor: '#F0FDF4' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.5)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: 'white', borderTopLeftRadius: 32, borderTopRightRadius: 32, maxHeight: '90%', padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
