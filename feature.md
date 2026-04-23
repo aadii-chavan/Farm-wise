@@ -1,116 +1,123 @@
 # FarmEzy Technical Feature Specification
 
-A comprehensive technical reference of the FarmEzy application architecture, features, and business logic. This document serves as a mapping for LLM-based architectural insights and requirement analysis.
+[![Document Status](https://img.shields.io/badge/Status-Mapping%20Complete-success?style=for-the-badge)](https://github.com/aadii-chavan/Farm-wise)
+[![Format](https://img.shields.io/badge/Format-LLM%20Optimized-3178C6?style=for-the-badge)](https://github.com/aadii-chavan/Farm-wise)
+[![Target](https://img.shields.io/badge/Target-Architecture%20Analysis-orange?style=for-the-badge)](https://github.com/aadii-chavan/Farm-wise)
+
+A comprehensive technical reference of the FarmEzy application architecture, feature logic, and business rules. This document is specifically engineered to provide an LLM with the necessary context for high-level architectural insights and requirement analysis.
+
+---
+
+## Table of Contents
+- [1. Application Overview](#1-application-overview)
+- [2. Module Specifications](#2-module-specifications)
+  - [2.1 Dashboard & Financial Analytics](#21-dashboard--financial-analytics)
+  - [2.2 Plot Management & Field Workbooks](#22-plot-management--field-workbooks)
+  - [2.3 Labor Management & Attendance](#23-labor-management--attendance)
+  - [2.4 Inventory & Supply Chain Logic](#24-inventory--supply-chain-logic)
+  - [2.5 Task Scheduler & Sync Engine](#25-task-scheduler--sync-engine)
+  - [2.6 Rain Meter Module](#26-rain-meter-module)
+- [3. Key Business Logic & Algorithms](#3-key-business-logic--algorithms)
+  - [3.1 Financial Interest & Delta Engine](#31-financial-interest--delta-engine)
+  - [3.2 Inventory Deduction Logic](#32-inventory-deduction-logic)
+  - [3.3 Workbook Reference Logic](#33-workbook-reference-logic)
+- [4. UI/UX Architecture](#4-uiux-architecture)
+- [5. Technical Data Schema](#5-technical-data-schema)
 
 ---
 
 ## 1. Application Overview
 FarmEzy is a professional-grade agricultural management platform designed for modern farmers to track financials, labor, inventory, and field activities. It prioritizes data-driven decision-making through complex financial calculations and integrated module tracking.
 
-### Core Tech Stack
-- **Frontend**: React Native (Expo SDK 54) with TypeScript.
-- **Navigation**: Expo Router (File-based routing).
-- **Backend/Database**: Supabase (PostgreSQL) for real-time persistence.
-- **Styling**: Custom Design System using `Themed.tsx` and `Palette.ts`.
-- **Reporting**: `expo-print` and `expo-sharing` for dynamic PDF generation.
-
 ---
 
 ## 2. Module Specifications
 
-### 2.1 Dashboard (Main Hub)
-The dashboard provides a high-level financial summary of the farm's performance across different time horizons.
-- **Financial Calculation Engine**:
-    - **Today**: Real-time aggregation of income vs expense.
-    - **This Month**: Cumulative performance for the current calendar month.
-    - **Current Season**: Dynamic calculation based on a "Season Start Date" (defaults to current year start or custom setting).
+### 2.1 Dashboard & Financial Analytics
+The central hub for real-time financial health monitoring.
+- **Financial Calculation Engine**: Computes performance across daily, monthly, and seasonal intervals.
 - **Metric Definitions**:
-    - `Net Profit = Total Income - Total Expenses`.
-    - `Total Outstandings`: Aggregate of shop credits and unpaid labor advances.
-- **Quick Actions**: Direct shortcuts to adding transactions, inventory, or recording rain.
+    - **Net Profit**: Derived from `Total Income - Total Expenses`.
+    - **Total Outstandings**: Aggregate sum of shop credits and unpaid labor advances.
+- **Period-wise Stats**: Automatic filtering of transactions based on the custom "Season Start Date".
 
-### 2.2 Plot Management & Workbooks
-The core unit of farming operations.
-- **Plot Profiles**: Tracking area (Acres), crop type, variety, and financial performance per field.
-- **Workbook Section**: A high-end, table-based logging system for field activities.
-    - **Day-wise Tracking**: Automatically calculates "Day X" relative to the first entry (Reference Point).
-    - **Custom Columns**: Users can dynamically add new columns (e.g., "Temperature", "Moisture") to the workbook table.
-    - **Rain Meter Integration**: Automatically pulls rain data from the global Rain Meter module based on the entry date.
-    - **Bidirectional Sync**: Changing the date updates the "Day" count, and vice versa.
-    - **Task Integration**: Toggling a scheduled task as "Complete" can auto-generate a workbook entry.
+### 2.2 Plot Management & Field Workbooks
+The core unit of farming operations and historical tracking.
+- **Plot Profiles**: Detailed tracking of field area (Acres), crop types, and specific varieties.
+- **Workbook Section**: A high-end, table-based logging system for granular activity tracking.
+- **Dynamic Capabilities**:
+    - **Day-wise Tracking**: Calculates "Day X" relative to the first workbook entry.
+    - **Custom Columns**: Users can dynamically extend the schema with custom metrics (e.g., Temperature).
+    - **Rain Meter Injection**: Automatically pulls rainfall data based on the entry date.
 
-### 2.3 Labor Management (Labor Book)
-Comprehensive staff and contractor tracking.
-- **Staff Categories**:
-    - **Daily Wage**: Paid based on attendance frequency.
-    - **Annual Staff**: Fixed yearly salary with penalty-based deductions for absences.
-    - **Contractors**: Project-based workers with advance payment and progress tracking.
-- **Attendance Sheet**: A grid-based "power-user" interface.
-    - Supports batch attendance logging (Present, Absent, Half-Day).
-    - Integrated with the transaction system to "Settle Wages" or "Record Advances" directly from the attendance grid.
-    - **Advance Alerts**: Visual warnings if a worker has an outstanding advance before processing new payments.
-- **Contractor Tracking**: Tracks "Amount Paid" vs "Total Contract Value" with visual progress bars.
+### 2.3 Labor Management & Attendance
+Integrated workforce management with financial reconciliation.
+- **Staff Categories**: Supports Daily Wage staff, Fixed-Salary Annual staff, and Project Contractors.
+- **Attendance Sheet**: A high-density grid for batch attendance logging (Present, Absent, Half-Day).
+- **Payment Reconciliation**: Directly settle wages, record advances, or apply salary deductions from the attendance view.
+- **Contractor Tracking**: Progress monitoring for project-based contracts with milestone payments.
 
-### 2.4 Inventory & Stock Control
-Supply chain management with financial logic.
-- **Batch Entry**: Allows adding multiple items (e.g., Fertilizer + Pesticide) from a single invoice/shop visit.
-- **Stock Tracking**: Real-time inventory levels with unit conversion (e.g., Bags to Kg).
-- **Shop-wise Management**: Tracks total purchase value and outstanding credit per shop.
-- **Financial Logic**:
-    - **Interest Rate Tracking**: Supports calculating interest on credit purchases (Daily, Weekly, Monthly, Yearly).
-    - **Unit Costing**: Calculates cost per primary unit (Kg) and secondary unit (Gm).
+### 2.4 Inventory & Supply Chain Logic
+Stock management integrated with financial interest tracking.
+- **Batch Processing**: Single-invoice entry for multiple supplies with automated batch number tracking.
+- **Unit Conversion**: Seamless handling of packages-to-weight conversions (e.g., Bags to Kg).
+- **Financial Overlays**: Tracks purchase value, interest rates on credit, and outstanding shop balances.
 
-### 2.5 Task Scheduler
-A proactive operational calendar.
-- **Smart Calendar**: Custom grid view with task indicators.
-- **Overdue Logic**: Tasks scheduled in the past that aren't marked complete are flagged as "Missed" in today's view.
-- **Workbook Sync**: Optional setting to automatically log a field activity to the Plot Workbook when a task is completed.
+### 2.5 Task Scheduler & Sync Engine
+Proactive operational planning with automated logging.
+- **Smart Calendar**: Visual task distribution with category-specific indicators.
+- **Overdue Management**: Automatic flagging of past-due tasks as "Missed".
+- **Workbook Sync**: Automated generation of workbook entries upon task completion to ensure data consistency.
 
-### 2.6 Rain Meter
-- **Precision Tracking**: Daily rainfall measurement in mm.
-- **Module Injection**: Rain data is injected into the Workbook and Dashboard to correlate weather patterns with crop yield and activity.
+### 2.6 Rain Meter Module
+- **Precision Logging**: Recording of daily rainfall in mm.
+- **Data Propagation**: Rainfall data is shared across the Workbook and Dashboard modules to correlate weather with productivity.
 
 ---
 
 ## 3. Key Business Logic & Algorithms
 
-### 3.1 Financial Interest Calculation & Delta Engine
-The app uses a robust "Lifetime Delta" engine to calculate interest paid within specific periods:
-- **Lifetime Interest**: Calculated per shop by finding the difference between `Total Payments Made` and `Total Principal Value` (Sum of Price * Quantity for all items bought).
-- **Period Interest**: Interest for a specific period (e.g., "This Month") is derived by: 
-  `Interest_Paid = Lifetime_Interest(End_Date) - Lifetime_Interest(Start_Date)`.
-- **Accrual Basis**: Inventory purchases are treated as accrual expenses (cost recognized at purchase), while interest is tracked on a cash-delta basis.
+### 3.1 Financial Interest & Delta Engine
+The system employs a "Lifetime Delta" methodology for precise financial tracking:
+- **Lifetime Interest**: Difference between `Total Payments` and `Total Principal` across the shop history.
+- **Period Performance**: Interest for any period is calculated as: `Interest(EndDate) - Interest(StartDate)`.
+- **Accrual Logic**: Cost of inventory is recognized immediately at purchase, while interest follows a cash-delta model.
 
 ### 3.2 Inventory Deduction Logic
-When a transaction is recorded for an activity (e.g., "Spraying"):
-1. The user selects an inventory item.
-2. The app checks current stock levels.
-3. Upon saving, the item's quantity is decremented, and the transaction is linked to the Plot and Inventory ID.
-4. Deleting the transaction reverts the stock deduction.
+Integrated stock management on activity recording:
+1. User selects a supply from inventory during an activity log (e.g., Spraying).
+2. The system verifies stock availability.
+3. On save, the inventory quantity is decremented and linked to the Plot transaction.
+4. Transaction deletion triggers an automatic stock reversal.
 
 ### 3.3 Workbook Reference Logic
-The "Days Past" column is relative. If the first entry is "Day 0" on Jan 1st:
-- Jan 5th becomes "Day 4".
-- If the user adds an entry for Dec 30th, the system offers to shift the reference point.
+The "Days Past" metric is anchored to a floating reference:
+- Initial entry is established as "Day 0".
+- All subsequent logs are calculated relative to this date.
+- Inserting an entry prior to the current Day 0 triggers a system prompt to re-anchor the reference point.
 
 ---
 
-## 4. UI/UX & Interaction Design
-- **Dark Mode Support**: Context-aware theming for night-time field use.
-- **Glassmorphism & Gradients**: Premium aesthetic using `expo-linear-gradient`.
-- **Skeleton Loading**: `Animated` (Reanimated) pulse skeletons for data-heavy views like Workbooks and Dashboard.
-- **PDF Generation**: Branded PDF reports with tables and financial summaries for Plot Ledgers and Workbooks.
+## 4. UI/UX Architecture
+- **Responsive Design**: Custom-engineered for high-density agricultural data management.
+- **Branded Reporting**: Dynamic PDF generation for financial ledgers and workbook logs.
+- **Performance UX**: Reanimated pulse skeletons for data-heavy views to ensure smooth interaction.
+- **Color Systems**: Categorized color tokens for consistent visual language across all modules.
 
 ---
 
-## 5. Data Schema Overview
-- **Plots**: `id, name, area, cropType, variety`
-- **Transactions**: `id, plotId, amount, type (Income/Expense), category, inventoryId, date, paymentMode (Cash/Credit)`
-- **Inventory**: `id, name, quantity, unit, shopName, interestRate, paymentStatus`
-- **LaborProfile**: `id, name, type (Daily/Annual/Contract), baseWage, phone`
-- **LaborAttendance**: `id, workerId, date, status (P/A/H), notes`
-- **Workbook**: `id, plotId, data (JSON blob for flexible custom columns)`
-- **Tasks**: `id, title, date, time, plotId, syncToWorkbook`
+## 5. Technical Data Schema
+
+### Core Tables & Objects
+| Entity | Key Attributes |
+| :--- | :--- |
+| **Plots** | `id, name, area, cropType, variety` |
+| **Transactions** | `id, plotId, amount, type, category, inventoryId, date, paymentMode` |
+| **Inventory** | `id, name, quantity, unit, shopName, interestRate, paymentStatus` |
+| **LaborProfile** | `id, name, type, baseWage, phone` |
+| **LaborAttendance** | `id, workerId, date, status, notes` |
+| **Workbook** | `id, plotId, data (JSON blob for flexible custom columns)` |
+| **Tasks** | `id, title, date, time, plotId, syncToWorkbook` |
 
 ---
-*End of Feature Specification*
+&copy; 2026 FarmEzy. Technical Reference Document.
