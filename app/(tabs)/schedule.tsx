@@ -563,7 +563,7 @@ export default function SchedulePage() {
                                     <Text style={styles.inputLabel}>Time</Text>
                                     <Pressable style={styles.inputPicker} onPress={() => setShowTimePicker(true)}>
                                         <Ionicons name="time-outline" size={18} color={Palette.primary} />
-                                        <Text style={styles.pickerText}>{format(taskTime, 'hh:mm a')}</Text>
+                                        <Text style={styles.pickerText}>{format(taskTime, 'HH:mm')}</Text>
                                     </Pressable>
                                 </View>
                             </View>
@@ -612,7 +612,7 @@ export default function SchedulePage() {
                             <View style={{ height: 40 }} />
                         </ScrollView>
 
-                        {showTimePicker && <DateTimePicker mode="time" value={taskTime} onChange={(e, d) => { setShowTimePicker(false); if (d) setTaskTime(d); }} />}
+                        {showTimePicker && <DateTimePicker mode="time" is24Hour={true} value={taskTime} onChange={(e, d) => { setShowTimePicker(false); if (d) setTaskTime(d); }} />}
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
