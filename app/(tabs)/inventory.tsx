@@ -90,26 +90,44 @@ export default function InventoryScreen() {
   const dynamicShops = useMemo(() => {
     const stored = customEntities
       .filter(e => e.entityType === 'shop')
-      .map(e => e.name);
+      .map(e => e.name.trim());
     const existing = inventory
-      .map(i => i.shopName)
+      .map(i => i.shopName?.trim())
       .filter((s): s is string => !!s);
-    const unique = Array.from(new Set([...stored, ...existing]));
-    return unique;
+    
+    // Case-insensitive uniqueness
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    [...stored, ...existing].forEach(s => {
+        const lower = s.toLowerCase();
+        if (!seen.has(lower)) {
+            seen.add(lower);
+            unique.push(s);
+        }
+    });
+
+    return unique.sort((a, b) => a.localeCompare(b));
   }, [inventory, customEntities]);
 
   const shopProfiles = useMemo(() => {
     const shopsRaw: Record<string, typeof inventory> = {};
+    const canonicalNames: Record<string, string> = {}; // lowercase -> original
+
     inventory.forEach(item => {
         if (item.shopName && item.shopName.trim() !== '') {
-            const sName = item.shopName.trim();
-            if (!shopsRaw[sName]) shopsRaw[sName] = [];
-            shopsRaw[sName].push(item);
+            const trimmed = item.shopName.trim();
+            const lower = trimmed.toLowerCase();
+            if (!shopsRaw[lower]) {
+                shopsRaw[lower] = [];
+                canonicalNames[lower] = trimmed;
+            }
+            shopsRaw[lower].push(item);
         }
     });
 
-    return Object.keys(shopsRaw).map(shopName => {
-        const items = shopsRaw[shopName];
+    return Object.keys(shopsRaw).map(lower => {
+        const shopName = canonicalNames[lower];
+        const items = shopsRaw[lower];
         const totalSpent = items.reduce((acc, it) => acc + (it.quantity * (it.pricePerUnit || 0)), 0);
         const creditItems = items.filter(i => i.paymentMode === 'Credit');
         const principalCredit = creditItems.reduce((acc, it) => acc + (it.quantity * (it.pricePerUnit || 0)), 0);
@@ -295,7 +313,7 @@ export default function InventoryScreen() {
                 sizePerPackage: parseFloat(currentSizePerPackage),
                 unit: currentUnit,
                 pricePerUnit: calcPricePerUnit,
-                shopName: shopName || undefined,
+                shopName: shopName.trim() || undefined,
                 companyName: currentCompanyName || undefined,
                 batchNo: currentBatchNo || undefined,
                 invoiceNo: invoiceNo || undefined,
@@ -325,7 +343,7 @@ export default function InventoryScreen() {
         await addInventoryItem({
           ...item,
           id: Date.now().toString() + Math.random().toString(36).substring(7),
-          shopName: shopName || undefined,
+          shopName: shopName.trim() || undefined,
           invoiceNo: invoiceNo || undefined,
           purchaseDate: purchaseDate.toISOString(),
           paymentMode,
@@ -336,8 +354,8 @@ export default function InventoryScreen() {
         });
       }
 
-      if (shopName && isOtherShop) {
-          addCustomEntity('shop', shopName);
+      if (shopName.trim() && isOtherShop) {
+          addCustomEntity('shop', shopName.trim());
       }
 
       closeModal();
@@ -546,7 +564,10 @@ export default function InventoryScreen() {
                 {/* ITEM SUB-FORM */}
                 {(isAddingItem || editingId) && (
                     <View style={styles.itemSubForm}>
-                        <Text style={styles.subFormTitle}>{editingId ? 'Edit Item' : 'New Item Details'}</Text>
+                        <View style={styles.sectionHeader}>
+                            <View style={styles.sectionIndicator} />
+                            <Text style={styles.subFormTitle}>{editingId ? 'Edit Item' : 'New Item Details'}</Text>
+                        </View>
                         
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Item Name</Text>
@@ -665,7 +686,10 @@ export default function InventoryScreen() {
                 {/* PAYMENT & FINAL DETAILS */}
                 {!isAddingItem && !editingId && pendingItems.length > 0 && (
                     <View style={styles.paymentSection}>
-                        <Text style={styles.subFormTitle}>Payment Details</Text>
+                        <View style={styles.sectionHeader}>
+                            <View style={styles.sectionIndicator} />
+                            <Text style={styles.subFormTitle}>Payment Details</Text>
+                        </View>
                         
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Payment Mode</Text>
@@ -686,27 +710,40 @@ export default function InventoryScreen() {
                         </View>
 
                         {paymentMode === 'Credit' && (
-                            <View style={styles.row}>
+                            <View style={styles.creditDetailsContainer}>
                                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                                    <Text style={styles.label}>Interest Rate (%)</Text>
-                                    <TextInput 
-                                        style={styles.input} 
-                                        placeholder="e.g. 2" 
-                                        value={interestRate} 
-                                        onChangeText={setInterestRate} 
-                                        keyboardType="numeric" 
-                                    />
+                                    <Text style={styles.label}>Interest Rate</Text>
+                                    <View style={styles.interestInputWrapper}>
+                                        <TextInput 
+                                            style={styles.interestInput} 
+                                            placeholder="0.0" 
+                                            value={interestRate} 
+                                            onChangeText={setInterestRate} 
+                                            keyboardType="numeric" 
+                                        />
+                                        <View style={styles.percentageBadge}>
+                                            <Text style={styles.percentageText}>%</Text>
+                                        </View>
+                                    </View>
                                 </View>
-                                <View style={[styles.inputGroup, { flex: 1.5, marginLeft: 12 }]}>
-                                    <Text style={styles.label}>Per Period</Text>
-                                    <View style={styles.unitToggleContainer}>
+                                <View style={[styles.inputGroup, { flex: 2, marginLeft: 16 }]}>
+                                    <Text style={styles.label}>Interest Period</Text>
+                                    <View style={styles.periodSelector}>
                                         {['day', 'week', 'month', 'year'].map(p => (
                                             <Pressable 
                                                 key={p} 
                                                 onPress={() => setInterestPeriod(p as any)} 
-                                                style={[styles.periodChip, interestPeriod === p && styles.catChipActive]}
+                                                style={[
+                                                    styles.periodButton, 
+                                                    interestPeriod === p && styles.periodButtonActive
+                                                ]}
                                             >
-                                                <Text style={[styles.catChipText, interestPeriod === p && styles.catChipTextActive]}>{p}</Text>
+                                                <Text style={[
+                                                    styles.periodButtonText, 
+                                                    interestPeriod === p && styles.periodButtonTextActive
+                                                ]}>
+                                                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                                                </Text>
                                             </Pressable>
                                         ))}
                                     </View>
@@ -1103,40 +1140,118 @@ const styles = StyleSheet.create({
       marginBottom: 24,
   },
   typeToggleCompact: {
-      flexDirection: 'row',
-      backgroundColor: 'white',
-      borderRadius: 12,
-      padding: 4,
-      borderWidth: 1,
-      borderColor: Palette.border,
-      marginTop: 8,
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: Palette.border,
   },
   typeBtn: {
-      flex: 1,
-      paddingVertical: 10,
-      alignItems: 'center',
-      borderRadius: 10,
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
   },
   typeBtnActive: {
-      backgroundColor: Palette.primary,
+    backgroundColor: Palette.primary,
+    shadowColor: Palette.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   typeBtnActiveCredit: {
-      backgroundColor: '#f59e0b',
+    backgroundColor: '#f59e0b',
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   typeBtnText: {
-      fontFamily: 'Outfit-Bold',
-      color: Palette.textSecondary,
-      fontSize: 13,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.textSecondary,
+    fontSize: 13,
   },
   typeBtnTextActive: {
-      color: 'white',
+    color: 'white',
   },
-  periodChip: {
-      flex: 1,
-      paddingVertical: 8,
-      alignItems: 'center',
-      borderRadius: 8,
-      backgroundColor: 'transparent',
+  creditDetailsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  interestInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    paddingRight: 8,
+  },
+  interestInput: {
+    flex: 1,
+    padding: 12,
+    fontFamily: 'Outfit',
+    color: Palette.text,
+  },
+  percentageBadge: {
+    backgroundColor: Palette.primary + '10',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Palette.primary + '20',
+  },
+  percentageText: {
+    fontFamily: 'Outfit-Bold',
+    fontSize: 12,
+    color: Palette.primary,
+  },
+  periodSelector: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  periodButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  periodButtonActive: {
+    backgroundColor: Palette.primary,
+    shadowColor: Palette.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  periodButtonText: {
+    fontFamily: 'Outfit-Medium',
+    fontSize: 11,
+    color: Palette.textSecondary,
+  },
+  periodButtonTextActive: {
+    fontFamily: 'Outfit-Bold',
+    color: 'white',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  sectionIndicator: {
+    width: 4,
+    height: 18,
+    backgroundColor: Palette.primary,
+    borderRadius: 2,
   },
   costRow: {
       flexDirection: 'row',

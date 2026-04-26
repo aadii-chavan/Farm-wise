@@ -25,12 +25,14 @@ export default function ShopDetailScreen() {
     const [activeTab, setActiveTab] = useState<'bills' | 'payments'>('bills');
 
     const shopItems = useMemo(() => {
-        return inventory.filter(i => i.shopName === name);
+        const searchName = (name as string)?.trim().toLowerCase();
+        return inventory.filter(i => i.shopName?.trim().toLowerCase() === searchName);
     }, [inventory, name]);
 
     const shopPayments = useMemo(() => {
+        const searchName = (name as string)?.trim().toLowerCase();
         return transactions
-            .filter(t => t.type === 'Expense' && t.category === 'Shop Payment' && t.title === name)
+            .filter(t => t.type === 'Expense' && t.category === 'Shop Payment' && (t.title?.trim().toLowerCase() === searchName))
             .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [transactions, name]);
 
@@ -126,8 +128,8 @@ export default function ShopDetailScreen() {
     // Financial Summary Logic with TRUE FIFO Interest Calculation
     const summary = useMemo(() => {
         // 1. Sort all credit items by date (Oldest first)
-        const creditItems = [...inventory]
-            .filter(i => i.shopName === name && i.paymentMode === 'Credit')
+        const creditItems = shopItems
+            .filter(i => i.paymentMode === 'Credit')
             .sort((a, b) => {
                 const da = a.purchaseDate ? new Date(a.purchaseDate).getTime() : 0;
                 const db = b.purchaseDate ? new Date(b.purchaseDate).getTime() : 0;
@@ -140,8 +142,8 @@ export default function ShopDetailScreen() {
 
         let totalPrincipalCredit = 0;
         let totalInterestAccrued = 0;
-        let totalCashPurchases = inventory
-            .filter(i => i.shopName === name && i.paymentMode !== 'Credit')
+        let totalCashPurchases = shopItems
+            .filter(i => i.paymentMode !== 'Credit')
             .reduce((acc, i) => acc + ((i.pricePerUnit || 0) * i.quantity), 0);
 
         // 3. Apply payments to oldest principal first (FIFO)
