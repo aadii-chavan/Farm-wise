@@ -250,27 +250,39 @@ export default function SchedulePage() {
 
 
     const getCategoryColor = (category: string) => {
-        switch (category.toLowerCase()) {
-            case 'irrigation': return '#3B82F6';
-            case 'fertilizer': return '#10B981';
-            case 'pesticide': return '#F43F5E';
-            case 'labor': return '#8B5CF6';
-            case 'equipment': return '#F59E0B';
-            case 'harvest': return '#10B981';
-            default: return Palette.primary;
-        }
+        const cat = category.toLowerCase();
+        if (cat.includes('irrigation') || cat.includes('water')) return '#0EA5E9';
+        if (cat.includes('fertilizer') || cat.includes('nutrient')) return '#10B981';
+        if (cat.includes('pesticide') || cat.includes('spray')) return '#F43F5E';
+        if (cat.includes('labor') || cat.includes('staff')) return '#8B5CF6';
+        if (cat.includes('equipment') || cat.includes('machinery')) return '#F59E0B';
+        if (cat.includes('harvest')) return '#059669';
+        if (cat.includes('pruning')) return '#D97706';
+        if (cat.includes('weeding')) return '#B45309';
+        if (cat.includes('tillage')) return '#78350F';
+        return Palette.primary;
     };
 
     const getCategoryIcon = (category: string) => {
-        switch (category.toLowerCase()) {
-            case 'irrigation': return 'water';
-            case 'fertilizer': return 'leaf';
-            case 'pesticide': return 'bug';
-            case 'labor': return 'people';
-            case 'equipment': return 'construct';
-            case 'harvest': return 'basket';
-            default: return 'list';
-        }
+        const cat = category.toLowerCase();
+        if (cat.includes('irrigation') || cat.includes('water')) return 'water';
+        if (cat.includes('fertilizer') || cat.includes('nutrient')) return 'leaf';
+        if (cat.includes('pesticide') || cat.includes('spray')) return 'bug';
+        if (cat.includes('labor') || cat.includes('staff')) return 'people';
+        if (cat.includes('equipment') || cat.includes('machinery')) return 'construct';
+        if (cat.includes('harvest')) return 'basket';
+        if (cat.includes('pruning')) return 'cut';
+        if (cat.includes('weeding')) return 'leaf-outline';
+        if (cat.includes('tillage')) return 'trail-sign-outline';
+        return 'list';
+    };
+
+    const getTimePeriod = (timeStr: string) => {
+        const [hour] = timeStr.split(':').map(Number);
+        if (hour < 12) return 'Morning';
+        if (hour < 17) return 'Afternoon';
+        if (hour < 20) return 'Evening';
+        return 'Night';
     };
 
     return (
@@ -299,7 +311,10 @@ export default function SchedulePage() {
                     <View style={styles.calendarHeader}>
                         <View>
                             <Text style={styles.monthYearText}>{format(currentMonth, 'MMMM yyyy')}</Text>
-                            <Text style={styles.selectedDateSub}>{format(selectedDate, 'EEEE, MMM do')}</Text>
+                            <View style={styles.selectedDateBadge}>
+                                <View style={styles.dot} />
+                                <Text style={styles.selectedDateSub}>{format(selectedDate, 'EEEE, MMM do')}</Text>
+                            </View>
                         </View>
                         <View style={styles.navButtons}>
                             <Pressable onPress={() => setCurrentMonth(subMonths(currentMonth, 1))} style={styles.navBtn}>
@@ -345,23 +360,9 @@ export default function SchedulePage() {
                                             <View style={styles.taskIndicators}>
                                                 {tasksOnDay.length > 0 && (
                                                     <View style={[
-                                                        styles.starBadge, 
-                                                        { backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : getCategoryColor(tasksOnDay[0].categories[0] || '') + '15' }
-                                                    ]}>
-                                                        <Ionicons 
-                                                            name="calendar" 
-                                                            size={10} 
-                                                            color={isSelected ? 'white' : getCategoryColor(tasksOnDay[0].categories[0] || '')} 
-                                                        />
-                                                        {tasksOnDay.length > 1 && (
-                                                            <Text style={[
-                                                                styles.moreTasksLabel,
-                                                                { color: isSelected ? 'white' : '#475569' }
-                                                            ]}>
-                                                                {tasksOnDay.length}
-                                                            </Text>
-                                                        )}
-                                                    </View>
+                                                        styles.taskIndicatorDot, 
+                                                        { backgroundColor: isSelected ? 'white' : getCategoryColor(tasksOnDay[0].categories[0] || '') }
+                                                    ]} />
                                                 )}
                                             </View>
                                         </Pressable>
@@ -373,17 +374,18 @@ export default function SchedulePage() {
                 </LinearGradient>
             </View>
 
-            <ScrollView style={styles.listContainer} contentContainerStyle={{ padding: 20 }}>
+
+            <ScrollView style={styles.listContainer} contentContainerStyle={{ paddingBottom: 100 }}>
                 {dayTasks.length === 0 ? (
                     <View style={styles.emptyContainer}>
                         <LinearGradient
                             colors={[Palette.primary + '10', Palette.primary + '05']}
                             style={styles.emptyIconContainer}
                         >
-                             <Ionicons name="checkmark-done-outline" size={44} color={Palette.primary} />
+                             <Ionicons name="calendar-outline" size={44} color={Palette.primary} />
                         </LinearGradient>
-                        <Text style={styles.emptyHeader}>All Caught Up!</Text>
-                        <Text style={styles.emptySubheader}>No tasks scheduled for this day.</Text>
+                        <Text style={styles.emptyHeader}>No Scheduled Work</Text>
+                        <Text style={styles.emptySubheader}>The schedule is clear for today. Add a task to get started.</Text>
                         <Pressable 
                             style={({ pressed }) => [
                                 styles.emptyAdd,
@@ -392,83 +394,80 @@ export default function SchedulePage() {
                             onPress={() => { resetForm(); setShowModal(true); }}
                         >
                             <Ionicons name="add-circle" size={20} color="white" />
-                            <Text style={styles.emptyAddText}>Create a Task</Text>
+                            <Text style={styles.emptyAddText}>Add Task</Text>
                         </Pressable>
                     </View>
                 ) : (
-                    dayTasks.map((task: any) => (
-                        <Pressable 
-                            key={task.id} 
-                            style={[
-                                styles.taskCard, 
-                                task.isCompletedInstance && styles.taskCardCompleted
-                            ]}
-                            onPress={() => { resetForm(task); setShowModal(true); }}
-                        >
-                            <View style={styles.taskMainContent}>
-                                <View style={styles.taskHeaderRow}>
-                                    <View style={[styles.categoryIconContainer, { backgroundColor: getCategoryColor(task.categories[0] || '') + '15' }]}>
-                                        <Ionicons 
-                                            name={getCategoryIcon(task.categories[0] || '') as any} 
-                                            size={18} 
-                                            color={getCategoryColor(task.categories[0] || '')} 
-                                        />
-                                    </View>
-                                    <View style={styles.taskTimeContainer}>
-                                        <Text style={styles.taskTimeText}>{task.time}</Text>
+                    <View style={styles.tableWrapper}>
+                        {/* Table Header */}
+                        <View style={styles.tableHeader}>
+                            <Text style={[styles.headerCell, { flex: 1.2 }]}>Time</Text>
+                            <Text style={[styles.headerCell, { flex: 3 }]}>Activity / Plot</Text>
+                            <Text style={[styles.headerCell, { flex: 1.5 }]}>Date</Text>
+                            <View style={{ width: 40, alignItems: 'center', justifyContent: 'center' }}>
+                                <Ionicons name="checkbox-outline" size={16} color="#94A3B8" />
+                            </View>
+                        </View>
+
+                        {/* Table Rows */}
+                        {dayTasks.map((task: any, index: number) => {
+                            const catColor = getCategoryColor(task.categories[0] || '');
+                            const isLast = index === dayTasks.length - 1;
+                            
+                            return (
+                                <Pressable 
+                                    key={task.id} 
+                                    style={({ pressed }) => [
+                                        styles.tableRow,
+                                        task.isCompletedInstance && styles.tableRowCompleted,
+                                        pressed && { backgroundColor: '#F8FAFC' },
+                                        isLast && { borderBottomWidth: 0 }
+                                    ]}
+                                    onPress={() => { resetForm(task); setShowModal(true); }}
+                                >
+                                    {/* Time Column */}
+                                    <View style={[styles.cell, { flex: 1.2 }]}>
+                                        <Text style={styles.timeText}>{task.time}</Text>
                                         {task.isOverdue && !task.isCompletedInstance && (
-                                            <View style={styles.overdueBadge}>
-                                                <Text style={styles.overdueText}>Missed</Text>
-                                            </View>
+                                            <View style={styles.overdueDot} />
                                         )}
                                     </View>
-                                    {task.syncToWorkbook && (
-                                        <View style={styles.syncIndicator}>
-                                            <Ionicons name="sync-circle" size={16} color={Palette.primary} />
-                                        </View>
-                                    )}
-                                </View>
 
-                                <Text style={[styles.taskTitle, task.isCompletedInstance && styles.taskTitleCompleted]} numberOfLines={1}>
-                                    {task.title}
-                                </Text>
-
-                                <View style={styles.taskFooterRow}>
-                                    <View style={styles.footerLeft}>
-                                        <View style={styles.locationContainer}>
-                                            <Ionicons name="location-outline" size={12} color="#94A3B8" />
-                                            <Text style={styles.footerLabel}>{task.plot || 'General Plot'}</Text>
-                                        </View>
-                                        {task.assignedTo ? (
-                                            <View style={styles.staffContainer}>
-                                                <Ionicons name="person-outline" size={12} color="#94A3B8" />
-                                                <Text style={styles.footerLabel}>{task.assignedTo}</Text>
+                                    {/* Activity Column */}
+                                    <View style={[styles.cell, { flex: 3 }]}>
+                                        <View style={styles.activityInfo}>
+                                            <View style={[styles.indicatorLine, { backgroundColor: catColor }]} />
+                                            <View>
+                                                <Text style={[styles.taskTitleText, task.isCompletedInstance && styles.strikeText]} numberOfLines={1}>
+                                                    {task.title}
+                                                </Text>
+                                                <Text style={styles.plotText}>{task.plot || 'General'}</Text>
                                             </View>
-                                        ) : null}
+                                        </View>
                                     </View>
-                                    
-                                    <View style={styles.badgeContainer}>
-                                        {task.categories.slice(0, 1).map((cat: string) => (
-                                            <View key={cat} style={[styles.compactBadge, { backgroundColor: getCategoryColor(cat) + '10' }]}>
-                                                <Text style={[styles.compactBadgeText, { color: getCategoryColor(cat) }]}>{cat}</Text>
-                                            </View>
-                                        ))}
-                                    </View>
-                                </View>
-                            </View>
 
-                            <Pressable 
-                                style={[styles.checkButton, task.isCompletedInstance && styles.checkButtonActive]}
-                                onPress={() => toggleComplete(task)}
-                            >
-                                <Ionicons 
-                                    name={task.isCompletedInstance ? "checkmark-circle" : "ellipse-outline"} 
-                                    size={28} 
-                                    color={task.isCompletedInstance ? Palette.success : '#E2E8F0'} 
-                                />
-                            </Pressable>
-                        </Pressable>
-                    ))
+                                    {/* Date Column */}
+                                    <View style={[styles.cell, { flex: 1.5 }]}>
+                                        <Text style={styles.dateCellText} numberOfLines={1}>
+                                            {format(new Date(task.date), 'dd MMM')}
+                                        </Text>
+                                    </View>
+
+                                    {/* Action Column */}
+                                    <Pressable 
+                                        style={[styles.cell, { width: 40, alignItems: 'center' }]}
+                                        onPress={() => toggleComplete(task)}
+                                    >
+                                        <Ionicons 
+                                            name={task.isCompletedInstance ? "checkmark-circle" : "ellipse-outline"} 
+                                            size={22} 
+                                            color={task.isCompletedInstance ? Palette.success : '#CBD5E1'} 
+                                        />
+                                    </Pressable>
+                                </Pressable>
+                            );
+                        })}
+                    </View>
                 )}
             </ScrollView>
 
@@ -698,10 +697,12 @@ export default function SchedulePage() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
     iconButton: { padding: 8, marginLeft: 8 },
-    calendarSection: { backgroundColor: 'white', borderBottomLeftRadius: 32, borderBottomRightRadius: 32, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 6, overflow: 'hidden' },
+    calendarSection: { backgroundColor: 'white', borderBottomLeftRadius: 32, borderBottomRightRadius: 32, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 6, overflow: 'hidden' },
     calendarGradient: { paddingTop: 8, paddingBottom: 12 },
     calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 8 },
     monthYearText: { fontSize: 18, fontFamily: 'Outfit-Bold', color: '#0F172A' },
+    selectedDateBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Palette.primary },
     selectedDateSub: { fontSize: 12, fontFamily: 'Outfit-Medium', color: '#64748B' },
     navButtons: { flexDirection: 'row', gap: 8 },
     navBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
@@ -713,184 +714,40 @@ const styles = StyleSheet.create({
     selectedDay: { backgroundColor: Palette.primary, shadowColor: Palette.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 },
     dayNumber: { fontSize: 12, fontFamily: 'Outfit-Bold', color: '#334155' },
     selectedDayNumber: { color: 'white' },
-    todayNumber: { color: '#F59E0B' },
-    otherMonthDay: { color: '#F1F5F9' },
-    taskIndicators: { marginTop: 2, alignItems: 'center', justifyContent: 'center' },
-    starBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 6 },
-    moreTasksLabel: { fontSize: 8, fontFamily: 'Outfit-Bold' },
-    listContainer: { flex: 1 },
-    emptyContainer: { 
-        flex: 1, 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        marginTop: 60, 
-        paddingHorizontal: 40 
-    },
-    emptyIconContainer: { 
-        width: 100, 
-        height: 100, 
-        borderRadius: 50, 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        marginBottom: 24,
-    },
-    emptyHeader: { 
-        fontSize: 20, 
-        fontFamily: 'Outfit-Bold', 
-        color: '#1E293B',
-        marginBottom: 8,
-    },
-    emptySubheader: { 
-        fontSize: 14, 
-        fontFamily: 'Outfit-Medium', 
-        color: '#64748B',
-        textAlign: 'center',
-        lineHeight: 20,
-    },
-    emptyAdd: { 
-        marginTop: 32, 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        paddingHorizontal: 28, 
-        paddingVertical: 14, 
-        backgroundColor: Palette.primary, 
-        borderRadius: 16, 
-        gap: 8,
-        shadowColor: Palette.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    emptyAddText: { 
-        color: 'white', 
-        fontFamily: 'Outfit-Bold', 
-        fontSize: 15 
-    },
-    taskCard: { 
-        flexDirection: 'row', 
-        backgroundColor: 'white', 
-        borderRadius: 20, 
-        marginBottom: 16, 
-        alignItems: 'center', 
-        shadowColor: '#000', 
-        shadowOffset: { width: 0, height: 4 }, 
-        shadowOpacity: 0.03, 
-        shadowRadius: 12, 
-        elevation: 2, 
-        borderWidth: 1, 
-        borderColor: '#F1F5F9' 
-    },
-    taskCardCompleted: { 
-        backgroundColor: '#F8FAFC',
-        borderColor: '#E2E8F0',
-        opacity: 0.8,
-    },
-    taskMainContent: { 
-        flex: 1, 
-        padding: 16,
-    },
-    taskHeaderRow: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        marginBottom: 12,
-        gap: 12,
-    },
-    categoryIconContainer: { 
-        width: 36, 
-        height: 36, 
-        borderRadius: 12, 
-        alignItems: 'center', 
-        justifyContent: 'center',
-    },
-    taskTimeContainer: { 
-        flex: 1, 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        gap: 8,
-    },
-    taskTimeText: { 
-        fontSize: 14, 
-        fontFamily: 'Outfit-Bold', 
-        color: '#1E293B',
-    },
-    syncIndicator: {
-        width: 24,
-        height: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    taskTitle: {
-        fontSize: 17,
-        fontFamily: 'Outfit-SemiBold',
-        color: '#0F172A',
-        marginBottom: 12,
-    },
-    taskTitleCompleted: { 
-        textDecorationLine: 'line-through', 
-        color: '#94A3B8',
-    },
-    taskFooterRow: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-    },
-    footerLeft: { 
-        flexDirection: 'row', 
-        gap: 12,
-    },
-    locationContainer: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        gap: 4,
-    },
-    staffContainer: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        gap: 4,
-    },
-    footerLabel: { 
-        fontSize: 12, 
-        fontFamily: 'Outfit-Medium', 
-        color: '#64748B',
-    },
-    badgeContainer: { 
-        flexDirection: 'row', 
-        gap: 6,
-    },
-    compactBadge: { 
-        paddingHorizontal: 8, 
-        paddingVertical: 4, 
-        borderRadius: 8,
-    },
-    compactBadgeText: { 
-        fontSize: 10, 
-        fontFamily: 'Outfit-Bold', 
-        textTransform: 'uppercase',
-    },
-    checkButton: { 
-        paddingHorizontal: 16, 
-        height: '100%',
-        justifyContent: 'center', 
-        borderLeftWidth: 1, 
-        borderLeftColor: '#F1F5F9',
-    },
-    checkButtonActive: { 
-        backgroundColor: '#F0FDF410',
-    },
-    overdueBadge: {
-        backgroundColor: '#FFF1F2',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: '#FDA4AF',
-    },
-    overdueText: {
-        fontSize: 10,
-        fontFamily: 'Outfit-Bold',
-        color: '#E11D48',
-    },
+    todayNumber: { color: Palette.primary },
+    otherMonthDay: { color: '#E2E8F0' },
+    taskIndicators: { marginTop: 2, height: 4, alignItems: 'center', justifyContent: 'center' },
+    taskIndicatorDot: { width: 4, height: 4, borderRadius: 2 },
+    
+    summaryBar: { flexDirection: 'row', backgroundColor: 'white', marginHorizontal: 20, marginTop: 15, borderRadius: 20, paddingVertical: 16, paddingHorizontal: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 4, zIndex: 10, borderWidth: 1, borderColor: '#F1F5F9' },
+    summaryItem: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    summaryDivider: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#F1F5F9' },
+    summaryValue: { fontSize: 20, fontFamily: 'Outfit-Bold', color: '#0F172A' },
+    summaryLabel: { fontSize: 10, fontFamily: 'Outfit-Bold', color: '#94A3B8', textTransform: 'uppercase', marginTop: 4, letterSpacing: 0.5 },
+
+    listContainer: { flex: 1, marginTop: 5 },
+    tableWrapper: { marginHorizontal: 16, backgroundColor: 'white', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.02, shadowRadius: 2, elevation: 1 },
+    tableHeader: { flexDirection: 'row', backgroundColor: '#F8FAFC', paddingVertical: 12, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    headerCell: { fontSize: 11, fontFamily: 'Outfit-Bold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
+    tableRow: { flexDirection: 'row', paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#F8FAFC', alignItems: 'center' },
+    tableRowCompleted: { backgroundColor: '#F8FAFC', opacity: 0.7 },
+    cell: { flexDirection: 'row', alignItems: 'center' },
+    timeText: { fontSize: 13, fontFamily: 'Outfit-Bold', color: '#1E293B' },
+    overdueDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444', marginLeft: 6 },
+    activityInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+    indicatorLine: { width: 3, height: 24, borderRadius: 2, marginRight: 10 },
+    taskTitleText: { fontSize: 14, fontFamily: 'Outfit-SemiBold', color: '#0F172A' },
+    strikeText: { textDecorationLine: 'line-through', color: '#94A3B8' },
+    plotText: { fontSize: 11, fontFamily: 'Outfit-Medium', color: '#64748B', marginTop: 1 },
+    dateCellText: { fontSize: 13, fontFamily: 'Outfit-Medium', color: '#64748B' },
+    
+    emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 80, paddingHorizontal: 40 },
+    emptyIconContainer: { width: 90, height: 90, borderRadius: 45, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+    emptyHeader: { fontSize: 18, fontFamily: 'Outfit-Bold', color: '#1E293B', marginBottom: 6 },
+    emptySubheader: { fontSize: 13, fontFamily: 'Outfit-Medium', color: '#64748B', textAlign: 'center', lineHeight: 18 },
+    emptyAdd: { marginTop: 24, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 12, backgroundColor: Palette.primary, borderRadius: 12, gap: 8 },
+    emptyAddText: { color: 'white', fontFamily: 'Outfit-Bold', fontSize: 14 },
+
     modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.5)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: 'white', borderTopLeftRadius: 32, borderTopRightRadius: 32, maxHeight: '90%', padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
@@ -909,7 +766,6 @@ const styles = StyleSheet.create({
     chipTextActive: { color: 'white' },
     saveButton: { backgroundColor: Palette.primary, borderRadius: 16, padding: 18, alignItems: 'center', marginTop: 24, shadowColor: Palette.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
     saveButtonText: { color: 'white', fontFamily: 'Outfit-Bold', fontSize: 16 },
-    sectionDivider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 10 },
     syncToggleRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', marginTop: 10 },
     helperText: { fontSize: 12, color: '#64748B', fontFamily: 'Outfit-Medium', marginTop: 2 },
     toggleBase: { width: 44, height: 24, borderRadius: 12, backgroundColor: '#E2E8F0', padding: 2 },
