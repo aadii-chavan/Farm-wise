@@ -152,6 +152,45 @@ export default function AttendanceSheetScreen() {
         }
     };
 
+    const stats = useMemo(() => {
+        if (workers.length === 0 || days.length === 0) return { avg: 0, present: 0, payout: 0 };
+        
+        let totalPresentDays = 0;
+        let totalWages = 0;
+        
+        workers.forEach(worker => {
+            const workerPresent = days.reduce((acc, d) => {
+                const r = getAttendance(worker.id, d);
+                if (r?.status === 'Present') return acc + 1;
+                if (r?.status === 'Half-Day') return acc + 0.5;
+                return acc;
+            }, 0);
+            
+            totalPresentDays += workerPresent;
+            
+            if (sheetType === 'Daily') {
+                totalWages += workerPresent * (worker.baseWage || 0);
+            } else {
+                // For annual, we might show total deductions or just keep it 0
+                const totalAbsent = days.reduce((acc, d) => {
+                    const r = getAttendance(worker.id, d);
+                    if (r?.status === 'Absent') return acc + 1;
+                    if (r?.status === 'Half-Day') return acc + 0.5;
+                    return acc;
+                }, 0);
+                totalWages += totalAbsent * ((worker.baseWage || 0) / 365);
+            }
+        });
+
+        const avgAttendance = (totalPresentDays / (workers.length * days.length)) * 100;
+        
+        return { 
+            avg: Math.round(avgAttendance), 
+            present: totalPresentDays, 
+            payout: Math.round(totalWages) 
+        };
+    }, [workers, days, localAttendance, sheetType]);
+
     const advancePending = useMemo(() => {
         if (!payingWorker) return 0;
         const workerTransactions = laborTransactions.filter(t => t.workerId === payingWorker.worker.id);
@@ -236,238 +275,244 @@ export default function AttendanceSheetScreen() {
 
     return (
         <View style={styles.container}>
-            <Stack.Screen options={{ 
-                headerShown: true, 
-                title: `${sheetType} Attendance`,
-                headerTitleStyle: { fontFamily: 'Outfit-Bold' },
-                headerRight: () => (
+            <Stack.Screen options={{ headerShown: false }} />
+            
+            <View style={styles.header}>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="chevron-back" size={24} color={Palette.text} />
+                    </TouchableOpacity>
+                    <View style={styles.titleContainer}>
+                        <Text style={styles.headerTitle}>{sheetType} Attendance</Text>
+                        <Text style={styles.headerSubtitle}>
+                            {format(startDate, 'MMM d')} - {format(endDate, 'MMM d')}
+                        </Text>
+                    </View>
                     <TouchableOpacity 
                         onPress={() => setShowRangePresets(true)} 
-                        style={styles.rangeSelectBtn}
+                        style={styles.rangeToggle}
                     >
-                        <Ionicons name="options" size={18} color={Palette.primary} />
+                        <Ionicons name="calendar-outline" size={20} color={Palette.primary} />
                     </TouchableOpacity>
-                ),
-                headerLeft: () => (
-                    <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 8 }}>
-                        <Ionicons name="arrow-back" size={24} color={Palette.text} />
-                    </TouchableOpacity>
-                )
-            }} />
-
-            {/* Range Indicator & Navigation */}
-            <View style={styles.rangeIndicator}>
-                <TouchableOpacity onPress={() => navigateCycle('prev')} style={styles.navBtn}>
-                    <Ionicons name="chevron-back" size={20} color={Palette.primary} />
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                    style={styles.rangeInfo}
-                    onPress={() => setShowRangePresets(true)}
-                >
-                    <Text style={styles.rangeLabel}>Attendance period</Text>
-                    <Text style={styles.rangeDates}>
-                        {format(startDate, 'MMM d')} — {format(endDate, 'MMM d')}
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => navigateCycle('next')} style={styles.navBtn}>
-                    <Ionicons name="chevron-forward" size={20} color={Palette.primary} />
-                </TouchableOpacity>
+                </View>
             </View>
 
-            {/* Custom Range Selection (Alternative to presets) */}
-            <View style={styles.customRangeBar}>
-                <TouchableOpacity onPress={() => setShowStartPicker(true)} style={styles.datePickerTrigger}>
-                    <Text style={styles.datePickerLabel}>Start</Text>
-                    <Text style={styles.datePickerValue}>{format(startDate, 'dd/MM/yy')}</Text>
-                </TouchableOpacity>
-                <View style={styles.dateLink} />
-                <TouchableOpacity onPress={() => setShowEndPicker(true)} style={styles.datePickerTrigger}>
-                    <Text style={styles.datePickerLabel}>End</Text>
-                    <Text style={styles.datePickerValue}>{format(endDate, 'dd/MM/yy')}</Text>
-                </TouchableOpacity>
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                <View style={styles.scrollPadding}>
+                    {/* Stats Grid - Matching Ledger Style */}
+                    <View style={styles.statsGrid}>
+                        <View style={styles.statCard}>
+                            <Text style={styles.statLabel}>Avg Attendance</Text>
+                            <Text style={styles.statValue}>{stats.avg}%</Text>
+                        </View>
+                        <View style={styles.statCard}>
+                            <Text style={styles.statLabel}>Present Count</Text>
+                            <Text style={[styles.statValue, { color: Palette.success }]}>{stats.present}</Text>
+                        </View>
+                        <View style={styles.statCard}>
+                            <Text style={styles.statLabel}>{sheetType === 'Daily' ? 'Est. Payout' : 'Est. Cut'}</Text>
+                            <Text style={[styles.statValue, { color: sheetType === 'Daily' ? Palette.primary : Palette.danger }]}>₹{stats.payout.toLocaleString()}</Text>
+                        </View>
+                    </View>
 
-            {/* Main Content Areas */}
-            <View style={styles.gridContainer}>
-                {/* Vertical Scroll for all rows */}
-                <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-                    <View style={styles.flexRow}>
-                        
-                        {/* 1. FIXED COLUMN (Names) */}
-                        <View style={styles.fixedColumn}>
-                            {/* Static Header for Names */}
-                            <View style={[styles.row, styles.headerRow]}>
-                                <View style={styles.nameHeader}>
-                                    <Text style={styles.headerText}>Staff Name</Text>
-                                </View>
+                    {/* Custom Range Selector - Always Visible for User Friendliness */}
+                    <View style={styles.mainRangeSelector}>
+                        <TouchableOpacity 
+                            style={styles.mainDateBtn} 
+                            onPress={() => setShowStartPicker(true)}
+                        >
+                            <View style={styles.dateBtnIcon}>
+                                <Ionicons name="calendar-outline" size={14} color={Palette.primary} />
                             </View>
-                            {/* Name cells */}
-                            {workers.length === 0 ? (
-                                <View style={styles.nameCell}>
-                                    <Text style={styles.emptyText}>No {sheetType.toLowerCase()} staff found</Text>
-                                </View>
-                            ) : (
-                                workers.map(worker => {
-                                    // Calculate advance pending for the icon
-                                    const workerTransactions = laborTransactions.filter(t => t.workerId === worker.id);
-                                    const totalAdv = workerTransactions
-                                        .filter(t => (t.type as string) === 'Advance')
-                                        .reduce((acc, t) => acc + t.amount, 0);
-                                    const totalRepay = workerTransactions
-                                        .filter(t => (t.type as string) === 'Advance Repayment')
-                                        .reduce((acc, t) => acc + t.amount, 0);
-                                    const advancePendingAmount = totalAdv - totalRepay;
-
-                                    return (
-                                        <View key={worker.id} style={[styles.row, styles.contentRow]}>
-                                            <TouchableOpacity 
-                                                style={styles.nameCell}
-                                                onPress={() => router.push({ pathname: '/worker-detail', params: { id: worker.id } })}
-                                            >
-                                                <View style={styles.nameRow}>
-                                                    <Text style={styles.workerName} numberOfLines={1}>{worker.name}</Text>
-                                                    {advancePendingAmount > 0 && (
-                                                        <Ionicons name="alert-circle" size={12} color={Palette.danger} style={{ marginLeft: 4 }} />
-                                                    )}
-                                                </View>
-                                                <Text style={styles.workerSub}>Base: ₹{worker.baseWage}</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    );
-                                })
-                            )}
+                            <View>
+                                <Text style={styles.mainDateLabel}>START DATE</Text>
+                                <Text style={styles.mainDateValue}>{format(startDate, 'dd MMM, yyyy')}</Text>
+                            </View>
+                        </TouchableOpacity>
+                        
+                        <View style={styles.rangeConnector}>
+                            <Ionicons name="arrow-forward" size={16} color="#94A3B8" />
                         </View>
 
-                        {/* 2. SCROLLABLE GRID (Dates + Data) */}
-                        <ScrollView horizontal showsHorizontalScrollIndicator={true} bounces={false}>
+                        <TouchableOpacity 
+                            style={styles.mainDateBtn} 
+                            onPress={() => setShowEndPicker(true)}
+                        >
+                            <View style={styles.dateBtnIcon}>
+                                <Ionicons name="calendar-outline" size={14} color={Palette.primary} />
+                            </View>
                             <View>
-                                {/* Dates Header */}
+                                <Text style={styles.mainDateLabel}>END DATE</Text>
+                                <Text style={styles.mainDateValue}>{format(endDate, 'dd MMM, yyyy')}</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Range Navigation Controls */}
+                    <View style={styles.rangeNavControls}>
+                        <TouchableOpacity onPress={() => navigateCycle('prev')} style={styles.cycleBtn}>
+                            <Ionicons name="chevron-back" size={16} color={Palette.primary} />
+                            <Text style={styles.cycleBtnText}>Previous Period</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => navigateCycle('next')} style={styles.cycleBtn}>
+                            <Text style={styles.cycleBtnText}>Next Period</Text>
+                            <Ionicons name="chevron-forward" size={16} color={Palette.primary} />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Main Attendance Grid */}
+                    <View style={styles.gridWrapper}>
+                        <View style={styles.flexRow}>
+                            
+                            {/* FIXED COLUMN (Names) */}
+                            <View style={styles.fixedColumn}>
                                 <View style={[styles.row, styles.headerRow]}>
-                                    {days.map(day => (
-                                        <View key={day.toISOString()} style={styles.dayHeader}>
-                                            <Text style={styles.dayNum}>{format(day, 'd')}</Text>
-                                            <Text style={styles.dayName}>{format(day, 'EEEEE')}</Text>
-                                        </View>
-                                    ))}
-                                    <View style={styles.totalHeader}>
-                                        <Text style={styles.headerText}>Days</Text>
-                                    </View>
-                                    <View style={[styles.totalHeader, { width: 80 }]}>
-                                        <Text style={styles.headerText}>{sheetType === 'Daily' ? 'Pay' : 'Cut'}</Text>
+                                    <View style={styles.nameHeader}>
+                                        <Text style={styles.headerText}>Staff</Text>
                                     </View>
                                 </View>
+                                {workers.length === 0 ? (
+                                    <View style={styles.nameCell}>
+                                        <Text style={styles.emptyText}>No staff found</Text>
+                                    </View>
+                                ) : (
+                                    workers.map(worker => {
+                                        const workerTransactions = laborTransactions.filter(t => t.workerId === worker.id);
+                                        const totalAdv = workerTransactions
+                                            .filter(t => (t.type as string) === 'Advance')
+                                            .reduce((acc, t) => acc + t.amount, 0);
+                                        const totalRepay = workerTransactions
+                                            .filter(t => (t.type as string) === 'Advance Repayment')
+                                            .reduce((acc, t) => acc + t.amount, 0);
+                                        const advancePendingAmount = totalAdv - totalRepay;
 
-                                {/* Grid Cells */}
-                                {workers.map(worker => {
-                                    const totalPresent = days.reduce((acc, d) => {
-                                        const r = getAttendance(worker.id, d);
-                                        if (r?.status === 'Present') return acc + 1;
-                                        if (r?.status === 'Half-Day') return acc + 0.5;
-                                        return acc;
-                                    }, 0);
-
-                                    const totalAbsent = days.reduce((acc, d) => {
-                                        const r = getAttendance(worker.id, d);
-                                        if (r?.status === 'Absent') return acc + 1;
-                                        if (r?.status === 'Half-Day') return acc + 0.5;
-                                        return acc;
-                                    }, 0);
-
-                                    const grossWages = sheetType === 'Daily' 
-                                        ? (totalPresent * (worker.baseWage || 0))
-                                        : (totalAbsent * ((worker.baseWage || 0) / 365));
-
-                                    // Transaction adjustments
-                                    const workerTransactions = laborTransactions.filter(t => t.workerId === worker.id);
-                                    
-                                    const periodPayments = workerTransactions.filter(t => {
-                                        const tDate = new Date(t.date);
-                                        // Simple string comparison for dates often better with Supabase dates
-                                        const dateStr = t.date;
-                                        const startStr = format(startDate, 'yyyy-MM-dd');
-                                        const endStr = format(endDate, 'yyyy-MM-dd');
-                                        return dateStr >= startStr && dateStr <= endStr && t.type === 'Weekly Settle';
-                                    }).reduce((acc, t) => acc + t.amount, 0);
-
-                                    const wageRepayments = workerTransactions.filter(t => {
-                                        const dateStr = t.date;
-                                        const startStr = format(startDate, 'yyyy-MM-dd');
-                                        const endStr = format(endDate, 'yyyy-MM-dd');
-                                        return dateStr >= startStr && dateStr <= endStr && 
-                                               t.type === 'Advance Repayment' && t.repaymentMethod === 'Wage Income';
-                                    }).reduce((acc, t) => acc + t.amount, 0);
-
-                                    const periodDeductions = workerTransactions.filter(t => {
-                                        const dateStr = t.date;
-                                        const startStr = format(startDate, 'yyyy-MM-dd');
-                                        const endStr = format(endDate, 'yyyy-MM-dd');
-                                        return dateStr >= startStr && dateStr <= endStr && t.type === 'Salary Deduction';
-                                    }).reduce((acc, t) => acc + t.amount, 0);
-
-                                    const netPayout = sheetType === 'Daily' 
-                                        ? Math.round(grossWages - periodPayments - wageRepayments)
-                                        : Math.round(grossWages - periodDeductions);
-
-                                    // Total advance for the icon
-                                    const totalAdv = workerTransactions
-                                        .filter(t => (t.type as string) === 'Advance')
-                                        .reduce((acc, t) => acc + t.amount, 0);
-                                    const totalRepay = workerTransactions
-                                        .filter(t => (t.type as string) === 'Advance Repayment')
-                                        .reduce((acc, t) => acc + t.amount, 0);
-                                    const workerAdvancePending = totalAdv - totalRepay;
-
-                                    return (
-                                        <View key={worker.id} style={[styles.row, styles.contentRow]}>
-                                            {days.map(day => (
-                                                <View key={day.toISOString()}>
-                                                    {renderCell(worker, day)}
-                                                </View>
-                                            ))}
-                                            <View style={styles.totalCell}>
-                                                <Text style={styles.totalText}>{totalPresent}</Text>
+                                        return (
+                                            <View key={worker.id} style={[styles.row, styles.contentRow]}>
+                                                <TouchableOpacity 
+                                                    style={styles.nameCell}
+                                                    onPress={() => router.push({ pathname: '/worker-detail', params: { id: worker.id } })}
+                                                >
+                                                    <View style={styles.nameRow}>
+                                                        <Text style={styles.workerName} numberOfLines={1}>{worker.name}</Text>
+                                                        {advancePendingAmount > 0 && (
+                                                            <View style={styles.advBadge}>
+                                                                <Text style={styles.advBadgeText}>ADV</Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                    <Text style={styles.workerSub}>₹{worker.baseWage}/{sheetType === 'Daily' ? 'd' : 'y'}</Text>
+                                                </TouchableOpacity>
                                             </View>
-                                            <TouchableOpacity 
-                                                style={[styles.totalCell, { width: 80 }]}
-                                                onPress={() => setPayingWorker({ worker, amount: Math.round(netPayout) })}
-                                            >
-                                                <Text style={[styles.totalText, { color: sheetType === 'Daily' ? Palette.success : Palette.danger }]}>
-                                                    {sheetType === 'Daily' ? '+' : '-'}₹{Math.round(netPayout)}
-                                                </Text>
-                                                <View style={styles.payIcon}>
-                                                    <Ionicons name="card-outline" size={10} color={sheetType === 'Daily' ? Palette.success : Palette.danger} />
-                                                </View>
-                                            </TouchableOpacity>
-                                        </View>
-                                    );
-                                })}
+                                        );
+                                    })
+                                )}
                             </View>
-                        </ScrollView>
 
-                    </View>
-                </ScrollView>
-            </View>
+                            {/* SCROLLABLE GRID */}
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}>
+                                <View>
+                                    <View style={[styles.row, styles.headerRow]}>
+                                        {days.map(day => (
+                                            <View key={day.toISOString()} style={styles.dayHeader}>
+                                                <Text style={styles.dayNum}>{format(day, 'd')}</Text>
+                                                <Text style={styles.dayName}>{format(day, 'EEEEE')}</Text>
+                                            </View>
+                                        ))}
+                                        <View style={styles.totalHeader}>
+                                            <Text style={styles.headerText}>Total</Text>
+                                        </View>
+                                        <View style={[styles.totalHeader, { width: 70 }]}>
+                                            <Text style={styles.headerText}>Action</Text>
+                                        </View>
+                                    </View>
 
-            {/* Legend */}
-            <View style={styles.legend}>
-                <View style={styles.legendRow}>
-                    <View style={styles.legendItem}>
-                        <View style={[styles.dot, { backgroundColor: Palette.success }]} />
-                        <Text style={styles.legendText}>P (Present)</Text>
+                                    {workers.map(worker => {
+                                        const totalPresent = days.reduce((acc, d) => {
+                                            const r = getAttendance(worker.id, d);
+                                            if (r?.status === 'Present') return acc + 1;
+                                            if (r?.status === 'Half-Day') return acc + 0.5;
+                                            return acc;
+                                        }, 0);
+
+                                        const totalAbsent = days.reduce((acc, d) => {
+                                            const r = getAttendance(worker.id, d);
+                                            if (r?.status === 'Absent') return acc + 1;
+                                            if (r?.status === 'Half-Day') return acc + 0.5;
+                                            return acc;
+                                        }, 0);
+
+                                        const grossWages = sheetType === 'Daily' 
+                                            ? (totalPresent * (worker.baseWage || 0))
+                                            : (totalAbsent * ((worker.baseWage || 0) / 365));
+
+                                        const workerTransactions = laborTransactions.filter(t => t.workerId === worker.id);
+                                        const startStr = format(startDate, 'yyyy-MM-dd');
+                                        const endStr = format(endDate, 'yyyy-MM-dd');
+
+                                        const periodPayments = workerTransactions.filter(t => 
+                                            t.date >= startStr && t.date <= endStr && t.type === 'Weekly Settle'
+                                        ).reduce((acc, t) => acc + t.amount, 0);
+
+                                        const wageRepayments = workerTransactions.filter(t => 
+                                            t.date >= startStr && t.date <= endStr && 
+                                            t.type === 'Advance Repayment' && t.repaymentMethod === 'Wage Income'
+                                        ).reduce((acc, t) => acc + t.amount, 0);
+
+                                        const periodDeductions = workerTransactions.filter(t => 
+                                            t.date >= startStr && t.date <= endStr && t.type === 'Salary Deduction'
+                                        ).reduce((acc, t) => acc + t.amount, 0);
+
+                                        const netPayout = sheetType === 'Daily' 
+                                            ? Math.round(grossWages - periodPayments - wageRepayments)
+                                            : Math.round(grossWages - periodDeductions);
+
+                                        return (
+                                            <View key={worker.id} style={[styles.row, styles.contentRow]}>
+                                                {days.map(day => (
+                                                    <View key={day.toISOString()}>
+                                                        {renderCell(worker, day)}
+                                                    </View>
+                                                ))}
+                                                <View style={styles.totalCell}>
+                                                    <Text style={styles.totalText}>{totalPresent}</Text>
+                                                </View>
+                                                <TouchableOpacity 
+                                                    style={[styles.totalCell, { width: 70 }]}
+                                                    onPress={() => setPayingWorker({ worker, amount: Math.round(netPayout) })}
+                                                >
+                                                    <View style={[styles.payActionBtn, { backgroundColor: netPayout > 0 ? Palette.primary : '#F1F5F9' }]}>
+                                                        <Text style={[styles.payActionText, { color: netPayout > 0 ? 'white' : '#94A3B8' }]}>
+                                                            ₹{Math.abs(Math.round(netPayout))}
+                                                        </Text>
+                                                    </View>
+                                                </TouchableOpacity>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            </ScrollView>
+                        </View>
                     </View>
-                    <View style={styles.legendItem}>
-                        <View style={[styles.dot, { backgroundColor: '#F59E0B' }]} />
-                        <Text style={styles.legendText}>H (Half Day)</Text>
-                    </View>
-                    <View style={styles.legendItem}>
-                        <View style={[styles.dot, { backgroundColor: Palette.danger }]} />
-                        <Text style={styles.legendText}>A (Absent)</Text>
+
+                    {/* Legend */}
+                    <View style={styles.legend}>
+                        <View style={styles.legendRow}>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.dot, { backgroundColor: Palette.success }]} />
+                                <Text style={styles.legendText}>P: Present</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.dot, { backgroundColor: '#F59E0B' }]} />
+                                <Text style={styles.legendText}>H: Half Day</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                                <View style={[styles.dot, { backgroundColor: Palette.danger }]} />
+                                <Text style={styles.legendText}>A: Absent</Text>
+                            </View>
+                        </View>
                     </View>
                 </View>
-                <Text style={styles.legendSub}>Tap any cell once to change attendance</Text>
-            </View>
+            </ScrollView>
 
             {/* Range Presets Modal */}
             <Modal
@@ -499,8 +544,11 @@ export default function AttendanceSheetScreen() {
                             <Text style={styles.presetBtnText}>Full Month</Text>
                         </TouchableOpacity>
 
-                        <Text style={styles.pickerHint}>You can also tap the dates at the top to select exact custom days.</Text>
-                        
+                        <TouchableOpacity style={styles.presetBtn} onPress={() => setCycleRange('thisMonth')}>
+                            <Ionicons name="calendar-clear-outline" size={20} color={Palette.primary} />
+                            <Text style={styles.presetBtnText}>Full Month</Text>
+                        </TouchableOpacity>
+
                         <TouchableOpacity 
                             style={styles.pickerCloseBtn}
                             onPress={() => setShowRangePresets(false)}
@@ -744,31 +792,115 @@ export default function AttendanceSheetScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: 'white',
+        backgroundColor: '#FFFFFF',
     },
     header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
+        backgroundColor: 'white',
+        paddingTop: 50,
+        paddingBottom: 20,
         borderBottomWidth: 1,
         borderBottomColor: '#F1F5F9',
     },
-    monthNav: {
-        padding: 6,
-        backgroundColor: '#F8FAFC',
-        borderRadius: 10,
-        marginHorizontal: 15,
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        justifyContent: 'space-between',
     },
-    monthTitle: {
-        fontSize: 16,
+    backBtn: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+    },
+    titleContainer: {
+        alignItems: 'center',
+    },
+    headerTitle: {
+        fontSize: 18,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-        minWidth: 120,
+        color: '#1e293b',
+    },
+    headerSubtitle: {
+        fontSize: 12,
+        fontFamily: 'Outfit-Medium',
+        color: '#94A3B8',
+        marginTop: 2,
+    },
+    rangeToggle: {
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F0F9FF',
+        borderRadius: 12,
+    },
+    scrollPadding: {
+        paddingTop: 20,
+        paddingBottom: 40,
+    },
+    statsGrid: {
+        flexDirection: 'row',
+        gap: 12,
+        paddingHorizontal: 20,
+        marginBottom: 20,
+    },
+    statCard: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+        padding: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 70,
+    },
+    statLabel: {
+        fontSize: 9,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 4,
         textAlign: 'center',
     },
-    gridContainer: {
+    statValue: {
+        fontSize: 15,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+    },
+    rangeNavControls: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        marginBottom: 20,
+        gap: 12,
+    },
+    cycleBtn: {
         flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'white',
+        paddingVertical: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        gap: 6,
+    },
+    cycleBtnText: {
+        fontSize: 11,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.primary,
+    },
+    gridWrapper: {
+        backgroundColor: 'white',
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: '#F1F5F9',
     },
     flexRow: {
         flexDirection: 'row',
@@ -776,6 +908,10 @@ const styles = StyleSheet.create({
     fixedColumn: {
         backgroundColor: 'white',
         zIndex: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 2, height: 0 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
         elevation: 2,
     },
     row: {
@@ -783,7 +919,7 @@ const styles = StyleSheet.create({
     },
     headerRow: {
         backgroundColor: '#F8FAFC',
-        height: 50,
+        height: 44,
         borderBottomWidth: 1,
         borderBottomColor: '#E2E8F0',
     },
@@ -793,14 +929,14 @@ const styles = StyleSheet.create({
         borderBottomColor: '#F1F5F9',
     },
     nameHeader: {
-        width: 130,
+        width: 110,
         paddingHorizontal: 12,
         justifyContent: 'center',
         borderRightWidth: 1,
         borderRightColor: '#E2E8F0',
     },
     nameCell: {
-        width: 130,
+        width: 110,
         paddingHorizontal: 12,
         justifyContent: 'center',
         borderRightWidth: 1,
@@ -808,10 +944,11 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
     },
     headerText: {
-        fontSize: 11,
+        fontSize: 10,
         fontFamily: 'Outfit-Bold',
-        color: Palette.textSecondary,
+        color: '#94A3B8',
         textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     dayHeader: {
         width: 44,
@@ -821,14 +958,15 @@ const styles = StyleSheet.create({
         borderRightColor: '#F1F5F9',
     },
     dayNum: {
-        fontSize: 14,
+        fontSize: 13,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: '#1e293b',
     },
     dayName: {
-        fontSize: 10,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
+        fontSize: 9,
+        color: '#94A3B8',
+        fontFamily: 'Outfit-Medium',
+        textTransform: 'uppercase',
     },
     cell: {
         width: 44,
@@ -839,119 +977,196 @@ const styles = StyleSheet.create({
         borderRightColor: '#F1F5F9',
     },
     cellText: {
-        fontSize: 15,
+        fontSize: 14,
         fontFamily: 'Outfit-Bold',
     },
     totalHeader: {
-        width: 60,
+        width: 50,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#F1F5F9',
     },
     totalCell: {
-        width: 60,
+        width: 50,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#F8FAFC',
     },
     totalText: {
-        fontSize: 14,
+        fontSize: 13,
         fontFamily: 'Outfit-Bold',
-        color: Palette.primary,
+        color: '#1e293b',
     },
     workerName: {
-        fontSize: 13,
-        fontFamily: 'Outfit-SemiBold',
-        color: Palette.text,
+        fontSize: 12,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
     },
     workerSub: {
-        fontSize: 10,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
+        fontSize: 9,
+        color: '#94A3B8',
+        fontFamily: 'Outfit-Medium',
+        marginTop: 2,
+    },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    advBadge: {
+        backgroundColor: Palette.danger + '10',
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        borderRadius: 4,
+        marginLeft: 4,
+    },
+    advBadgeText: {
+        fontSize: 7,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.danger,
+    },
+    payActionBtn: {
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        borderRadius: 8,
+        minWidth: 50,
+        alignItems: 'center',
+    },
+    payActionText: {
+        fontSize: 11,
+        fontFamily: 'Outfit-Bold',
     },
     legend: {
-        padding: 16,
-        paddingBottom: 24,
-        borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
+        padding: 20,
         backgroundColor: '#F8FAFC',
+        marginTop: 20,
+        marginHorizontal: 20,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
     },
     legendRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 8,
     },
     legendItem: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 6,
     },
     dot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        marginRight: 6,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
     legendText: {
-        fontSize: 11,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-    },
-    legendSub: {
-        fontSize: 12,
-        color: Palette.primary,
-        fontFamily: 'Outfit-Bold',
-        textAlign: 'center',
-    },
-    emptyText: {
-        fontSize: 12,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-        padding: 12,
-    },
-    navBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: Palette.primary + '10',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    customRangeBar: {
-        flexDirection: 'row',
-        backgroundColor: 'white',
-        paddingHorizontal: 16,
-        paddingBottom: 16,
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
-    },
-    datePickerTrigger: {
-        flex: 1,
-        backgroundColor: '#F8FAFC',
-        padding: 10,
-        borderRadius: 12,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-    },
-    datePickerLabel: {
         fontSize: 10,
         fontFamily: 'Outfit-Bold',
-        color: Palette.textSecondary,
-        textTransform: 'uppercase',
+        color: '#64748B',
     },
-    datePickerValue: {
-        fontSize: 14,
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        padding: 24,
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderRadius: 24,
+        padding: 24,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 20,
         fontFamily: 'Outfit-Bold',
-        color: Palette.primary,
+        color: '#1e293b',
+    },
+    modalSub: {
+        fontSize: 13,
+        color: '#94A3B8',
+        fontFamily: 'Outfit-Medium',
         marginTop: 2,
     },
-    dateLink: {
-        width: 20,
-        height: 1,
+    pickerContent: {
+        backgroundColor: 'white',
+        borderRadius: 24,
+        padding: 24,
+        width: '90%',
+        alignSelf: 'center',
+    },
+    pickerTitle: {
+        fontSize: 18,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    presetBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 16,
+        marginBottom: 12,
+        gap: 12,
+    },
+    presetBtnText: {
+        fontSize: 15,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+    },
+    pickerHint: {
+        fontSize: 12,
+        color: '#94A3B8',
+        fontFamily: 'Outfit-Medium',
+        textAlign: 'center',
+        marginTop: 8,
+        marginBottom: 20,
+    },
+    pickerCloseBtn: {
+        alignItems: 'center',
+        padding: 12,
+    },
+    pickerCloseText: {
+        color: Palette.primary,
+        fontFamily: 'Outfit-Bold',
+        fontSize: 14,
+    },
+    financialSummary: {
+        flexDirection: 'row',
+        backgroundColor: '#F8FAFC',
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 20,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    summaryItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    summaryLabel: {
+        fontSize: 9,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        marginBottom: 4,
+    },
+    summaryValue: {
+        fontSize: 16,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+    },
+    summaryDivider: {
+        width: 1,
+        height: 24,
         backgroundColor: '#E2E8F0',
-        marginHorizontal: 10,
+        marginHorizontal: 12,
     },
     typeSelectorSmall: {
         flexDirection: 'row',
@@ -975,13 +1190,19 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     typeTextSmall: {
-        fontSize: 12,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
+        fontSize: 11,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
     },
     activeTypeTextSmall: {
         color: Palette.primary,
-        fontFamily: 'Outfit-Bold',
+    },
+    paymentSummary: {
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        padding: 20,
+        borderRadius: 16,
+        marginBottom: 20,
     },
     amountInputContainer: {
         flexDirection: 'row',
@@ -989,188 +1210,68 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     currencyPrefix: {
-        fontSize: 32,
+        fontSize: 28,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        color: '#1e293b',
         marginRight: 4,
     },
     paymentAmountInput: {
-        fontSize: 32,
+        fontSize: 28,
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-        minWidth: 100,
+        color: '#1e293b',
+        minWidth: 80,
         textAlign: 'center',
-    },
-    rangeIndicator: {
-        flexDirection: 'row',
-        backgroundColor: 'white',
-        padding: 16,
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
-    },
-    rangeInfo: {
-        flex: 1,
-    },
-    rangeLabel: {
-        fontSize: 10,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.textSecondary,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    rangeDates: {
-        fontSize: 16,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-        marginTop: 2,
-    },
-    changeRangeBtn: {
-        backgroundColor: Palette.primary + '10',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 20,
-    },
-    changeRangeText: {
-        color: Palette.primary,
-        fontFamily: 'Outfit-Bold',
-        fontSize: 12,
-    },
-    rangeSelectBtn: {
-        marginRight: 16,
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: Palette.primary + '10',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    pickerContent: {
-        backgroundColor: 'white',
-        borderRadius: 24,
-        padding: 24,
-        width: '85%',
-        alignSelf: 'center',
-    },
-    pickerTitle: {
-        fontSize: 20,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-        marginBottom: 20,
-        textAlign: 'center',
-    },
-    presetBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        backgroundColor: '#F8FAFC',
-        borderRadius: 16,
-        marginBottom: 12,
-    },
-    presetBtnText: {
-        marginLeft: 12,
-        fontSize: 16,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.text,
-    },
-    pickerHint: {
-        fontSize: 12,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-        textAlign: 'center',
-        marginTop: 8,
-        marginBottom: 20,
-    },
-    pickerCloseBtn: {
-        alignItems: 'center',
-        padding: 12,
-    },
-    pickerCloseText: {
-        color: Palette.primary,
-        fontFamily: 'Outfit-Bold',
-    },
-    paymentSummary: {
-        alignItems: 'center',
-        backgroundColor: '#F8FAFC',
-        padding: 24,
-        borderRadius: 20,
-        marginBottom: 20,
-    },
-    paymentAmount: {
-        fontSize: 32,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
     },
     paymentPeriod: {
-        fontSize: 13,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
+        fontSize: 11,
+        color: '#94A3B8',
+        fontFamily: 'Outfit-Medium',
         marginTop: 4,
+        textAlign: 'center',
+    },
+    inputLabel: {
+        fontSize: 13,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+        marginBottom: 8,
+    },
+    modalNoteInput: {
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        padding: 12,
+        height: 80,
+        textAlignVertical: 'top',
+        fontSize: 14,
+        fontFamily: 'Outfit-Medium',
+        color: '#1e293b',
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
     },
     paySubmitBtn: {
         flexDirection: 'row',
         backgroundColor: Palette.primary,
         paddingVertical: 16,
-        borderRadius: 16,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 8,
     },
     paySubmitText: {
         color: 'white',
         fontFamily: 'Outfit-Bold',
-        fontSize: 16,
-        marginLeft: 8,
-    },
-    payIcon: {
-        position: 'absolute',
-        bottom: 4,
-        right: 4,
-    },
-    // New Modal Styles
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        justifyContent: 'center',
-        padding: 24,
-    },
-    modalContent: {
-        backgroundColor: 'white',
-        borderRadius: 24,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 10,
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 24,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-    },
-    modalSub: {
-        fontSize: 13,
-        color: Palette.textSecondary,
-        fontFamily: 'Outfit',
-        marginTop: 2,
+        fontSize: 15,
     },
     statusOptions: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 24,
+        marginBottom: 20,
+        gap: 8,
     },
     statusBtn: {
         flex: 1,
-        marginHorizontal: 4,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: 10,
         backgroundColor: '#F1F5F9',
         alignItems: 'center',
     },
@@ -1182,98 +1283,38 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     statusBtnText: {
-        fontSize: 13,
+        fontSize: 12,
         fontFamily: 'Outfit-Bold',
-        color: Palette.textSecondary,
-    },
-    inputLabel: {
-        fontSize: 14,
-        fontFamily: 'Outfit-SemiBold',
-        color: Palette.text,
-        marginBottom: 8,
-    },
-    modalNoteInput: {
-        backgroundColor: '#F8FAFC',
-        borderRadius: 12,
-        padding: 16,
-        height: 100,
-        textAlignVertical: 'top',
-        fontSize: 15,
-        fontFamily: 'Outfit',
-        color: Palette.text,
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
+        color: '#64748B',
     },
     modalActions: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        gap: 12,
     },
     modalActionBtn: {
         flex: 1,
         paddingVertical: 14,
-        borderRadius: 14,
+        borderRadius: 12,
         alignItems: 'center',
     },
     cancelBtn: {
-        marginRight: 8,
         backgroundColor: '#F1F5F9',
     },
     saveBtn: {
-        marginLeft: 8,
         backgroundColor: Palette.primary,
     },
     cancelBtnText: {
         fontFamily: 'Outfit-Bold',
-        color: Palette.textSecondary,
+        color: '#64748B',
     },
     saveBtnText: {
         fontFamily: 'Outfit-Bold',
         color: 'white',
     },
-    nameRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
     noteIndicatorContainer: {
         position: 'absolute',
         top: 4,
         right: 4,
-    },
-    hasNote: {
-        // Option to style cells with notes differently
-    },
-    financialSummary: {
-        flexDirection: 'row',
-        backgroundColor: '#F8FAFC',
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 20,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    summaryItem: {
-        flex: 1,
-        alignItems: 'center',
-    },
-    summaryLabel: {
-        fontSize: 10,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.textSecondary,
-        textTransform: 'uppercase',
-        marginBottom: 4,
-    },
-    summaryValue: {
-        fontSize: 16,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-    },
-    summaryDivider: {
-        width: 1,
-        height: 24,
-        backgroundColor: '#E2E8F0',
-        marginHorizontal: 12,
     },
     repaymentMethodSection: {
         marginBottom: 20,
@@ -1282,32 +1323,131 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: '#F1F5F9',
         padding: 4,
-        borderRadius: 12,
+        borderRadius: 10,
+        gap: 4,
     },
     methodBtn: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 10,
-        borderRadius: 8,
+        paddingVertical: 8,
+        borderRadius: 6,
         gap: 6,
     },
     activeMethodBtn: {
         backgroundColor: Palette.primary,
-        shadowColor: Palette.primary,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 3,
     },
     methodText: {
-        fontSize: 13,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
+        fontSize: 12,
+        fontFamily: 'Outfit-Bold',
+        color: '#64748B',
     },
     activeMethodText: {
         color: 'white',
+    },
+    customRangeSection: {
+        marginTop: 12,
+        paddingTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+    },
+    mainRangeSelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        marginBottom: 12,
+        gap: 10,
+    },
+    mainDateBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        padding: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        gap: 10,
+    },
+    dateBtnIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        backgroundColor: 'white',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    mainDateLabel: {
+        fontSize: 8,
         fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        letterSpacing: 0.5,
+    },
+    mainDateValue: {
+        fontSize: 13,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+        marginTop: 1,
+    },
+    rangeConnector: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#F1F5F9',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sectionLabel: {
+        fontSize: 11,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    dateSelectorRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+    },
+    dateSelector: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        alignItems: 'center',
+    },
+    dateLabel: {
+        fontSize: 9,
+        fontFamily: 'Outfit-Bold',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        marginBottom: 2,
+    },
+    dateValue: {
+        fontSize: 14,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.primary,
+    },
+    dateArrow: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: '#F1F5F9',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyText: {
+        fontSize: 12,
+        color: '#94A3B8',
+        fontFamily: 'Outfit-Medium',
+        fontStyle: 'italic',
     },
 });

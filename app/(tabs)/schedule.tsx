@@ -52,7 +52,16 @@ export default function SchedulePage() {
     const [workbookCategory, setWorkbookCategory] = useState('');
     const [workbookDescription, setWorkbookDescription] = useState('');
     const [showWorkbookCatPicker, setShowWorkbookCatPicker] = useState(false);
-    const WORKBOOK_CATEGORIES = ['Sowing', 'Fertilizer', 'Pesticide', 'Irrigation', 'Harvesting', 'Pruning', 'Plantation', 'Weeding', 'Tillage', 'Other'];
+    const [isAddingWorkbookCat, setIsAddingWorkbookCat] = useState(false);
+    const [newWorkbookCatName, setNewWorkbookCatName] = useState('');
+    const [isSavingWorkbookCat, setIsSavingWorkbookCat] = useState(false);
+    
+    const WORKBOOK_CATEGORIES = ['Foundational Pruning', 'Fruit Pruning', 'Sowing', 'Fertilizer', 'Pesticide', 'Irrigation', 'Harvesting', 'Plantation', 'Weeding', 'Tillage'];
+    
+    const dynamicWorkbookCategories = useMemo(() => {
+        const customCats = customEntities.filter(c => c.entityType === 'workbook_category').map(c => c.name);
+        return [...WORKBOOK_CATEGORIES, ...customCats];
+    }, [customEntities, WORKBOOK_CATEGORIES]);
     
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -167,6 +176,8 @@ export default function SchedulePage() {
             setWorkbookDescription('');
         }
         setIsAddingCat(false);
+        setIsAddingWorkbookCat(false);
+        setNewWorkbookCatName('');
     };
 
     const handleSaveTask = async () => {
@@ -220,6 +231,20 @@ export default function SchedulePage() {
         await addCustomEntity('category', newCatName.trim());
         setNewCatName('');
         setIsAddingCat(false);
+    };
+
+    const handleAddWorkbookCategory = async () => {
+        if (!newWorkbookCatName.trim() || isSavingWorkbookCat) return;
+        setIsSavingWorkbookCat(true);
+        try {
+            await addCustomEntity('workbook_category', newWorkbookCatName.trim());
+            setWorkbookCategory(newWorkbookCatName.trim());
+            setIsAddingWorkbookCat(false);
+            setNewWorkbookCatName('');
+            setShowWorkbookCatPicker(false);
+        } finally {
+            setIsSavingWorkbookCat(false);
+        }
     };
 
 
@@ -601,20 +626,57 @@ export default function SchedulePage() {
                             <Text style={styles.modalTitle}>Select Workbook Category</Text>
                             <Pressable onPress={() => setShowWorkbookCatPicker(false)}><Ionicons name="close" size={24} color={Palette.textSecondary} /></Pressable>
                         </View>
-                        <ScrollView>
-                            {WORKBOOK_CATEGORIES.map(cat => (
-                                <Pressable 
-                                    key={cat} 
-                                    style={styles.pickerItem}
-                                    onPress={() => {
-                                        setWorkbookCategory(cat);
-                                        setShowWorkbookCatPicker(false);
-                                    }}
-                                >
-                                    <Text style={styles.pickerItemText}>{cat}</Text>
-                                    {workbookCategory === cat && <Ionicons name="checkmark" size={20} color={Palette.primary} />}
-                                </Pressable>
-                            ))}
+                        <ScrollView keyboardShouldPersistTaps="handled">
+                            {isAddingWorkbookCat ? (
+                                <View style={{ padding: 20 }}>
+                                    <TextInput 
+                                        style={styles.textInput} 
+                                        value={newWorkbookCatName} 
+                                        onChangeText={setNewWorkbookCatName} 
+                                        placeholder="Enter custom category" 
+                                        autoFocus
+                                    />
+                                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 15, gap: 15, alignItems: 'center' }}>
+                                        <Pressable onPress={() => setIsAddingWorkbookCat(false)}>
+                                            <Text style={{ color: Palette.textSecondary, fontFamily: 'Outfit-Medium', fontSize: 15 }}>Cancel</Text>
+                                        </Pressable>
+                                        <Pressable 
+                                            style={[styles.saveButton, { paddingVertical: 8, paddingHorizontal: 16, marginTop: 0, opacity: isSavingWorkbookCat ? 0.7 : 1 }]}
+                                            disabled={isSavingWorkbookCat}
+                                            onPress={handleAddWorkbookCategory}
+                                        >
+                                            {isSavingWorkbookCat ? (
+                                                <ActivityIndicator size="small" color="white" />
+                                            ) : (
+                                                <Text style={{ color: 'white', fontFamily: 'Outfit-Bold', fontSize: 14 }}>Save</Text>
+                                            )}
+                                        </Pressable>
+                                    </View>
+                                </View>
+                            ) : (
+                                <>
+                                    {dynamicWorkbookCategories.map(cat => (
+                                        <Pressable 
+                                            key={cat} 
+                                            style={styles.pickerItem}
+                                            onPress={() => {
+                                                setWorkbookCategory(cat);
+                                                setShowWorkbookCatPicker(false);
+                                            }}
+                                        >
+                                            <Text style={styles.pickerItemText}>{cat}</Text>
+                                            {workbookCategory === cat && <Ionicons name="checkmark" size={20} color={Palette.primary} />}
+                                        </Pressable>
+                                    ))}
+                                    <Pressable 
+                                        style={[styles.pickerItem, { borderBottomWidth: 0 }]}
+                                        onPress={() => setIsAddingWorkbookCat(true)}
+                                    >
+                                        <Ionicons name="add" size={20} color={Palette.primary} style={{ marginRight: 8 }} />
+                                        <Text style={[styles.pickerItemText, { color: Palette.primary, flex: 1 }]}>New category</Text>
+                                    </Pressable>
+                                </>
+                            )}
                         </ScrollView>
                     </View>
                 </Pressable>

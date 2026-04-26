@@ -36,14 +36,19 @@ interface WorkbookSectionProps {
 }
 
 // Categories for the new inbuilt table
-const WORKBOOK_CATEGORIES = ['Foundational Pruning', 'Fruit Pruning', 'Sowing', 'Harvesting', 'Weeding'];
+const WORKBOOK_CATEGORIES = ['Foundational Pruning', 'Fruit Pruning', 'Sowing', 'Fertilizer', 'Pesticide', 'Irrigation', 'Harvesting', 'Plantation', 'Weeding', 'Tillage'];
 
 const CATEGORY_STYLES: Record<string, { color: string, icon: string }> = {
   'Foundational Pruning': { color: '#795548', icon: 'content-cut' },
   'Fruit Pruning': { color: '#8D6E63', icon: 'content-cut' },
   'Sowing': { color: '#4CAF50', icon: 'seed-outline' },
+  'Fertilizer': { color: '#10B981', icon: 'leaf' },
+  'Pesticide': { color: '#F43F5E', icon: 'bug' },
+  'Irrigation': { color: '#3B82F6', icon: 'water' },
   'Harvesting': { color: '#9C27B0', icon: 'food-apple-outline' },
+  'Plantation': { color: '#10B981', icon: 'nature' },
   'Weeding': { color: '#E91E63', icon: 'grass' },
+  'Tillage': { color: '#64748B', icon: 'tractor' },
   'Other': { color: '#9E9E9E', icon: 'dots-horizontal' }
 };
 

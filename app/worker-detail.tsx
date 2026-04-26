@@ -8,15 +8,32 @@ import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import { LaborModal } from '@/components/LaborModal';
 import { LaborTransactionModal } from '@/components/LaborTransactionModal';
-import { LaborProfile, LaborTransaction } from '@/types/farm';
+import { ContractModal } from '@/components/ContractModal';
+import { ContractDetailModal } from '@/components/ContractDetailModal';
+import { LaborProfile, LaborTransaction, LaborContract } from '@/types/farm';
 
 export default function WorkerDetailScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams();
-    const { laborProfiles, laborTransactions, laborAttendance, laborContracts, updateLaborProfile, deleteLaborProfile, addLaborTransaction } = useFarm();
+    const { 
+        laborProfiles, 
+        laborTransactions, 
+        laborAttendance, 
+        laborContracts, 
+        plots,
+        updateLaborProfile, 
+        deleteLaborProfile, 
+        addLaborTransaction,
+        addLaborContract,
+        updateLaborContract,
+        deleteLaborContract
+    } = useFarm();
     
     const [isEditModalVisible, setIsEditModalVisible] = React.useState(false);
     const [isPayModalVisible, setIsPayModalVisible] = React.useState(false);
+    const [showContractModal, setShowContractModal] = React.useState(false);
+    const [showDetailModal, setShowDetailModal] = React.useState(false);
+    const [selectedContract, setSelectedContract] = React.useState<LaborContract | null>(null);
     
     const worker = useMemo(() => laborProfiles.find(p => p.id === id), [laborProfiles, id]);
     
@@ -259,6 +276,47 @@ export default function WorkerDetailScreen() {
                 worker={worker}
                 advancePending={worker.type === 'Annual' ? 0 : (stats.l3 === 'Adv. Balance' ? stats.v3 : 0)}
                 wagesDue={worker.type === 'Annual' ? (stats.remainingToCut || 0) : (stats.l4 === 'To Pay' ? stats.v4 : 0)}
+            />
+
+            <ContractModal
+                visible={showContractModal}
+                onClose={() => setShowContractModal(false)}
+                onSave={addLaborContract}
+                contractor={worker}
+                plots={plots}
+            />
+
+            <ContractDetailModal
+                visible={showDetailModal}
+                onClose={() => setShowDetailModal(false)}
+                contract={selectedContract}
+                contractor={worker}
+                plots={plots}
+                onUpdate={async (updated) => {
+                    await updateLaborContract(updated);
+                    setSelectedContract(updated);
+                }}
+                onDelete={deleteLaborContract}
+                onRecordPayment={async (cid, amt) => {
+                    if (!worker || !selectedContract) return;
+                    
+                    await addLaborTransaction({
+                        id: '',
+                        workerId: worker.id,
+                        amount: amt,
+                        date: new Date().toISOString().split('T')[0],
+                        type: 'Contract Payment',
+                        note: `Payment: ${selectedContract.projectName}`,
+                        contractId: cid
+                    });
+
+                    const updatedContract = { 
+                        ...selectedContract, 
+                        advancePaid: (selectedContract.advancePaid || 0) + amt 
+                    };
+                    await updateLaborContract(updatedContract);
+                    setSelectedContract(updatedContract);
+                }}
             />
         </View>
     );
@@ -520,5 +578,68 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontFamily: 'Outfit-Medium',
         color: '#94A3B8',
+    },
+    contractCard: {
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    contractTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    contractProject: {
+        fontSize: 15,
+        fontFamily: 'Outfit-Bold',
+        color: '#1e293b',
+    },
+    statusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    statusText: {
+        fontSize: 10,
+        fontFamily: 'Outfit-Bold',
+        textTransform: 'uppercase',
+    },
+    progressRow: {
+        gap: 8,
+    },
+    progressBar: {
+        height: 6,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 3,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        backgroundColor: Palette.primary,
+    },
+    progressLabel: {
+        fontSize: 11,
+        fontFamily: 'Outfit-Medium',
+        color: '#64748B',
+    },
+    newContractBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        borderRadius: 16,
+        backgroundColor: Palette.primary + '08',
+        borderWidth: 1.5,
+        borderColor: Palette.primary,
+        borderStyle: 'dashed',
+        gap: 8,
+    },
+    newContractText: {
+        fontSize: 14,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.primary,
     },
 });

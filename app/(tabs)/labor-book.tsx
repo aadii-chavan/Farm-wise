@@ -237,48 +237,46 @@ export default function LaborBookScreen() {
                                             <Ionicons name="arrow-forward-circle-outline" size={24} color={Palette.primary} />
                                         </TouchableOpacity>
 
-                                        {filteredContracts.length > 0 ? (
-                                            <View style={styles.contractsStack}>
-                                                {filteredContracts.map(contract => (
-                                                    <View key={contract.id} style={styles.contractDetailCard}>
-                                                        <View style={styles.contractTopRow}>
-                                                            <Text style={styles.projectNameText}>{contract.projectName}</Text>
-                                                            <TouchableOpacity 
-                                                                style={styles.manageIconBtn}
-                                                                onPress={() => {
-                                                                    setSelectedContract(contract);
-                                                                    setSelectedContractor(worker);
-                                                                    setShowDetailModal(true);
-                                                                }}
-                                                            >
-                                                                <Ionicons name="ellipsis-vertical" size={16} color="#64748B" />
-                                                            </TouchableOpacity>
+                                        <View style={styles.contractsStack}>
+                                            {filteredContracts.map(contract => (
+                                                <View key={contract.id} style={styles.contractDetailCard}>
+                                                    <View style={styles.contractTopRow}>
+                                                        <Text style={styles.projectNameText}>{contract.projectName}</Text>
+                                                        <TouchableOpacity 
+                                                            style={styles.manageIconBtn}
+                                                            onPress={() => {
+                                                                setSelectedContract(contract);
+                                                                setSelectedContractor(worker);
+                                                                setShowDetailModal(true);
+                                                            }}
+                                                        >
+                                                            <Ionicons name="ellipsis-vertical" size={16} color="#64748B" />
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                    
+                                                    <View style={styles.progressSection}>
+                                                        <View style={styles.progressTrack}>
+                                                            <View style={[styles.progressIndicator, { width: `${Math.min((contract.advancePaid / contract.totalAmount) * 100, 100)}%` }]} />
                                                         </View>
-                                                        
-                                                        <View style={styles.progressSection}>
-                                                            <View style={styles.progressTrack}>
-                                                                <View style={[styles.progressIndicator, { width: `${Math.min((contract.advancePaid / contract.totalAmount) * 100, 100)}%` }]} />
-                                                            </View>
-                                                            <View style={styles.progressLabels}>
-                                                                <Text style={styles.progressVal}>₹{contract.advancePaid.toLocaleString()}</Text>
-                                                                <Text style={styles.progressTotal}>of ₹{contract.totalAmount.toLocaleString()}</Text>
-                                                            </View>
+                                                        <View style={styles.progressLabels}>
+                                                            <Text style={styles.progressVal}>₹{contract.advancePaid.toLocaleString()}</Text>
+                                                            <Text style={styles.progressTotal}>of ₹{contract.totalAmount.toLocaleString()}</Text>
                                                         </View>
                                                     </View>
-                                                ))}
-                                            </View>
-                                        ) : (
+                                                </View>
+                                            ))}
+                                            
                                             <TouchableOpacity 
-                                                style={styles.ghostAddBtn}
+                                                style={styles.newContractBtn}
                                                 onPress={() => {
                                                     setSelectedContractor(worker);
                                                     setShowContractModal(true);
                                                 }}
                                             >
-                                                <Ionicons name="add" size={16} color="#94A3B8" />
-                                                <Text style={styles.ghostAddText}>Create new contract</Text>
+                                                <Ionicons name="add-circle" size={18} color={Palette.primary} />
+                                                <Text style={styles.newContractText}>Create New Contract</Text>
                                             </TouchableOpacity>
-                                        )}
+                                        </View>
                                     </View>
                                 );
                             })
@@ -639,21 +637,23 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit-Medium',
         color: '#94A3B8',
     },
-    ghostAddBtn: {
+    newContractBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 12,
+        paddingVertical: 14,
         borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
+        backgroundColor: Palette.primary + '08',
+        borderWidth: 1.5,
+        borderColor: Palette.primary,
         borderStyle: 'dashed',
         gap: 8,
+        marginTop: 4,
     },
-    ghostAddText: {
-        fontSize: 13,
-        fontFamily: 'Outfit-Medium',
-        color: '#94A3B8',
+    newContractText: {
+        fontSize: 14,
+        fontFamily: 'Outfit-Bold',
+        color: Palette.primary,
     },
     emptyCard: {
         paddingVertical: 40,
