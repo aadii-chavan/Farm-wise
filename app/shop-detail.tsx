@@ -284,78 +284,115 @@ export default function ShopDetailScreen() {
         </View>
     );
 
-    const renderBillItem = ({ item }: { item: any }) => (
-        <View style={styles.billCard}>
-            <View style={styles.billHeader}>
-                <View style={styles.billIdBox}>
-                    <View style={styles.billIconCircle}>
-                        <Ionicons name="receipt" size={16} color={Palette.primary} />
-                    </View>
-                    <View>
-                        <Text style={styles.billDate}>{format(item.date, 'dd MMM yyyy')}</Text>
-                        <Text style={styles.invoiceNo}>{item.invoiceNo ? `Inv #${item.invoiceNo}` : 'Direct Purchase'}</Text>
-                    </View>
+    const renderBillItem = ({ item }: { item: any }) => {
+        const isCredit = item.paymentMode === 'Credit';
+        
+        return (
+            <View style={styles.receiptContainer}>
+                <View style={styles.receiptTop}>
+                    <View style={styles.receiptHole} />
+                    <View style={styles.receiptHole} />
+                    <View style={styles.receiptHole} />
+                    <View style={styles.receiptHole} />
+                    <View style={styles.receiptHole} />
                 </View>
-                <View style={[styles.badge, item.paymentMode === 'Credit' ? styles.badgeCredit : styles.badgeCash]}>
-                    <Text style={[styles.badgeText, item.paymentMode === 'Credit' ? styles.badgeTextCredit : styles.badgeTextCash]}>
-                        {item.paymentMode || 'Cash'}
-                    </Text>
-                </View>
-            </View>
 
-            <View style={styles.billContent}>
-                {item.items.map((sub: any, idx: number) => (
-                    <View key={idx} style={styles.itemRow}>
-                        <View style={styles.itemIconContainer}>
-                            <View style={[styles.miniIconCircle, { backgroundColor: Palette.primary + '10' }]}>
-                                <Ionicons name="cube-outline" size={14} color={Palette.primary} />
+                <View style={styles.receiptBody}>
+                    <View style={styles.receiptHeader}>
+                        <View>
+                            <Text style={styles.receiptTitle}>TAX INVOICE</Text>
+                            <Text style={styles.receiptDate}>{format(item.date, 'dd/MM/yyyy • hh:mm a')}</Text>
+                        </View>
+                        <View style={styles.receiptStatus}>
+                            <View style={[styles.statusBadge, isCredit ? styles.statusCredit : styles.statusPaid]}>
+                                <Text style={[styles.statusText, isCredit ? styles.statusTextCredit : styles.statusTextPaid]}>
+                                    {isCredit ? 'PENDING' : 'PAID'}
+                                </Text>
                             </View>
                         </View>
-                        <View style={styles.itemInfo}>
-                            <Text style={styles.itemName}>{sub.name}</Text>
-                            <Text style={styles.itemDetail}>
-                                {sub.numPackages 
-                                    ? `${sub.numPackages} pkgs × ${sub.sizePerPackage}${sub.unit}` 
-                                    : `${sub.quantity} ${sub.unit}`}
-                                {sub.pricePerUnit ? `  •  ₹${sub.pricePerUnit}/${sub.unit}` : ''}
+                    </View>
+
+                    <View style={styles.receiptDivider} />
+
+                    <View style={styles.receiptInfoRow}>
+                        <Text style={styles.infoLabel}>Invoice No:</Text>
+                        <Text style={styles.infoValue}>{item.invoiceNo || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.receiptInfoRow}>
+                        <Text style={styles.infoLabel}>Payment Mode:</Text>
+                        <Text style={styles.infoValue}>{item.paymentMode || 'Cash'}</Text>
+                    </View>
+
+                    <View style={styles.dashedDivider} />
+
+                    <View style={styles.itemsHeader}>
+                        <Text style={[styles.itemCol, { flex: 2 }]}>ITEM</Text>
+                        <Text style={[styles.itemCol, { textAlign: 'center' }]}>QTY</Text>
+                        <Text style={[styles.itemCol, { textAlign: 'right' }]}>PRICE</Text>
+                    </View>
+
+                    {item.items.map((sub: any, idx: number) => (
+                        <View key={idx} style={styles.itemLine}>
+                            <View style={{ flex: 2 }}>
+                                <Text style={styles.receiptItemName}>{sub.name}</Text>
+                                <Text style={styles.receiptItemSub}>{sub.companyName || 'Generic'}</Text>
+                            </View>
+                            <Text style={[styles.itemCol, { textAlign: 'center' }]}>
+                                {sub.numPackages ? `${sub.numPackages}pk` : `${sub.quantity}${sub.unit}`}
+                            </Text>
+                            <Text style={[styles.itemCol, { textAlign: 'right' }]}>
+                                ₹{(sub.pricePerUnit ? sub.pricePerUnit * sub.quantity : 0).toLocaleString('en-IN')}
                             </Text>
                         </View>
-                        <Text style={styles.itemTotal}>
-                            ₹{(sub.pricePerUnit ? sub.pricePerUnit * sub.quantity : 0).toLocaleString('en-IN')}
-                        </Text>
-                    </View>
-                ))}
-            </View>
+                    ))}
 
-            <View style={styles.billFooter}>
-                <View style={styles.footerRow}>
-                    <Text style={styles.footerLabel}>Subtotal</Text>
-                    <Text style={styles.footerVal}>₹{item.principal.toLocaleString('en-IN')}</Text>
+                    <View style={styles.dashedDivider} />
+
+                    <View style={styles.receiptCalculation}>
+                        <View style={styles.calcRow}>
+                            <Text style={styles.calcLabel}>Subtotal</Text>
+                            <Text style={styles.calcValue}>₹{item.principal.toLocaleString('en-IN')}</Text>
+                        </View>
+
+                        {isCredit && (
+                            <View style={styles.interestSection}>
+                                <View style={styles.calcRow}>
+                                    <View>
+                                        <Text style={styles.calcLabel}>Accrued Interest</Text>
+                                        <Text style={styles.interestDetailText}>
+                                            @{item.interestRate}% per {item.interestPeriod}
+                                        </Text>
+                                    </View>
+                                    <Text style={[styles.calcValue, { color: '#d97706' }]}>
+                                        +₹{item.accumulatedInterest.toFixed(2)}
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
+                    </View>
+
+                    <View style={styles.totalSection}>
+                        <View style={styles.totalRow}>
+                            <Text style={styles.totalLabel}>TOTAL AMOUNT</Text>
+                            <Text style={styles.totalValue}>₹{(item.principal + (item.accumulatedInterest || 0)).toLocaleString('en-IN')}</Text>
+                        </View>
+                    </View>
+
+                    {item.note && (
+                        <View style={styles.receiptNote}>
+                            <Text style={styles.noteLabel}>REMARKS:</Text>
+                            <Text style={styles.noteContent}>{item.note}</Text>
+                        </View>
+                    )}
+
+                    <View style={styles.receiptFooter}>
+                        <Text style={styles.footerText}>--- End of Bill ---</Text>
+                        <Text style={styles.footerBrand}>Powered by FarmEzy</Text>
+                    </View>
                 </View>
-
-                {item.paymentMode === 'Credit' && item.accumulatedInterest > 0 && (
-                    <View style={[styles.footerRow, { marginTop: 4 }]}>
-                        <Text style={[styles.footerLabel, { color: '#d97706' }]}>Interest Accrued</Text>
-                        <Text style={[styles.footerVal, { color: '#d97706' }]}>+₹{item.accumulatedInterest.toFixed(0)}</Text>
-                    </View>
-                )}
-
-                <View style={styles.billTotalRow}>
-                    <Text style={styles.billTotalLabel}>Total Amount</Text>
-                    <Text style={styles.billTotalVal}>
-                        ₹{(item.principal + (item.accumulatedInterest || 0)).toLocaleString('en-IN')}
-                    </Text>
-                </View>
-
-                {item.note && (
-                    <View style={styles.noteContainer}>
-                        <Ionicons name="information-circle-outline" size={14} color={Palette.textSecondary} />
-                        <Text style={styles.noteText}>{item.note}</Text>
-                    </View>
-                )}
             </View>
-        </View>
-    );
+        );
+    };
 
     const renderPaymentItem = ({ item }: { item: any }) => (
         <View style={styles.paymentCard}>
@@ -614,172 +651,224 @@ const styles = StyleSheet.create({
     tabTextActive: {
         color: Palette.primary,
     },
-    billCard: {
-        backgroundColor: 'white',
-        borderRadius: 24,
-        marginBottom: 20,
+    receiptContainer: {
+        marginBottom: 25,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-        overflow: 'hidden',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 15,
+        elevation: 5,
     },
-    billHeader: {
+    receiptTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        backgroundColor: '#fff',
+        paddingTop: 10,
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
+    },
+    receiptHole: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: Palette.background,
+        marginTop: -6,
+    },
+    receiptBody: {
+        backgroundColor: 'white',
+        padding: 24,
+        paddingTop: 10,
+        borderBottomLeftRadius: 4,
+        borderBottomRightRadius: 4,
+    },
+    receiptHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 16,
-        backgroundColor: '#fafafa',
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
+        alignItems: 'flex-start',
+        marginBottom: 15,
     },
-    billIdBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    billIconCircle: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        backgroundColor: Palette.primary + '10',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    billDate: {
-        fontSize: 14,
+    receiptTitle: {
         fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+        fontSize: 18,
+        letterSpacing: 2,
+        color: '#1e293b',
     },
-    invoiceNo: {
-        fontSize: 11,
-        fontFamily: 'Outfit-Medium',
+    receiptDate: {
+        fontFamily: 'Outfit',
+        fontSize: 12,
         color: Palette.textSecondary,
-        marginTop: 1,
+        marginTop: 2,
     },
-    badge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
+    receiptStatus: {
+        alignItems: 'flex-end',
     },
-    badgeCash: {
-        backgroundColor: Palette.success + '15',
-    },
-    badgeCredit: {
-        backgroundColor: '#fffbeb',
+    statusBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 4,
         borderWidth: 1,
+    },
+    statusPaid: {
+        backgroundColor: '#f0fdf4',
+        borderColor: '#bbf7d0',
+    },
+    statusCredit: {
+        backgroundColor: '#fffbeb',
         borderColor: '#fef3c7',
     },
-    badgeText: {
-        fontSize: 10,
+    statusText: {
         fontFamily: 'Outfit-Bold',
-        textTransform: 'uppercase',
+        fontSize: 11,
+        letterSpacing: 0.5,
     },
-    badgeTextCash: {
-        color: Palette.success,
+    statusTextPaid: {
+        color: '#16a34a',
     },
-    badgeTextCredit: {
+    statusTextCredit: {
         color: '#d97706',
     },
-    billContent: {
-        padding: 16,
+    receiptDivider: {
+        height: 2,
+        backgroundColor: '#f1f5f9',
+        marginVertical: 15,
     },
-    itemRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f8fafc',
-    },
-    itemIconContainer: {
-        marginRight: 12,
-    },
-    miniIconCircle: {
-        width: 28,
-        height: 28,
-        borderRadius: 8,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    itemInfo: {
-        flex: 1,
-    },
-    itemName: {
-        fontSize: 14,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-        marginBottom: 2,
-    },
-    itemDetail: {
-        fontSize: 11,
-        fontFamily: 'Outfit-Medium',
-        color: Palette.textSecondary,
-    },
-    itemTotal: {
-        fontSize: 14,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
-        marginLeft: 10,
-    },
-    billFooter: {
-        padding: 16,
-        backgroundColor: '#fcfcfc',
-        borderTopWidth: 1,
-        borderTopColor: '#f1f5f9',
-    },
-    footerRow: {
+    receiptInfoRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 4,
+        marginBottom: 6,
     },
-    footerLabel: {
+    infoLabel: {
+        fontFamily: 'Outfit-Medium',
         fontSize: 13,
-        fontFamily: 'Outfit-Medium',
         color: Palette.textSecondary,
     },
-    footerVal: {
-        fontSize: 14,
+    infoValue: {
         fontFamily: 'Outfit-Bold',
+        fontSize: 13,
         color: Palette.text,
     },
-    billTotalRow: {
+    dashedDivider: {
+        height: 1,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        borderStyle: 'dashed',
+        marginVertical: 15,
+    },
+    itemsHeader: {
+        flexDirection: 'row',
+        marginBottom: 10,
+    },
+    itemCol: {
+        flex: 1,
+        fontFamily: 'Outfit-Bold',
+        fontSize: 11,
+        color: Palette.textSecondary,
+        letterSpacing: 1,
+    },
+    itemLine: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    receiptItemName: {
+        fontFamily: 'Outfit-Bold',
+        fontSize: 14,
+        color: Palette.text,
+    },
+    receiptItemSub: {
+        fontFamily: 'Outfit',
+        fontSize: 11,
+        color: Palette.textSecondary,
+    },
+    receiptCalculation: {
+        marginTop: 5,
+    },
+    calcRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 12,
-        paddingTop: 12,
+        marginBottom: 8,
+    },
+    calcLabel: {
+        fontFamily: 'Outfit-Medium',
+        fontSize: 14,
+        color: Palette.textSecondary,
+    },
+    calcValue: {
+        fontFamily: 'Outfit-Bold',
+        fontSize: 15,
+        color: Palette.text,
+    },
+    interestSection: {
+        marginTop: 4,
+        paddingTop: 8,
         borderTopWidth: 1,
         borderTopColor: '#f1f5f9',
         borderStyle: 'dashed',
     },
-    billTotalLabel: {
-        fontSize: 15,
-        fontFamily: 'Outfit-Bold',
-        color: Palette.text,
+    interestDetailText: {
+        fontFamily: 'Outfit',
+        fontSize: 11,
+        color: '#d97706',
+        marginTop: 1,
     },
-    billTotalVal: {
-        fontSize: 18,
+    totalSection: {
+        backgroundColor: '#f8fafc',
+        padding: 15,
+        borderRadius: 8,
+        marginTop: 10,
+    },
+    totalRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    totalLabel: {
         fontFamily: 'Outfit-Bold',
+        fontSize: 15,
+        color: '#1e293b',
+    },
+    totalValue: {
+        fontFamily: 'Outfit-Bold',
+        fontSize: 20,
         color: Palette.primary,
     },
-    noteContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 12,
-        backgroundColor: '#f1f5f9',
-        padding: 8,
-        borderRadius: 8,
+    receiptNote: {
+        marginTop: 15,
+        padding: 12,
+        backgroundColor: '#fafafa',
+        borderRadius: 6,
+        borderLeftWidth: 3,
+        borderLeftColor: '#e2e8f0',
     },
-    noteText: {
-        fontSize: 11,
-        fontFamily: 'Outfit',
+    noteLabel: {
+        fontFamily: 'Outfit-Bold',
+        fontSize: 10,
         color: Palette.textSecondary,
-        marginLeft: 6,
-        flex: 1,
+        marginBottom: 4,
+    },
+    noteContent: {
+        fontFamily: 'Outfit',
+        fontSize: 12,
+        color: Palette.text,
+        lineHeight: 16,
+    },
+    receiptFooter: {
+        marginTop: 25,
+        alignItems: 'center',
+    },
+    footerText: {
+        fontFamily: 'Outfit',
+        fontSize: 11,
+        color: Palette.textSecondary,
+        letterSpacing: 2,
+    },
+    footerBrand: {
+        fontFamily: 'Outfit-Bold',
+        fontSize: 12,
+        color: Palette.primary,
+        marginTop: 8,
+        opacity: 0.5,
     },
     paymentCard: {
         backgroundColor: 'white',
