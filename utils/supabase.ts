@@ -6,7 +6,8 @@ import { Platform } from 'react-native';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_KEY || '';
 
-// Better persistence adapter for Expo with chunking support for large sessions
+// High-performance persistence adapter for Expo
+// Handles SecureStore's 2KB limit by chunking larger sessions (common with Supabase JWTs)
 const MAX_SIZE = 2048;
 
 const ExpoSecureStoreAdapter = {
@@ -18,6 +19,7 @@ const ExpoSecureStoreAdapter = {
       return null;
     }
 
+    // Try to retrieve chunked data first
     const firstChunk = await SecureStore.getItemAsync(`${key}.0`);
     if (firstChunk) {
       let fullValue = firstChunk;
@@ -42,6 +44,7 @@ const ExpoSecureStoreAdapter = {
       return;
     }
 
+    // If value exceeds SecureStore limit, split into chunks
     if (value.length > MAX_SIZE) {
       const chunks = [];
       for (let i = 0; i < value.length; i += MAX_SIZE) {
@@ -53,11 +56,12 @@ const ExpoSecureStoreAdapter = {
         await SecureStore.setItemAsync(`${key}.${i}`, chunks[i]);
       }
       
-      // Clean up the original key if it exists
+      // Clean up the original key to prevent conflicts
       await SecureStore.deleteItemAsync(key);
     } else {
+      // Store normally
       await SecureStore.setItemAsync(key, value);
-      // Clean up potential old chunks
+      // Clean up potential old chunks if they exist
       let i = 0;
       while (true) {
         const chunk = await SecureStore.getItemAsync(`${key}.${i}`);
@@ -75,6 +79,7 @@ const ExpoSecureStoreAdapter = {
       return;
     }
 
+    // Remove both original key and any potential chunks
     await SecureStore.deleteItemAsync(key);
     let i = 0;
     while (true) {
@@ -94,3 +99,4 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
   },
 });
+

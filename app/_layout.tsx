@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import '@/utils/i18n';
 import { useRouter, useSegments } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import { FarmProvider } from '@/context/FarmContext';

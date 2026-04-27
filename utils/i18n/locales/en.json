@@ -1,0 +1,38 @@
+{
+  "profile": {
+    "title": "Profile",
+    "accountDetails": "Account Details",
+    "fullName": "Full Name",
+    "phoneNumber": "Phone Number",
+    "saveChanges": "Save Changes",
+    "saving": "Saving...",
+    "securityApp": "Security & App",
+    "security": "Security",
+    "changePassword": "Change Password",
+    "language": "Language",
+    "signOut": "Sign Out",
+    "version": "Version",
+    "verifiedAccount": "Verified Account",
+    "placeholderName": "Your full name",
+    "placeholderPhone": "Your phone number",
+    "resetPassword": "Reset Password?",
+    "resetSubtitle": "We will send a secure password reset link to your email:",
+    "notNow": "Not Now",
+    "sendLink": "Send Link",
+    "checkEmail": "Check Your Email",
+    "checkEmailSubtitle": "We've sent a secure password reset link to your inbox. Please follow the instructions to set a new password.",
+    "gotIt": "Got it!"
+  },
+  "language": {
+    "select": "Select Language",
+    "english": "English",
+    "hindi": "Hindi",
+    "marathi": "Marathi"
+  },
+  "common": {
+    "success": "Success",
+    "error": "Error",
+    "ok": "OK",
+    "cancel": "Cancel"
+  }
+}

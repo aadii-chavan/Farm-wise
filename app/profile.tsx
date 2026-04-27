@@ -16,7 +16,8 @@ import {
     TouchableOpacity,
     ActivityIndicator,
 } from 'react-native';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/utils/supabase';
 
 export default function ProfileScreen() {
@@ -27,7 +28,9 @@ export default function ProfileScreen() {
   const [updating, setUpdating] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const { t, i18n } = useTranslation();
 
   React.useEffect(() => {
     loadProfile();
@@ -84,6 +87,20 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleLanguageChange = async (lang: string) => {
+    await i18n.changeLanguage(lang);
+    await AsyncStorage.setItem('user-language', lang);
+    setShowLanguageModal(false);
+  };
+
+  const getCurrentLanguageLabel = () => {
+    switch (i18n.language) {
+      case 'hi': return 'हिन्दी (Hindi)';
+      case 'mr': return 'मराठी (Marathi)';
+      default: return 'English (US)';
+    }
+  };
+
   const handleChangePassword = async () => {
     setShowResetModal(true);
   };
@@ -135,7 +152,7 @@ export default function ProfileScreen() {
                     <View style={styles.statusRow}>
                         <View style={styles.statusBadge}>
                             <Ionicons name="checkmark-circle" size={12} color="#10B981" />
-                            <Text style={styles.statusText}>Verified Account</Text>
+                            <Text style={styles.statusText}>{t('profile.verifiedAccount')}</Text>
                         </View>
                     </View>
                 </View>
@@ -146,7 +163,7 @@ export default function ProfileScreen() {
       <View style={styles.mainContent}>
         {/* Settings List */}
         <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Account Details</Text>
+            <Text style={styles.sectionTitle}>{t('profile.accountDetails')}</Text>
         </View>
 
         <View style={styles.settingsCard}>
@@ -155,12 +172,12 @@ export default function ProfileScreen() {
                     <Ionicons name="person-outline" size={22} color={Palette.primary} />
                 </View>
                 <View style={styles.itemTextContent}>
-                    <Text style={styles.itemTitle}>Full Name</Text>
+                    <Text style={styles.itemTitle}>{t('profile.fullName')}</Text>
                     <TextInput 
                         style={styles.itemInput} 
                         value={fullName}
                         onChangeText={setFullName}
-                        placeholder="Your full name"
+                        placeholder={t('profile.placeholderName')}
                     />
                 </View>
             </View>
@@ -172,12 +189,12 @@ export default function ProfileScreen() {
                     <Ionicons name="call-outline" size={22} color="#1976D2" />
                 </View>
                 <View style={styles.itemTextContent}>
-                    <Text style={styles.itemTitle}>Phone Number</Text>
+                    <Text style={styles.itemTitle}>{t('profile.phoneNumber')}</Text>
                     <TextInput 
                         style={styles.itemInput} 
                         value={phoneNumber}
                         onChangeText={setPhoneNumber}
-                        placeholder="Your phone number"
+                        placeholder={t('profile.placeholderPhone')}
                         keyboardType="phone-pad"
                     />
                 </View>
@@ -190,12 +207,12 @@ export default function ProfileScreen() {
             disabled={updating}
         >
             <Text style={styles.saveButtonText}>
-                {updating ? 'Saving...' : 'Save Changes'}
+                {updating ? t('profile.saving') : t('profile.saveChanges')}
             </Text>
         </Pressable>
 
         <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Security & App</Text>
+            <Text style={styles.sectionTitle}>{t('profile.securityApp')}</Text>
         </View>
 
         <View style={styles.settingsCard}>
@@ -204,21 +221,21 @@ export default function ProfileScreen() {
                     <Ionicons name="key-outline" size={22} color="#F57C00" />
                 </View>
                 <View style={styles.itemTextContent}>
-                    <Text style={styles.itemTitle}>Security</Text>
-                    <Text style={styles.itemSub}>Change Password</Text>
+                    <Text style={styles.itemTitle}>{t('profile.security')}</Text>
+                    <Text style={styles.itemSub}>{t('profile.changePassword')}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Palette.textSecondary} />
             </Pressable>
 
             <View style={styles.divider} />
 
-            <Pressable style={styles.settingsItem} onPress={() => Alert.alert('Language', 'Hindi, English and Punjabi available.')}>
+            <Pressable style={styles.settingsItem} onPress={() => setShowLanguageModal(true)}>
                 <View style={[styles.itemIconBg, { backgroundColor: '#E0F2F1' }]}>
                     <Ionicons name="language-outline" size={22} color="#00796B" />
                 </View>
                 <View style={styles.itemTextContent}>
-                    <Text style={styles.itemTitle}>Language</Text>
-                    <Text style={styles.itemSub}>English (US)</Text>
+                    <Text style={styles.itemTitle}>{t('profile.language')}</Text>
+                    <Text style={styles.itemSub}>{getCurrentLanguageLabel()}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Palette.textSecondary} />
             </Pressable>
@@ -228,10 +245,10 @@ export default function ProfileScreen() {
             <View style={styles.logoutIconBg}>
                 <Ionicons name="log-out-outline" size={22} color="#D32F2F" />
             </View>
-            <Text style={styles.logoutText}>Sign Out</Text>
+            <Text style={styles.logoutText}>{t('profile.signOut')}</Text>
         </Pressable>
 
-        <Text style={styles.versionText}>Version 1.0.0 (Build 42)</Text>
+        <Text style={styles.versionText}>{t('profile.version')} 1.0.0 (Build 42)</Text>
       </View>
 
       {/* Custom Reset Password Modal */}
@@ -249,19 +266,18 @@ export default function ProfileScreen() {
               </View>
             </View>
             
-            <Text style={styles.modalTitle}>Reset Password?</Text>
+            <Text style={styles.modalTitle}>{t('profile.resetPassword')}</Text>
             <Text style={styles.modalSubtitle}>
-              We will send a secure password reset link to your email:{"\n"}
+              {t('profile.resetSubtitle')}{"\n"}
               <Text style={{ fontFamily: 'Outfit-Bold', color: Palette.text }}>{user?.email}</Text>
             </Text>
 
             <View style={styles.modalFooter}>
               <TouchableOpacity 
-                style={styles.modalCancelBtn} 
-                onPress={() => setShowResetModal(false)}
+                style={styles.modalCancelBtn}                 onPress={() => setShowResetModal(false)}
                 disabled={resetLoading}
               >
-                <Text style={styles.modalCancelText}>Not Now</Text>
+                <Text style={styles.modalCancelText}>{t('profile.notNow')}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -269,10 +285,10 @@ export default function ProfileScreen() {
                 onPress={handleConfirmReset}
                 disabled={resetLoading}
               >
-                {resetLoading ? (
+                 {resetLoading ? (
                   <ActivityIndicator color="white" size="small" />
                 ) : (
-                  <Text style={styles.modalConfirmText}>Send Link</Text>
+                  <Text style={styles.modalConfirmText}>{t('profile.sendLink')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -290,19 +306,78 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { paddingVertical: 40 }]}>
             <View style={[styles.modalIconContainer, { backgroundColor: '#ECFDF5', width: 84, height: 84, borderRadius: 30 }]}>
-              <Ionicons name="checkmark-done-circle" size={48} color="#10B981" />
+               <Ionicons name="checkmark-done-circle" size={48} color="#10B981" />
             </View>
             
-            <Text style={[styles.modalTitle, { marginTop: 20 }]}>Check Your Email</Text>
+            <Text style={[styles.modalTitle, { marginTop: 20 }]}>{t('profile.checkEmail')}</Text>
             <Text style={styles.modalSubtitle}>
-              We've sent a secure password reset link to your inbox. Please follow the instructions to set a new password.
+              {t('profile.checkEmailSubtitle')}
             </Text>
 
             <TouchableOpacity 
               style={[styles.modalConfirmBtn, { width: '100%', marginTop: 8 }]} 
               onPress={() => setShowSuccessModal(false)}
             >
-              <Text style={styles.modalConfirmText}>Got it!</Text>
+              <Text style={styles.modalConfirmText}>{t('profile.gotIt')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Language Selection Modal */}
+      <Modal
+        visible={showLanguageModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLanguageModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalIconContainer, { backgroundColor: '#E0F2F1' }]}>
+                <Ionicons name="language-outline" size={32} color="#00796B" />
+              </View>
+            </View>
+            
+            <Text style={styles.modalTitle}>{t('language.select')}</Text>
+            
+            <View style={styles.languageOptions}>
+              <TouchableOpacity 
+                style={[styles.languageOption, i18n.language === 'en' && styles.languageOptionActive]} 
+                onPress={() => handleLanguageChange('en')}
+              >
+                <Text style={[styles.languageOptionText, i18n.language === 'en' && styles.languageOptionTextActive]}>
+                  English (US)
+                </Text>
+                {i18n.language === 'en' && <Ionicons name="checkmark-circle" size={20} color={Palette.primary} />}
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.languageOption, i18n.language === 'hi' && styles.languageOptionActive]} 
+                onPress={() => handleLanguageChange('hi')}
+              >
+                <Text style={[styles.languageOptionText, i18n.language === 'hi' && styles.languageOptionTextActive]}>
+                  हिन्दी (Hindi)
+                </Text>
+                {i18n.language === 'hi' && <Ionicons name="checkmark-circle" size={20} color={Palette.primary} />}
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.languageOption, i18n.language === 'mr' && styles.languageOptionActive]} 
+                onPress={() => handleLanguageChange('mr')}
+              >
+                <Text style={[styles.languageOptionText, i18n.language === 'mr' && styles.languageOptionTextActive]}>
+                  मराठी (Marathi)
+                </Text>
+                {i18n.language === 'mr' && <Ionicons name="checkmark-circle" size={20} color={Palette.primary} />}
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.modalCancelBtn, { width: '100%', marginTop: 20 }]} 
+              onPress={() => setShowLanguageModal(false)}
+            >
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -623,5 +698,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Outfit-Bold',
     color: 'white',
+  },
+  languageOptions: {
+    width: '100%',
+    gap: 12,
+  },
+  languageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  languageOptionActive: {
+    backgroundColor: Palette.primary + '08',
+    borderColor: Palette.primary,
+  },
+  languageOptionText: {
+    fontSize: 16,
+    fontFamily: 'Outfit-Medium',
+    color: '#64748B',
+  },
+  languageOptionTextActive: {
+    color: Palette.primary,
+    fontFamily: 'Outfit-Bold',
   },
 });

@@ -18,36 +18,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     // Check for active session on mount
-    const checkSession = async () => {
+    const initializeAuth = async () => {
       try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-        if (error) {
-          // Only sign out if the error is serious (e.g. invalid refresh token)
-          // Avoid clearing session on network errors
-          if (error.status === 400 || error.message.includes('refresh_token_not_found')) {
-            await supabase.auth.signOut();
-            setSession(null);
-            setUser(null);
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (mounted) {
+          if (currentSession) {
+            setSession(currentSession);
+            setUser(currentSession.user);
           }
-        } else if (currentSession) {
-          setSession(currentSession);
-          setUser(currentSession.user);
+          setLoading(false);
         }
       } catch (err) {
-        console.error('Error checking session:', err);
-      } finally {
-        setLoading(false);
+        console.error('Error initializing auth:', err);
+        if (mounted) setLoading(false);
       }
     };
 
-    checkSession();
+    initializeAuth();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-      setLoading(false);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (mounted) {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        setLoading(false);
+      }
     });
 
     // AppState handling for session persistence
@@ -60,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
       appStateSubscription.remove();
     };

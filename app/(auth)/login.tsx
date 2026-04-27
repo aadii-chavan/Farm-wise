@@ -26,18 +26,8 @@ export default function Login() {
   const router = useRouter();
   const { signOut } = useAuth();
 
-  React.useEffect(() => {
-    // Clear any stale session when reaching login page
-    // This helps prevent "invalid creds" errors from old tokens
-    const clearStaleSession = async () => {
-      try {
-        await supabase.auth.signOut();
-      } catch (e) {
-        // Ignore errors during cleanup
-      }
-    };
-    clearStaleSession();
-  }, []);
+  // No longer clearing session on mount to allow persistence across reloads
+
 
   const handleLogin = async () => {
     if (!email || !password) {
