@@ -51,7 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     // AppState handling for session persistence
-    // This tells Supabase to check for session refresh when app comes to foreground
     const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active') {
         supabase.auth.startAutoRefresh();

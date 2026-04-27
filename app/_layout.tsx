@@ -46,7 +46,11 @@ function RootLayoutRedirect() {
       router.replace('/login');
     } else if (session && inAuthGroup) {
       // Redirect to dashboard if authenticated and in auth group
-      router.replace('/');
+      // EXCEPT when on the recovery wizard page
+      const isRecovery = (segments as string[]).includes('forgot-password');
+      if (!isRecovery) {
+        router.replace('/');
+      }
     }
   }, [session, loading, segments]);
 

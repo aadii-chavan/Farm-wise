@@ -2,7 +2,7 @@ import { Palette } from '@/constants/Colors';
 import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -15,90 +15,213 @@ import {
     View,
 } from 'react-native';
 import { Text } from '@/components/Themed';
-import * as Linking from 'expo-linking';
 
-export default function ForgotPassword() {
+type Step = 'REQUEST' | 'VERIFY' | 'NEW_PASSWORD' | 'SUCCESS';
+
+export default function OTPRecoveryWizard() {
+  const [step, setStep] = useState<Step>('REQUEST');
   const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [timer, setTimer] = useState(0);
   const router = useRouter();
+  
+  // Timer for resend button
+  useEffect(() => {
+    let interval: any;
+    if (timer > 0) {
+      interval = setInterval(() => setTimer(t => t - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
 
-  const handleResetRequest = async () => {
-    if (!email) {
-      Alert.alert('Error', 'Please enter your email address');
+  const handleRequestOTP = async () => {
+    if (!email || !email.includes('@')) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
 
     setLoading(true);
-    
-    // Generate the redirect URL for depth linking back into the app
-    // We explicitly specify the scheme to avoid localhost issues in development
-    const redirectTo = Linking.createURL('reset-password', { scheme: 'tempapp' });
-    
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo,
-    });
-
-    if (error) {
-      Alert.alert('Error', error.message);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+      if (error) throw error;
+      
+      setStep('VERIFY');
+      setTimer(30); // 30 second cooldown for resend
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not send code');
+    } finally {
       setLoading(false);
-    } else {
-      Alert.alert(
-        'Success',
-        'Password reset link has been sent to your email. Please check your inbox.',
-        [{ text: 'OK', onPress: () => router.replace('/login') }]
-      );
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (otp.length !== 6) {
+      Alert.alert('Incomplete Code', 'Please enter the 6-digit code sent to your email.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: otp,
+        type: 'recovery',
+      });
+      
+      if (error) throw error;
+      setStep('NEW_PASSWORD');
+    } catch (err: any) {
+      Alert.alert('Invalid Code', 'The code you entered is incorrect or has expired.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (password.length < 6) {
+      Alert.alert('Password Short', 'Please use at least 6 characters.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      setStep('SUCCESS');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to save new password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderStep = () => {
+    switch (step) {
+      case 'REQUEST':
+        return (
+          <View style={styles.stepContent}>
+            <View style={styles.iconBox}>
+              <Ionicons name="key-outline" size={44} color={Palette.primary} />
+            </View>
+            <Text style={styles.heading}>Forgot Password?</Text>
+            <Text style={styles.subheading}>Enter your email and we will send you a 6-digit code to reset your password.</Text>
+            
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>EMAIL ADDRESS</Text>
+                <View style={styles.inputField}>
+                    <Ionicons name="mail-outline" size={20} color="#64748B" />
+                    <TextInput
+                        style={styles.textInput}
+                        placeholder="Your email address"
+                        value={email}
+                        onChangeText={setEmail}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                    />
+                </View>
+            </View>
+
+            <Pressable style={styles.mainBtn} onPress={handleRequestOTP} disabled={loading}>
+              {loading ? <ActivityIndicator color="white" /> : <Text style={styles.mainBtnText}>Send 6-Digit Code</Text>}
+            </Pressable>
+          </View>
+        );
+
+      case 'VERIFY':
+        return (
+          <View style={styles.stepContent}>
+            <View style={styles.iconBox}>
+              <Ionicons name="mail-open-outline" size={44} color={Palette.primary} />
+            </View>
+            <Text style={styles.heading}>Verify Your Email</Text>
+            <Text style={styles.subheading}>We sent a 6-digit code to{"\n"}<Text style={{ fontFamily: 'Outfit-Bold', color: Palette.text }}>{email}</Text></Text>
+            
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>ENTER 6-DIGIT CODE</Text>
+                <TextInput
+                    style={styles.otpInput}
+                    placeholder="000000"
+                    value={otp}
+                    onChangeText={setOtp}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                />
+            </View>
+
+            <Pressable style={styles.mainBtn} onPress={handleVerifyOTP} disabled={loading}>
+              {loading ? <ActivityIndicator color="white" /> : <Text style={styles.mainBtnText}>Verify Code</Text>}
+            </Pressable>
+
+            {timer > 0 ? (
+              <Text style={styles.resendText}>Resend code in {timer}s</Text>
+            ) : (
+              <Pressable onPress={handleRequestOTP}>
+                <Text style={styles.resendLink}>Didn't get the code? Send again</Text>
+              </Pressable>
+            )}
+          </View>
+        );
+
+      case 'NEW_PASSWORD':
+        return (
+          <View style={styles.stepContent}>
+            <View style={styles.iconBox}>
+              <Ionicons name="lock-closed-outline" size={44} color={Palette.primary} />
+            </View>
+            <Text style={styles.heading}>New Password</Text>
+            <Text style={styles.subheading}>Create a new password for your account.</Text>
+            
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>NEW PASSWORD</Text>
+                <View style={styles.inputField}>
+                    <Ionicons name="shield-checkmark-outline" size={20} color="#64748B" />
+                    <TextInput
+                        style={styles.textInput}
+                        placeholder="At least 6 characters"
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry
+                    />
+                </View>
+            </View>
+
+            <Pressable style={styles.mainBtn} onPress={handleUpdatePassword} disabled={loading}>
+              {loading ? <ActivityIndicator color="white" /> : <Text style={styles.mainBtnText}>Save Password</Text>}
+            </Pressable>
+          </View>
+        );
+
+      case 'SUCCESS':
+        return (
+          <View style={styles.stepContent}>
+            <View style={[styles.iconBox, { backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="checkmark-done-circle" size={60} color="#10B981" />
+            </View>
+            <Text style={styles.heading}>Success!</Text>
+            <Text style={styles.subheading}>Your password has been changed. You can now log in safely.</Text>
+            
+            <Pressable style={styles.mainBtn} onPress={() => router.replace('/login')}>
+              <Text style={styles.mainBtnText}>Back to Login</Text>
+            </Pressable>
+          </View>
+        );
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </Pressable>
-          <Text style={styles.title}>Reset Password</Text>
-          <Text style={styles.subtitle}>We'll send you a recovery link</Text>
+            <Pressable style={styles.backBtn} onPress={() => router.back()}>
+                <Ionicons name="arrow-back" size={24} color="white" />
+            </Pressable>
+            <Text style={styles.headerTitle}>Account Recovery</Text>
         </View>
 
-        <View style={styles.formContainer}>
-          <View style={styles.inputWrapper}>
-            <Text style={styles.label}>Email Address</Text>
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color={Palette.textSecondary} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your registered email"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholderTextColor={Palette.textSecondary}
-              />
-            </View>
-          </View>
-
-          <Pressable
-            style={[styles.resetButton, loading && styles.buttonDisabled]}
-            onPress={handleResetRequest}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.resetButtonText}>Send Reset Link</Text>
-            )}
-          </Pressable>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Remember your password? </Text>
-            <Pressable onPress={() => router.replace('/login')}>
-              <Text style={styles.loginText}>Sign In</Text>
-            </Pressable>
-          </View>
+        <View style={styles.mainCard}>
+            {renderStep()}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -114,99 +237,130 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
-    paddingHorizontal: 32,
     paddingTop: 60,
+    paddingHorizontal: 30,
     paddingBottom: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  backBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
   },
-  title: {
-    fontSize: 32,
+  headerTitle: {
+    fontSize: 22,
     fontFamily: 'Outfit-Bold',
     color: 'white',
   },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
-    fontFamily: 'Outfit',
-  },
-  formContainer: {
+  mainCard: {
+    flex: 1,
     backgroundColor: 'white',
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
-    paddingHorizontal: 32,
-    paddingTop: 48,
-    paddingBottom: 40,
-    flex: 1,
+    paddingHorizontal: 30,
+    paddingTop: 50,
   },
-  inputWrapper: {
-    marginBottom: 32,
-  },
-  label: {
-    fontSize: 14,
-    fontFamily: 'Outfit-Medium',
-    color: Palette.text,
-    marginBottom: 8,
-  },
-  inputContainer: {
-    flexDirection: 'row',
+  stepContent: {
     alignItems: 'center',
-    backgroundColor: Palette.background,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
   },
-  inputIcon: {
-    marginRight: 12,
+  iconBox: {
+    width: 84,
+    height: 84,
+    borderRadius: 28,
+    backgroundColor: Palette.primary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 25,
   },
-  input: {
-    flex: 1,
+  heading: {
+    fontSize: 28,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.text,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  subheading: {
     fontSize: 16,
     fontFamily: 'Outfit',
+    color: Palette.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 40,
+  },
+  inputGroup: {
+    width: '100%',
+    marginBottom: 30,
+  },
+  label: {
+    fontSize: 12,
+    fontFamily: 'Outfit-Bold',
+    color: '#94A3B8',
+    marginBottom: 10,
+    letterSpacing: 1,
+  },
+  inputField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    height: 60,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  textInput: {
+    flex: 1,
+    marginLeft: 15,
+    fontSize: 16,
+    fontFamily: 'Outfit-Medium',
     color: Palette.text,
   },
-  resetButton: {
+  otpInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 18,
+    height: 70,
+    fontSize: 32,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.primary,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    letterSpacing: 10,
+    textAlign: 'center',
+  },
+  mainBtn: {
     backgroundColor: Palette.primary,
-    borderRadius: 16,
-    height: 56,
+    borderRadius: 20,
+    height: 64,
+    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: Palette.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
     shadowRadius: 12,
-    elevation: 5,
+    elevation: 6,
   },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  resetButtonText: {
+  mainBtnText: {
     color: 'white',
     fontSize: 18,
     fontFamily: 'Outfit-Bold',
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 32,
-  },
-  footerText: {
+  resendText: {
+    marginTop: 25,
     fontSize: 14,
-    color: Palette.textSecondary,
-    fontFamily: 'Outfit',
+    fontFamily: 'Outfit-Medium',
+    color: '#94A3B8',
   },
-  loginText: {
-    fontSize: 14,
-    color: Palette.primary,
+  resendLink: {
+    marginTop: 25,
+    fontSize: 15,
     fontFamily: 'Outfit-Bold',
+    color: Palette.primary,
+    textDecorationLine: 'underline',
   },
 });

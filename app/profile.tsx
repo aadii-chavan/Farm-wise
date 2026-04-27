@@ -26,6 +26,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
   React.useEffect(() => {
@@ -92,7 +93,8 @@ export default function ProfileScreen() {
     
     setResetLoading(true);
     try {
-      const redirectTo = Linking.createURL('reset-password', { scheme: 'tempapp' });
+      // We use the new unified recovery wizard
+      const redirectTo = 'tempapp://forgot-password';
       const { error } = await supabase.auth.resetPasswordForEmail(user.email!, {
         redirectTo,
       });
@@ -100,9 +102,10 @@ export default function ProfileScreen() {
       if (error) throw error;
       
       setShowResetModal(false);
+      // Give a small delay for the first modal to close before showing success
       setTimeout(() => {
-        Alert.alert('Success', 'Reset link sent! Please check your email.');
-      }, 500);
+        setShowSuccessModal(true);
+      }, 400);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to send reset link');
     } finally {
@@ -273,6 +276,34 @@ export default function ProfileScreen() {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Custom Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { paddingVertical: 40 }]}>
+            <View style={[styles.modalIconContainer, { backgroundColor: '#ECFDF5', width: 84, height: 84, borderRadius: 30 }]}>
+              <Ionicons name="checkmark-done-circle" size={48} color="#10B981" />
+            </View>
+            
+            <Text style={[styles.modalTitle, { marginTop: 20 }]}>Check Your Email</Text>
+            <Text style={styles.modalSubtitle}>
+              We've sent a secure password reset link to your inbox. Please follow the instructions to set a new password.
+            </Text>
+
+            <TouchableOpacity 
+              style={[styles.modalConfirmBtn, { width: '100%', marginTop: 8 }]} 
+              onPress={() => setShowSuccessModal(false)}
+            >
+              <Text style={styles.modalConfirmText}>Got it!</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
