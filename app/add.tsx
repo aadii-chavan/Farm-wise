@@ -237,9 +237,9 @@ export default function RecordTransaction() {
     setDate(selectedDate);
   };
 
-  const handleSuccessViewAll = () => {
+  const handleSuccessDone = () => {
     setShowSuccess(false);
-    router.push('/list');
+    router.back();
   };
 
   const handleSuccessAddNew = () => {
@@ -588,9 +588,9 @@ export default function RecordTransaction() {
           visible={showSuccess}
           title="Record Saved"
           message="The transaction has been recorded successfully."
-          primaryLabel="View All"
-          secondaryLabel="Add New"
-          onPrimary={handleSuccessViewAll}
+          primaryLabel="Done"
+          secondaryLabel="Add Another"
+          onPrimary={handleSuccessDone}
           onSecondary={handleSuccessAddNew}
         />
       )}
