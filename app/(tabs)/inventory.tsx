@@ -437,27 +437,26 @@ export default function InventoryScreen() {
                    style={styles.shopCard}
                    onPress={() => router.push({ pathname: '/shop-detail', params: { name: shop.shopName } })}
                 >
-                    <View style={styles.shopCardHeader}>
-                        <View style={styles.shopHeaderLeft}>
-                            <View style={styles.shopIconCircle}>
-                                <Ionicons name="storefront" size={18} color={Palette.primary} />
-                            </View>
-                            <Text style={styles.shopCardName}>{shop.shopName}</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={18} color={Palette.textSecondary} />
+                    <View style={styles.shopIconCircle}>
+                        <Ionicons name="storefront" size={20} color={Palette.primary} />
                     </View>
                     
-                    <View style={styles.shopMetricsRow}>
-                         <View style={styles.shopMetricBox}>
-                             <Text style={styles.shopMetricLabel}>Total Value</Text>
-                             <Text style={styles.shopMetricVal}>₹{shop.totalSpent.toLocaleString('en-IN')}</Text>
-                         </View>
-                          <View style={styles.shopMetricBox}>
-                             <Text style={styles.shopMetricLabel}>Outstanding Credit</Text>
-                             <Text style={[styles.shopMetricVal, { color: shop.currentCredit > 0 ? Palette.danger : Palette.success }]}>
-                                ₹{shop.currentCredit.toLocaleString('en-IN')}
+                    <View style={styles.shopDetails}>
+                        <Text style={styles.shopCardName}>{shop.shopName}</Text>
+                        <Text style={styles.shopItemCount}>{shop.itemCount} {shop.itemCount === 1 ? 'Item' : 'Items'}</Text>
+                        {shop.currentCredit > 0 && (
+                             <Text style={styles.shopCreditText}>
+                                Outstanding Credit: ₹{shop.currentCredit.toLocaleString('en-IN')}
                              </Text>
-                          </View>
+                        )}
+                    </View>
+
+                    <View style={styles.shopMetricsColumn}>
+                        <View style={styles.shopMetricDisplay}>
+                            <Text style={styles.shopMetricValue}>₹{shop.totalSpent.toLocaleString('en-IN')}</Text>
+                            <Text style={styles.shopMetricLabel}>Total Value</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color={Palette.textSecondary} style={{ marginTop: 8 }} />
                     </View>
                 </Pressable>
             ))}
@@ -853,61 +852,61 @@ const styles = StyleSheet.create({
   },
   shopCard: {
     backgroundColor: 'white',
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 6,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  shopCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  shopHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderColor: '#f0f0f0',
   },
   shopIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: Palette.primary + '10',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Palette.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 16,
   },
-  shopCardName: {
-    fontFamily: 'Outfit-Bold',
-    fontSize: 17,
-    color: Palette.text,
-  },
-  shopMetricsRow: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 16,
-  },
-  shopMetricBox: {
+  shopDetails: {
     flex: 1,
   },
-  shopMetricLabel: {
-    fontFamily: 'Outfit-Medium',
-    fontSize: 11,
-    color: Palette.textSecondary,
-    marginBottom: 2,
-    textTransform: 'uppercase',
-  },
-  shopMetricVal: {
-    fontFamily: 'Outfit-Bold',
+  shopCardName: {
     fontSize: 16,
+    fontFamily: 'Outfit-Bold',
     color: Palette.text,
+  },
+  shopItemCount: {
+    fontSize: 12,
+    color: Palette.textSecondary,
+    fontFamily: 'Outfit',
+    marginTop: 2,
+  },
+  shopCreditText: {
+    fontSize: 11,
+    color: Palette.danger,
+    fontFamily: 'Outfit-Medium',
+    marginTop: 4,
+  },
+  shopMetricsColumn: {
+    alignItems: 'flex-end',
+  },
+  shopMetricDisplay: {
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  shopMetricValue: {
+    fontSize: 14,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.text,
+  },
+  shopMetricLabel: {
+    fontSize: 9,
+    fontFamily: 'Outfit-Medium',
+    color: Palette.textSecondary,
+    marginTop: -2,
+    textTransform: 'uppercase',
   },
   emptyContainer: {
       flex: 1,
