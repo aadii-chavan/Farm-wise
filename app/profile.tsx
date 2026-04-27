@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import React, { useState } from 'react';
+import * as Linking from 'expo-linking';
 import {
     Alert,
     Pressable,
@@ -11,6 +12,9 @@ import {
     StyleSheet,
     TextInput,
     View,
+    Modal,
+    TouchableOpacity,
+    ActivityIndicator,
 } from 'react-native';
 
 import { supabase } from '@/utils/supabase';
@@ -21,6 +25,8 @@ export default function ProfileScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   React.useEffect(() => {
     loadProfile();
@@ -77,11 +83,31 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleChangePassword = () => {
-     Alert.alert('Security', 'Please use the "Forgot Password" link on the login screen to reset your password safely.', [
-         { text: 'Cancel', style: 'cancel' },
-         { text: 'Okay', onPress: () => {} }
-     ]);
+  const handleChangePassword = async () => {
+    setShowResetModal(true);
+  };
+
+  const handleConfirmReset = async () => {
+    if (!user?.email) return;
+    
+    setResetLoading(true);
+    try {
+      const redirectTo = Linking.createURL('reset-password', { scheme: 'tempapp' });
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email!, {
+        redirectTo,
+      });
+      
+      if (error) throw error;
+      
+      setShowResetModal(false);
+      setTimeout(() => {
+        Alert.alert('Success', 'Reset link sent! Please check your email.');
+      }, 500);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to send reset link');
+    } finally {
+      setResetLoading(false);
+    }
   };
 
 
@@ -204,6 +230,52 @@ export default function ProfileScreen() {
 
         <Text style={styles.versionText}>Version 1.0.0 (Build 42)</Text>
       </View>
+
+      {/* Custom Reset Password Modal */}
+      <Modal
+        visible={showResetModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowResetModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalIconContainer}>
+                <Ionicons name="lock-open-outline" size={32} color={Palette.primary} />
+              </View>
+            </View>
+            
+            <Text style={styles.modalTitle}>Reset Password?</Text>
+            <Text style={styles.modalSubtitle}>
+              We will send a secure password reset link to your email:{"\n"}
+              <Text style={{ fontFamily: 'Outfit-Bold', color: Palette.text }}>{user?.email}</Text>
+            </Text>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity 
+                style={styles.modalCancelBtn} 
+                onPress={() => setShowResetModal(false)}
+                disabled={resetLoading}
+              >
+                <Text style={styles.modalCancelText}>Not Now</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalConfirmBtn, resetLoading && { opacity: 0.7 }]} 
+                onPress={handleConfirmReset}
+                disabled={resetLoading}
+              >
+                {resetLoading ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <Text style={styles.modalConfirmText}>Send Link</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -440,5 +512,85 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontFamily: 'Outfit-Medium',
     marginBottom: 10,
-  }
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 32,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    marginBottom: 20,
+  },
+  modalIconContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: Palette.primary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontFamily: 'Outfit-Bold',
+    color: Palette.text,
+    marginBottom: 12,
+  },
+  modalSubtitle: {
+    fontSize: 15,
+    fontFamily: 'Outfit',
+    color: Palette.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalCancelBtn: {
+    flex: 1,
+    height: 54,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontFamily: 'Outfit-Bold',
+    color: '#64748B',
+  },
+  modalConfirmBtn: {
+    flex: 2,
+    height: 54,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Palette.primary,
+    shadowColor: Palette.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  modalConfirmText: {
+    fontSize: 16,
+    fontFamily: 'Outfit-Bold',
+    color: 'white',
+  },
 });

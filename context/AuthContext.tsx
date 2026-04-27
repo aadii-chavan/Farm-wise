@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../utils/supabase';
+import { AppState } from 'react-native';
 
 interface AuthContextType {
   session: Session | null;
@@ -20,16 +21,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for active session on mount
     const checkSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         if (error) {
-          // If there's an error (like an invalid refresh token), 
-          // sign out to clear any corrupted storage
-          await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-        } else {
-          setSession(session);
-          setUser(session?.user ?? null);
+          // Only sign out if the error is serious (e.g. invalid refresh token)
+          // Avoid clearing session on network errors
+          if (error.status === 400 || error.message.includes('refresh_token_not_found')) {
+            await supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+          }
+        } else if (currentSession) {
+          setSession(currentSession);
+          setUser(currentSession.user);
         }
       } catch (err) {
         console.error('Error checking session:', err);
@@ -41,14 +44,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkSession();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
       setLoading(false);
+    });
+
+    // AppState handling for session persistence
+    // This tells Supabase to check for session refresh when app comes to foreground
+    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        supabase.auth.startAutoRefresh();
+      } else {
+        supabase.auth.stopAutoRefresh();
+      }
     });
 
     return () => {
       subscription.unsubscribe();
+      appStateSubscription.remove();
     };
   }, []);
 
