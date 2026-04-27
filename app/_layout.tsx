@@ -39,7 +39,7 @@ function RootLayoutRedirect() {
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
+    const inAuthGroup = (segments as string[]).includes('(auth)');
 
     if (!session && !inAuthGroup) {
       // Redirect to login if not authenticated and not in auth group

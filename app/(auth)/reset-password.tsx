@@ -3,6 +3,7 @@ import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import {
     ActivityIndicator,
     Alert,
@@ -22,6 +23,17 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const { session, loading: authLoading } = useAuth();
+
+  React.useEffect(() => {
+    if (!authLoading && !session) {
+      Alert.alert(
+        'Session Expired',
+        'Your password reset link may have expired or is invalid. Please request a new one.',
+        [{ text: 'OK', onPress: () => router.replace('/forgot-password') }]
+      );
+    }
+  }, [session, authLoading]);
 
   const handleResetPassword = async () => {
     if (!password || !confirmPassword) {

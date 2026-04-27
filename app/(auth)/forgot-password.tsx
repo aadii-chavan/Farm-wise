@@ -31,9 +31,10 @@ export default function ForgotPassword() {
     setLoading(true);
     
     // Generate the redirect URL for depth linking back into the app
-    const redirectTo = Linking.createURL('/reset-password');
+    // We explicitly specify the scheme to avoid localhost issues in development
+    const redirectTo = Linking.createURL('reset-password', { scheme: 'tempapp' });
     
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo,
     });
 

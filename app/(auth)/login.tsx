@@ -4,6 +4,7 @@ import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import {
     ActivityIndicator,
     Alert,
@@ -23,6 +24,20 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const { signOut } = useAuth();
+
+  React.useEffect(() => {
+    // Clear any stale session when reaching login page
+    // This helps prevent "invalid creds" errors from old tokens
+    const clearStaleSession = async () => {
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
+    };
+    clearStaleSession();
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -31,16 +46,28 @@ export default function Login() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
+      });
 
-    if (error) {
-      Alert.alert('Error', error.message);
+      if (error) {
+        // Map common errors to more user-friendly messages
+        let message = error.message;
+        if (message === 'Invalid login credentials') {
+          message = 'Invalid email or password. Please try again.';
+        }
+        Alert.alert('Sign In Failed', message);
+      } else {
+        // Auth state listener in RootLayout will handle redirect
+        // We keep loading true to show the spinner until redirect happens
+        return; 
+      }
+    } catch (err: any) {
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
       setLoading(false);
-    } else {
-      // Auth state listener in RootLayout will handle redirect
     }
   };
 
